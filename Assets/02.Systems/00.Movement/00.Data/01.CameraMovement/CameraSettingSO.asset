@@ -14,7 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMovement.CameraSettingSO
   mouseWeight: 0.25
   followSmoothTime: 0.15
-  minZoom: 5
-  maxZoom: 15
+  minZoomFOV: 30
+  maxZoomFOV: 60
+  minCameraDistance: 8
+  maxCameraDistance: 18
   zoomSpeed: 2
-  defaultZoom: 10
+  defaultZoomRatio: 0.5
+  maxMouseFocusDistance: 5.5
