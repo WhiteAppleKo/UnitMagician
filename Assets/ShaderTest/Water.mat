@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Sphere
+  m_Name: Water
   m_Shader: {fileID: -6465566751694194690, guid: eec4d17107ca89145acf2ea97138e42b, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -233,10 +233,10 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     - __1: 0.003
-    - __4: 0.29
+    - __4: 0.568
     - __6: 0.1
     - __7: 0.2
-    - __8: 0.6
+    - __8: 0.521
     - __9: 3
     m_Colors:
     - Color_36218622185947c6a5ae36366d8e21d8: {r: 0, g: 0.58708096, b: 1, a: 1}
