@@ -1,0 +1,167 @@
+using System.Text;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
+using VContainer;
+
+namespace UnitSystem
+{
+    public class UnitCasterSystem : MonoBehaviour
+    {
+        [Header("Targeting Settings")]
+        [SerializeField] private Camera mainCamera;
+        [SerializeField] private LayerMask targetLayer = -1;
+        [SerializeField] private UIDocument uiDocument;
+
+        private VisualElement targetInfoContainer;
+        private Label targetNameText;
+        private Label targetUnitsText;
+
+        private UnitChangeService changeService;
+        private UnitQuickSlotUIComponent quickSlotUI;
+
+        [Inject]
+        public void Construct(UnitChangeService changeService, UnitQuickSlotUIComponent quickSlotUI)
+        {
+            this.changeService = changeService;
+            this.quickSlotUI = quickSlotUI;
+        }
+
+        private void OnEnable()
+        {
+            if (uiDocument == null) uiDocument = GetComponent<UIDocument>();
+            if (uiDocument != null && uiDocument.rootVisualElement != null)
+            {
+                var root = uiDocument.rootVisualElement;
+                targetInfoContainer = root.Q<VisualElement>("TargetInfoContainer");
+                targetNameText = root.Q<Label>("TargetNameText");
+                targetUnitsText = root.Q<Label>("TargetUnitsText");
+            }
+        }
+
+        private void Update()
+        {
+            HandleMouseHoverAndCast();
+        }
+
+        private void HandleMouseHoverAndCast()
+        {
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+
+            if (mainCamera == null) mainCamera = Camera.main;
+            if (mainCamera == null) return;
+
+            Vector2 mousePos = mouse.position.ReadValue();
+            Ray ray = mainCamera.ScreenPointToRay(mousePos);
+
+            bool isMouseClicked = mouse.rightButton.wasPressedThisFrame || mouse.leftButton.wasPressedThisFrame;
+
+            if (isMouseClicked)
+            {
+                Debug.Log($"[UnitCasterSystem] Mouse Clicked at Pos: {mousePos}");
+            }
+
+            if (Physics.Raycast(ray, out RaycastHit hit, 100f, targetLayer))
+            {
+                if (isMouseClicked)
+                {
+                    Debug.Log($"[UnitCasterSystem] Raycast Hit Success! Clicked Object Name: <color=yellow>{hit.collider.name}</color>");
+                }
+
+                var targetDataGroup = hit.collider.GetComponent<RuntimeDataUnitGroup>();
+                if (targetDataGroup != null)
+                {
+                    // 1. 마우스 조준(Hover) 시각 UI 피드백 표출
+                    ShowTargetHoverUI(hit.collider.name, targetDataGroup);
+
+                    // 2. 마우스 클릭 시 선택 단위 매칭 핀포인트 변환 수행
+                    if (isMouseClicked)
+                    {
+                        PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
+                        if (selectedUnitData == null)
+                        {
+                            Debug.LogWarning("[UnitCasterSystem] No Unit is currently selected in Quick Slots.");
+                            return;
+                        }
+
+                        var matchingUnitData = targetDataGroup.GetMatchingUnitData(selectedUnitData.UnitType);
+
+                        if (matchingUnitData != null)
+                        {
+                            float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
+                            Debug.Log($"[UnitCasterSystem] Pinpoint Unit Change for {hit.collider.name}: {matchingUnitData.CurrentUnit} -> {selectedUnitData.UnitType}");
+
+                            if (changeService != null)
+                            {
+                                changeService.ChangeUnit(matchingUnitData, selectedUnitData, newValue);
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[UnitCasterSystem] Target {hit.collider.name} does not support unit category for {selectedUnitData.UnitType}");
+                        }
+                    }
+                    return;
+                }
+                else if (isMouseClicked)
+                {
+                    Debug.LogWarning($"[UnitCasterSystem] Hit Object <color=red>{hit.collider.name}</color> does NOT have RuntimeDataUnitGroup component attached!");
+                }
+            }
+            else if (isMouseClicked)
+            {
+                Debug.LogWarning("[UnitCasterSystem] Raycast Hit Failed. No Collider in ray path.");
+            }
+
+            // 조준 대상 없을 시 UI 숨김
+            HideTargetHoverUI();
+        }
+
+        private void ShowTargetHoverUI(string objectName, RuntimeDataUnitGroup targetDataGroup)
+        {
+            if (targetInfoContainer == null) return;
+
+            targetInfoContainer.style.display = DisplayStyle.Flex;
+            if (targetNameText != null) targetNameText.text = $"Target: {objectName}";
+
+            if (targetUnitsText != null)
+            {
+                StringBuilder sb = new StringBuilder("Units: ");
+                foreach (var unitData in targetDataGroup.UnitRuntimeDataList)
+                {
+                    sb.Append($"[{unitData.CurrentUnit}: {unitData.CurrentValue}] ");
+                }
+                targetUnitsText.text = sb.ToString();
+            }
+        }
+
+        private void HideTargetHoverUI()
+        {
+            if (targetInfoContainer != null)
+            {
+                targetInfoContainer.style.display = DisplayStyle.None;
+            }
+        }
+
+        private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
+        {
+            if (targetUnit == null || spellUnit == null) return 0f;
+            
+            float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;
+
+            switch (spellUnit.UnitType)
+            {
+                case UnitType.Mass:
+                    // 대상 구체의 오리지널 질량값 * 캐스터가 발사하는 단위 에셋의 고유 멀티플라이어
+                    return originalVal * spellUnit.MassScaleMultiplier;
+                case UnitType.Volume:
+                    return originalVal;
+                case UnitType.Vector_Reverse:
+                    return -targetUnit.CurrentValue;
+                default:
+                    return targetUnit.CurrentValue;
+            }
+        }
+    }
+}

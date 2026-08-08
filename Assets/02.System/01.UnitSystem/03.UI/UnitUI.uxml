@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElementsSchema.xsd" editor-extension-mode="False">
+    <ui:VisualElement name="Root" picking-mode="Ignore" style="flex-grow: 1; justify-content: space-between; padding: 20px;">
+        <!-- QuickSlot UI Container -->
+        <ui:VisualElement name="QuickSlotContainer" picking-mode="Ignore" style="flex-direction: row; align-items: center; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px;">
+            <ui:VisualElement name="HighlightOutline" picking-mode="Ignore" style="position: absolute; width: 64px; height: 64px; border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 4px; display: none;" />
+            <ui:VisualElement name="SelectedUnitIcon" picking-mode="Ignore" style="width: 60px; height: 60px; margin-right: 10px;" />
+            <ui:Label name="ManaCostText" picking-mode="Ignore" text="Cost: 0" style="color: rgb(255, 255, 255); font-size: 18px; -unity-font-style: bold;" />
+        </ui:VisualElement>
+
+        <!-- Test Unlock Buttons Container (Top Right Corner) -->
+        <ui:VisualElement name="UnlockButtonContainer" picking-mode="Ignore" style="position: absolute; top: 20px; right: 20px; flex-direction: column; align-items: flex-end; background-color: rgba(0, 0, 0, 0.7); padding: 8px; border-radius: 6px;">
+        </ui:VisualElement>
+
+        <!-- Inventory Container -->
+        <ui:VisualElement name="InventoryContainer" picking-mode="Ignore" style="flex-direction: row; flex-wrap: wrap; background-color: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: 8px; margin-top: 10px;" />
+
+        <!-- Target Object Info & Hover Visual Feedback Container -->
+        <ui:VisualElement name="TargetInfoContainer" picking-mode="Ignore" style="position: absolute; bottom: 20px; right: 20px; background-color: rgba(0, 0, 0, 0.85); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 8px; padding: 12px; display: none;">
+            <ui:Label name="TargetNameText" picking-mode="Ignore" text="Target: None" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold; margin-bottom: 4px;" />
+            <ui:Label name="TargetUnitsText" picking-mode="Ignore" text="Units: Mass_Kg (10.0), Volume_L (1.0)" style="color: rgb(255, 255, 255); font-size: 14px;" />
+        </ui:VisualElement>
+
+        <!-- Unlock Popup Panel -->
+        <ui:VisualElement name="PopupPanel" style="position: absolute; top: 30%; left: 35%; width: 300px; height: 180px; background-color: rgba(20, 20, 20, 0.9); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; align-items: center; justify-content: center; display: none;">
+            <ui:Label name="PopupTitleText" picking-mode="Ignore" text="Unit Unlocked!" style="color: rgb(255, 215, 0); font-size: 20px; margin-bottom: 10px; -unity-font-style: bold;" />
+            <ui:VisualElement name="PopupIconImage" picking-mode="Ignore" style="width: 64px; height: 64px;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
