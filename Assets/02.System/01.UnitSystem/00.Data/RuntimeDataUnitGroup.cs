@@ -8,11 +8,8 @@ namespace UnitSystem
     public class RuntimeDataUnitGroup : MonoBehaviour
     {
         [Header("Unit Group Setup")]
-        [SerializeField] private List<UnitSetupData> initialUnitSetups = new()
-        {
-            new UnitSetupData { unitType = UnitType.Mass, initialValue = 10.0f },
-            new UnitSetupData { unitType = UnitType.Volume, initialValue = 1.0f }
-        };
+        [SerializeField] public UnitType supportedUnits = UnitType.None;
+        [SerializeField, HideInInspector] public float bakedMassValue = 1.0f;
 
         public event Action<RuntimeDataUnitGroup, RuntimeDataUnit> OnUnitGroupChanged;
 
@@ -62,13 +59,26 @@ namespace UnitSystem
         {
             UnitRuntimeDataList.Clear();
 
-            foreach (var setup in initialUnitSetups)
+            // 플래그 체크 후 개별 인스턴스 생성
+            if (HasUnit(UnitType.Mass))
             {
-                var runtimeData = new RuntimeDataUnit(setup.unitType, setup.initialValue, null);
-                runtimeData.OnUnitChanged += HandleUnitChanged;
-                UnitRuntimeDataList.Add(runtimeData);
+                CreateAndAddRuntimeUnit(UnitType.Mass, bakedMassValue);
             }
-            // 게임 시작 시 후보군(풀) 리스트만 준비하고, 어플리케이터 자동 실행 로직은 폐기합니다.
+            if (HasUnit(UnitType.Volume))
+            {
+                CreateAndAddRuntimeUnit(UnitType.Volume, 1.0f);
+            }
+            if (HasUnit(UnitType.Vector))
+            {
+                CreateAndAddRuntimeUnit(UnitType.Vector, 1.0f);
+            }
+        }
+
+        private void CreateAndAddRuntimeUnit(UnitType type, float value)
+        {
+            var runtimeData = new RuntimeDataUnit(type, value, null);
+            runtimeData.OnUnitChanged += HandleUnitChanged;
+            UnitRuntimeDataList.Add(runtimeData);
         }
 
         private void OnDestroy()
@@ -84,11 +94,18 @@ namespace UnitSystem
             OnUnitGroupChanged?.Invoke(this, data);
         }
 
+        public bool HasUnit(UnitType targetType)
+        {
+            return (supportedUnits & targetType) == targetType && targetType != UnitType.None;
+        }
+
         public RuntimeDataUnit GetMatchingUnitData(UnitType targetType)
         {
+            if (!HasUnit(targetType)) return null;
+
             foreach (var unitData in UnitRuntimeDataList)
             {
-                if (unitData.CurrentUnit == targetType)
+                if ((unitData.CurrentUnit & targetType) == targetType)
                 {
                     return unitData;
                 }

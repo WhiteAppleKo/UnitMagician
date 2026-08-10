@@ -18,14 +18,17 @@ namespace UnitSystem
             float originalMass = runtimeData.OriginalValue > 0f ? runtimeData.OriginalValue : 1.0f;
             float ratio = currentMass / Mathf.Max(0.0001f, originalMass);
 
-            // 초기 스케일 기준 상대 비율 스케일 적용
+            // 스케일 비례 적용: 질량(부피) 비율의 세제곱근(Cube Root) 산출
+            float scaleRatio = Mathf.Pow(ratio, 1f / 3f);
+            
+            // 초기 스케일 기준 세제곱근 비율 스케일 적용
             Vector3 baseScale = Vector3.one;
             var visualizer = target.GetComponent<UnitTargetObjectVisualizer>();
             if (visualizer != null)
             {
                 baseScale = visualizer.InitialScale;
             }
-            target.transform.localScale = baseScale * ratio;
+            target.transform.localScale = baseScale * scaleRatio;
 
             Debug.Log($"[MassUnitApplicatorSO] Applied Mass & Scale for {target.name}. Mass: {currentMass}, Ratio: {ratio}");
         }

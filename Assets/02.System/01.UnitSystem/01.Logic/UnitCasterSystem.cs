@@ -85,6 +85,12 @@ namespace UnitSystem
                             return;
                         }
 
+                        if (!targetDataGroup.HasUnit(selectedUnitData.UnitType))
+                        {
+                            Debug.LogWarning($"[UnitCasterSystem] Target {hit.collider.name} does not support unit category for {selectedUnitData.UnitType}");
+                            return;
+                        }
+
                         var matchingUnitData = targetDataGroup.GetMatchingUnitData(selectedUnitData.UnitType);
 
                         if (matchingUnitData != null)
@@ -96,10 +102,6 @@ namespace UnitSystem
                             {
                                 changeService.ChangeUnit(matchingUnitData, selectedUnitData, newValue);
                             }
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"[UnitCasterSystem] Target {hit.collider.name} does not support unit category for {selectedUnitData.UnitType}");
                         }
                     }
                     return;
@@ -157,7 +159,7 @@ namespace UnitSystem
                     return originalVal * spellUnit.MassScaleMultiplier;
                 case UnitType.Volume:
                     return originalVal;
-                case UnitType.Vector_Reverse:
+                case UnitType.Vector:
                     return -targetUnit.CurrentValue;
                 default:
                     return targetUnit.CurrentValue;

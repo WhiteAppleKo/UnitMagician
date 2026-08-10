@@ -33,6 +33,7 @@ namespace UnitSystem
                 UnitType correctType = unitData.UnitType;
                 if (uName.Contains("kg") || uName.Contains("g")) correctType = UnitType.Mass;
                 else if (uName.Contains("l") || uName.Contains("ml")) correctType = UnitType.Volume;
+                else if (uName.Contains("vector") || uName.Contains("reverse")) correctType = UnitType.Vector;
 
                 bool needsSave = false;
                 if (unitData.UnitType != correctType)
@@ -77,7 +78,7 @@ namespace UnitSystem
                     defaultAssetName = "VolumeUnitApplicator";
                     targetClassType = typeof(VolumeUnitApplicatorSO);
                     break;
-                case UnitType.Vector_Reverse:
+                case UnitType.Vector:
                     searchType = "t:VectorUnitApplicatorSO";
                     defaultAssetName = "VectorUnitApplicator";
                     targetClassType = typeof(VectorUnitApplicatorSO);

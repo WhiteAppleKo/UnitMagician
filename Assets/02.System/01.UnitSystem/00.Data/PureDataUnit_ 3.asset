@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b41b041c28a1094b8872a9fd9df9f54, type: 3}
-  m_Name: PureDataUnit_
+  m_Name: PureDataUnit_ 3
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.PureDataUnit
   unitType: 2
-  unitName: L
+  unitName: Torus
   baseCost: 10
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
-  applicator: {fileID: 11400000, guid: f480aa3c068a1304db8cc762442303cd, type: 2}
-  overlayMaterial: {fileID: 2100000, guid: 3dc565efe39e88e43b9c3f10fdebf550, type: 2}
+  applicator: {fileID: 11400000, guid: 92db8b4af3c75aa4ab502e9d058003ee, type: 2}
+  overlayMaterial: {fileID: -876546973899608171, guid: 1309825521bec83449a4f89112d8c9ee, type: 3}
   massScaleMultiplier: 1

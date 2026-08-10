@@ -1,9 +1,11 @@
 namespace UnitSystem
 {
+    [System.Flags]
     public enum UnitType
     {
-        Mass,
-        Volume,
-        Vector_Reverse
+        None = 0,
+        Mass = 1 << 0,
+        Volume = 1 << 1,
+        Vector = 1 << 2
     }
 }

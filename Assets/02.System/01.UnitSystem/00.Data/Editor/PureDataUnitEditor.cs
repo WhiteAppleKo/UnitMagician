@@ -64,10 +64,10 @@ namespace UnitSystem
                 EditorGUILayout.PropertyField(massScaleMultiplierProp);
             }
             // 방향 단위 타입 선택 시
-            else if (currentType == UnitType.Vector_Reverse)
+            else if (currentType == UnitType.Vector)
             {
                 EditorGUILayout.LabelField("Vector / Direction Settings", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Vector_Reverse uses VectorUnitApplicatorSO to reverse object velocity & direction.", MessageType.Info);
+                EditorGUILayout.HelpBox("Vector uses VectorUnitApplicatorSO to reverse object velocity & direction.", MessageType.Info);
             }
 
             serializedObject.ApplyModifiedProperties();
@@ -91,7 +91,7 @@ namespace UnitSystem
                     defaultAssetName = "VolumeUnitApplicator";
                     targetClassType = typeof(VolumeUnitApplicatorSO);
                     break;
-                case UnitType.Vector_Reverse:
+                case UnitType.Vector:
                     searchType = "t:VectorUnitApplicatorSO";
                     defaultAssetName = "VectorUnitApplicator";
                     targetClassType = typeof(VectorUnitApplicatorSO);
