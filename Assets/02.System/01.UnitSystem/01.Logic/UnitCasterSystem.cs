@@ -95,12 +95,30 @@ namespace UnitSystem
 
                         if (matchingUnitData != null)
                         {
-                            float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                            Debug.Log($"[UnitCasterSystem] Pinpoint Unit Change for {hit.collider.name}: {matchingUnitData.CurrentUnit} -> {selectedUnitData.UnitType}");
-
-                            if (changeService != null)
+                            if (selectedUnitData.UnitType == UnitType.Vector)
                             {
-                                changeService.ChangeUnit(matchingUnitData, selectedUnitData, newValue);
+                                var gizmoUI = GetComponent<UnitVectorGizmoUIComponent>();
+                                if (gizmoUI == null) gizmoUI = FindFirstObjectByType<UnitVectorGizmoUIComponent>();
+
+                                if (gizmoUI != null)
+                                {
+                                    gizmoUI.OpenVectorGizmo(hit.collider.gameObject, matchingUnitData);
+                                    Debug.Log($"[UnitCasterSystem] Opened Vector Gizmo UI for {hit.collider.name}");
+                                }
+                                else
+                                {
+                                    Debug.LogWarning("[UnitCasterSystem] UnitVectorGizmoUIComponent not found in scene.");
+                                }
+                            }
+                            else
+                            {
+                                float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
+                                Debug.Log($"[UnitCasterSystem] Pinpoint Unit Change for {hit.collider.name}: {matchingUnitData.CurrentUnit} -> {selectedUnitData.UnitType}");
+
+                                if (changeService != null)
+                                {
+                                    changeService.ChangeUnit(matchingUnitData, selectedUnitData, newValue);
+                                }
                             }
                         }
                     }

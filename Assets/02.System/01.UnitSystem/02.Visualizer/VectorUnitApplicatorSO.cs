@@ -9,15 +9,21 @@ namespace UnitSystem
         {
             if (target == null || runtimeData == null) return;
 
+            Vector3 applyDirection = runtimeData.VectorDirection != Vector3.zero ? runtimeData.VectorDirection : target.transform.forward;
+            float applySpeed = runtimeData.VectorSpeed;
+
             var rb = target.GetComponent<Rigidbody>();
-            if (rb != null && rb.linearVelocity != Vector3.zero)
+            if (rb != null)
             {
-                rb.linearVelocity = -rb.linearVelocity;
+                rb.linearVelocity = applyDirection * applySpeed;
             }
 
-            target.transform.forward = -target.transform.forward;
+            if (applyDirection != Vector3.zero)
+            {
+                target.transform.forward = applyDirection;
+            }
 
-            Debug.Log($"[VectorUnitApplicatorSO] Applied Vector Reversal for {target.name}. Forward: {target.transform.forward}");
+            Debug.Log($"[VectorUnitApplicatorSO] Applied Vector for {target.name}. Direction: {applyDirection}, Speed: {applySpeed}");
         }
     }
 }

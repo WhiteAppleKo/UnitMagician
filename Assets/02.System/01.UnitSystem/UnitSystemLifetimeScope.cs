@@ -15,6 +15,7 @@ namespace UnitSystem
         [SerializeField] private UnitInventoryUIComponent inventoryUI;
         [SerializeField] private UnitUnlockPopupUIComponent unlockPopupUI;
         [SerializeField] private UnitUnlockTestUIComponent unlockTestUI;
+        [SerializeField] private UnitVectorGizmoUIComponent vectorGizmoUI;
 
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
@@ -31,6 +32,7 @@ namespace UnitSystem
             if (inventoryUI != null) builder.RegisterComponent(inventoryUI);
             if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
             if (unlockTestUI != null) builder.RegisterComponent(unlockTestUI);
+            if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
 
             // Gameplay Component Register
             if (unitCaster != null) builder.RegisterComponent(unitCaster);

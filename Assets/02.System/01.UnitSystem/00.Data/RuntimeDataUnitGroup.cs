@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using VContainer;
 
 namespace UnitSystem
 {
@@ -15,40 +14,8 @@ namespace UnitSystem
 
         public List<RuntimeDataUnit> UnitRuntimeDataList { get; private set; } = new();
 
-        private IUnitCatalogService catalogService;
-
-        [Inject]
-        public void Construct(IUnitCatalogService catalogService)
-        {
-            this.catalogService = catalogService;
-            InitUnits();
-        }
-
         private void Awake()
         {
-            // VContainer에서 직접 의존성 해결 시도 (미등록된 씬 오브젝트 대응)
-            if (catalogService == null)
-            {
-                var scope = FindObjectOfType<UnitSystemLifetimeScope>();
-                if (scope != null && scope.Container != null)
-                {
-                    catalogService = scope.Container.Resolve<IUnitCatalogService>();
-                }
-            }
-        }
-
-        private void Start()
-        {
-            // Start 시점에 아직도 null이라면 다시 시도 (Awake 순서 문제 방지)
-            if (catalogService == null)
-            {
-                var scope = FindObjectOfType<UnitSystemLifetimeScope>();
-                if (scope != null && scope.Container != null)
-                {
-                    catalogService = scope.Container.Resolve<IUnitCatalogService>();
-                }
-            }
-
             if (UnitRuntimeDataList.Count == 0)
             {
                 InitUnits();

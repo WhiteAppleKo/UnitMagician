@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b41b041c28a1094b8872a9fd9df9f54, type: 3}
   m_Name: PureDataUnit_ 3
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.PureDataUnit
-  unitType: 2
+  unitType: 4
   unitName: Torus
   baseCost: 10
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
