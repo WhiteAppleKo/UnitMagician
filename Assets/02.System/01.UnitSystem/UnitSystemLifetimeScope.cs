@@ -19,6 +19,7 @@ namespace UnitSystem
 
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
+        [SerializeField] private UnitGhostPreviewComponent ghostPreview;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -36,6 +37,7 @@ namespace UnitSystem
 
             // Gameplay Component Register
             if (unitCaster != null) builder.RegisterComponent(unitCaster);
+            if (ghostPreview != null) builder.RegisterComponent(ghostPreview);
         }
     }
 }

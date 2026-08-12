@@ -53,6 +53,13 @@ namespace UnitSystem
             if (mainCamera == null) return;
 
             Vector2 mousePos = mouse.position.ReadValue();
+
+            // UI Toolkit 가이드라인 준수: 마우스 포인터 위치 UI Toolkit 엘리먼트 실시간 피킹(Pick) 검사 및 인게임 레이캐스트 차단
+            if (IsPointerOverUIToolkit(mousePos))
+            {
+                HideTargetHoverUI();
+                return;
+            }
             Ray ray = mainCamera.ScreenPointToRay(mousePos);
 
             bool isMouseClicked = mouse.rightButton.wasPressedThisFrame || mouse.leftButton.wasPressedThisFrame;
@@ -97,6 +104,9 @@ namespace UnitSystem
                         {
                             if (selectedUnitData.UnitType == UnitType.Vector)
                             {
+                                // 선택된 PureDataUnit (Applicator 포함) 타깃 런타임 데이터에 이벤트를 발행하지 않고 바인딩만 진행
+                                matchingUnitData.SetPureDataUnit(selectedUnitData);
+
                                 var gizmoUI = GetComponent<UnitVectorGizmoUIComponent>();
                                 if (gizmoUI == null) gizmoUI = FindFirstObjectByType<UnitVectorGizmoUIComponent>();
 
@@ -182,6 +192,25 @@ namespace UnitSystem
                 default:
                     return targetUnit.CurrentValue;
             }
+        }
+
+        private bool IsPointerOverUIToolkit(Vector2 mouseScreenPos)
+        {
+            var documents = FindObjectsByType<UnityEngine.UIElements.UIDocument>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var doc in documents)
+            {
+                if (doc == null || doc.rootVisualElement == null || doc.rootVisualElement.panel == null) continue;
+
+                var panel = doc.rootVisualElement.panel;
+                Vector2 panelPos = UnityEngine.UIElements.RuntimePanelUtils.ScreenToPanel(panel, new Vector2(mouseScreenPos.x, Screen.height - mouseScreenPos.y));
+                UnityEngine.UIElements.VisualElement picked = panel.Pick(panelPos);
+
+                if (picked != null && picked != doc.rootVisualElement)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

@@ -34,6 +34,11 @@ namespace UnitSystem
             OnUnitChanged?.Invoke(this);
         }
 
+        public void SetPureDataUnit(PureDataUnit newUnitData)
+        {
+            CurrentUnitData = newUnitData;
+        }
+
         public void SetVectorData(Vector3 direction, float speed)
         {
             VectorDirection = direction.normalized;

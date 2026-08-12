@@ -10,6 +10,7 @@ namespace UnitSystem
         [SerializeField] private LineRenderer trajectoryLineRenderer;
         [SerializeField] private LineRenderer rotationRingRenderer;
         [SerializeField] private float maxSpeedRange = 50f;
+        [SerializeField] private UnitGhostPreviewComponent ghostPreview;
 
         private GameObject targetObject;
         private RuntimeDataUnit targetRuntimeData;
@@ -24,7 +25,12 @@ namespace UnitSystem
         private Button applyButton;
 
         private Camera mainCamera;
-        private bool isDraggingRing = false;
+
+        [VContainer.Inject]
+        public void Construct(UnitGhostPreviewComponent ghostPreview)
+        {
+            this.ghostPreview = ghostPreview;
+        }
 
         private void OnEnable()
         {
@@ -39,6 +45,8 @@ namespace UnitSystem
             if (uiDocument != null && uiDocument.rootVisualElement != null)
             {
                 rootVisualElement = uiDocument.rootVisualElement;
+                rootVisualElement.pickingMode = PickingMode.Ignore; // 투명 배경 영역 포인터 감지 차단
+
                 vectorGizmoContainer = rootVisualElement.Q<VisualElement>("VectorGizmoContainer");
                 speedSlider = rootVisualElement.Q<Slider>("SpeedSlider");
                 speedValueText = rootVisualElement.Q<Label>("SpeedValueText");
@@ -97,9 +105,71 @@ namespace UnitSystem
                 {
                     applyButton.clicked += ApplyVectorAndClose;
                 }
+
+                // 가이드라인 3항: 가변형 UI 드래그 포인터 이벤트 등록
+                SetupDraggableWindow();
             }
 
             HideGizmoUI();
+        }
+
+        private bool isDraggingWindow = false;
+        private Vector3 startPointerPos;
+        private Vector3 startTranslatePos;
+
+        private void SetupDraggableWindow()
+        {
+            if (vectorGizmoContainer == null) return;
+
+            vectorGizmoContainer.RegisterCallback<PointerDownEvent>(OnWindowPointerDown);
+            vectorGizmoContainer.RegisterCallback<PointerMoveEvent>(OnWindowPointerMove);
+            vectorGizmoContainer.RegisterCallback<PointerUpEvent>(OnWindowPointerUp);
+        }
+
+        private void OnWindowPointerDown(PointerDownEvent evt)
+        {
+            if (evt.target is Slider || evt.target is Button) return;
+
+            isDraggingWindow = true;
+            startPointerPos = evt.position;
+            startTranslatePos = new Vector3(vectorGizmoContainer.resolvedStyle.translate.x, vectorGizmoContainer.resolvedStyle.translate.y, 0f);
+
+            // 가이드라인 3항 규칙 2: BringToFront() 부모 계층 최상단 렌더링/입력 반영
+            vectorGizmoContainer.BringToFront();
+            vectorGizmoContainer.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+        }
+
+        private void OnWindowPointerMove(PointerMoveEvent evt)
+        {
+            if (!isDraggingWindow || !vectorGizmoContainer.HasPointerCapture(evt.pointerId)) return;
+
+            Vector3 delta = evt.position - startPointerPos;
+            float targetX = startTranslatePos.x + delta.x;
+            float targetY = startTranslatePos.y + delta.y;
+
+            // 가이드라인 3항 규칙 3: UI 창 패널 영역 밖 이탈 방지 좌표 제한 처리 (Clamp)
+            float minX = -Screen.width + vectorGizmoContainer.layout.width + 40f;
+            float maxX = 0f;
+            float minY = 0f;
+            float maxY = Screen.height - vectorGizmoContainer.layout.height - 40f;
+
+            float clampedX = Mathf.Clamp(targetX, minX, maxX);
+            float clampedY = Mathf.Clamp(targetY, minY, maxY);
+
+            // 가이드라인 3항 규칙 1: USS translate 속성 업데이트 위치 이동 구현
+            vectorGizmoContainer.style.translate = new Translate(clampedX, clampedY, 0f);
+            evt.StopPropagation();
+        }
+
+        private void OnWindowPointerUp(PointerUpEvent evt)
+        {
+            if (isDraggingWindow && vectorGizmoContainer.HasPointerCapture(evt.pointerId))
+            {
+                vectorGizmoContainer.ReleasePointer(evt.pointerId);
+                isDraggingWindow = false;
+                evt.StopPropagation();
+            }
         }
 
         public void OpenVectorGizmo(GameObject target, RuntimeDataUnit runtimeData)
@@ -126,6 +196,12 @@ namespace UnitSystem
 
             isOpen = true;
             ShowGizmoUI();
+
+            if (ghostPreview != null)
+            {
+                ghostPreview.ShowPreview(targetObject);
+            }
+
             UpdateVisuals();
         }
 
@@ -143,6 +219,18 @@ namespace UnitSystem
             if (mouse == null || mainCamera == null) return;
 
             Vector2 mousePos = mouse.position.ReadValue();
+
+            // UI Toolkit 작업 가이드라인 준수: UI 엘리먼트 실시간 피킹(Pick) 검사 및 인게임 레이캐스트 차단
+            if (uiDocument != null && uiDocument.rootVisualElement != null && uiDocument.rootVisualElement.panel != null)
+            {
+                var panel = uiDocument.rootVisualElement.panel;
+                Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(mousePos.x, Screen.height - mousePos.y));
+                VisualElement picked = panel.Pick(panelPos);
+                if (picked != null && picked != rootVisualElement)
+                {
+                    return; // UI 조작 중 레이캐스트 차단
+                }
+            }
 
             // 마우스 클릭 시 대상 오브젝트 위치 -> 마우스 클릭 지점 사이 정규화(Normalize) 방향 즉시 설정
             if (mouse.leftButton.isPressed)
@@ -204,6 +292,12 @@ namespace UnitSystem
             {
                 speedValueText.text = $"Speed: {currentSpeed:F1} m/s";
             }
+
+            // 4. Ghost Preview 실시간 Transform 갱신
+            if (ghostPreview != null && ghostPreview.IsShowing)
+            {
+                ghostPreview.UpdatePreview(targetObject.transform.localScale, currentDirection);
+            }
         }
 
         private void OnSpeedSliderChanged(ChangeEvent<float> evt)
@@ -225,9 +319,19 @@ namespace UnitSystem
                     return;
                 }
 
-                // RuntimeData 수치 갱신 및 Applicator 전략 적용
-                targetRuntimeData.SetVectorData(currentDirection, currentSpeed);
-                targetRuntimeData.CurrentUnitData.Applicator.Apply(targetObject, targetRuntimeData);
+                if (ghostPreview != null && ghostPreview.IsShowing)
+                {
+                    ghostPreview.ApplyAndDestroy(() =>
+                    {
+                        targetRuntimeData.SetVectorData(currentDirection, currentSpeed);
+                        targetRuntimeData.CurrentUnitData.Applicator.Apply(targetObject, targetRuntimeData);
+                    });
+                }
+                else
+                {
+                    targetRuntimeData.SetVectorData(currentDirection, currentSpeed);
+                    targetRuntimeData.CurrentUnitData.Applicator.Apply(targetObject, targetRuntimeData);
+                }
 
                 Debug.Log($"[UnitVectorGizmoUIComponent] Successfully applied vector strategy for {targetObject.name}. Direction: {currentDirection}, Speed: {currentSpeed}");
             }
@@ -246,6 +350,7 @@ namespace UnitSystem
             if (vectorGizmoContainer != null) vectorGizmoContainer.style.display = DisplayStyle.None;
             if (rotationRingRenderer != null) rotationRingRenderer.enabled = false;
             if (trajectoryLineRenderer != null) trajectoryLineRenderer.enabled = false;
+            if (ghostPreview != null && ghostPreview.IsShowing) ghostPreview.HidePreview();
         }
     }
 }
