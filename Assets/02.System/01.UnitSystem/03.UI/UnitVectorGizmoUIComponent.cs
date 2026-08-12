@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -11,6 +12,7 @@ namespace UnitSystem
         [SerializeField] private LineRenderer rotationRingRenderer;
         [SerializeField] private float maxSpeedRange = 50f;
         [SerializeField] private UnitGhostPreviewComponent ghostPreview;
+        [SerializeField] private PipeLine.UnitMagic.UnitMagicPipeLine unitMagicPipeLine;
 
         private GameObject targetObject;
         private RuntimeDataUnit targetRuntimeData;
@@ -25,6 +27,8 @@ namespace UnitSystem
         private Button applyButton;
 
         private Camera mainCamera;
+
+        [SerializeField] private CharacterSystem.CharacterStatComponent playerStatComponent;
 
         [VContainer.Inject]
         public void Construct(UnitGhostPreviewComponent ghostPreview)
@@ -319,25 +323,50 @@ namespace UnitSystem
                     return;
                 }
 
+                var statData = playerStatComponent?.StatSystem?.RuntimeData 
+                               ?? FindFirstObjectByType<CharacterSystem.CharacterStatComponent>()?.StatSystem?.RuntimeData;
+
+                var context = new PipeLine.Contexts.UnitMagicContext
+                {
+                    Caster = playerStatComponent != null ? playerStatComponent.gameObject : null,
+                    CasterStatData = statData,
+                    TargetObject = targetObject,
+                    TargetRuntimeData = targetRuntimeData,
+                    SelectedPureData = targetRuntimeData.CurrentUnitData,
+                    VectorDirection = currentDirection,
+                    VectorSpeed = currentSpeed,
+                    RequiredMana = targetRuntimeData.CurrentUnitData != null ? targetRuntimeData.CurrentUnitData.BaseCost : 0
+                };
+
                 if (ghostPreview != null && ghostPreview.IsShowing)
                 {
-                    ghostPreview.ApplyAndDestroy(() =>
-                    {
-                        targetRuntimeData.SetVectorData(currentDirection, currentSpeed);
-                        targetRuntimeData.CurrentUnitData.Applicator.Apply(targetObject, targetRuntimeData);
-                    });
+                    ghostPreview.ApplyAndDestroy(() => ApplyVectorMagic(context));
                 }
                 else
                 {
-                    targetRuntimeData.SetVectorData(currentDirection, currentSpeed);
-                    targetRuntimeData.CurrentUnitData.Applicator.Apply(targetObject, targetRuntimeData);
+                    ApplyVectorMagic(context);
                 }
-
-                Debug.Log($"[UnitVectorGizmoUIComponent] Successfully applied vector strategy for {targetObject.name}. Direction: {currentDirection}, Speed: {currentSpeed}");
             }
 
             HideGizmoUI();
             isOpen = false;
+        }
+
+        private void ApplyVectorMagic(PipeLine.Contexts.UnitMagicContext context)
+        {
+            if (unitMagicPipeLine == null)
+            {
+                unitMagicPipeLine = ScriptableObject.CreateInstance<PipeLine.UnitMagic.UnitMagicPipeLine>();
+            }
+
+            if (unitMagicPipeLine != null)
+            {
+                unitMagicPipeLine.Run(context).Forget();
+            }
+            else
+            {
+                Debug.LogError("[UnitVectorGizmoUIComponent] UnitMagicPipeLine asset missing! Execution blocked.");
+            }
         }
 
         private void ShowGizmoUI()

@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/05.UI%20Toolkit/CharacterHUD/CharacterHUD.uss?fileID=7433441132597879392&amp;guid=0581e481c01f87f488ffaf6783b2bdd2&amp;type=3#CharacterHUD"/>
+    <ui:VisualElement name="HUDContainer" picking-mode="Ignore" class="hud-container">
+        <ui:VisualElement name="HPBarContainer" picking-mode="Ignore" class="stat-bar-container">
+            <ui:VisualElement name="HPBarBG" picking-mode="Ignore" class="stat-bar-bg">
+                <ui:VisualElement name="HPBarFill" picking-mode="Ignore" class="hp-fill"/>
+                <ui:Label name="HPText" text="1 / 100" picking-mode="Ignore" parse-escape-sequences="true" class="stat-label"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="MPBarContainer" picking-mode="Ignore" class="stat-bar-container">
+            <ui:VisualElement name="MPBarBG" picking-mode="Ignore" class="stat-bar-bg">
+                <ui:VisualElement name="MPBarFill" picking-mode="Ignore" class="mp-fill"/>
+                <ui:Label name="MPText" text="1 / 100" picking-mode="Ignore" class="stat-label"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="MagicSlotContainer" picking-mode="Ignore" class="magic-slot-container">
+            <ui:VisualElement name="CurrentMagicIcon" picking-mode="Ignore" class="magic-icon"/>
+            <ui:Label name="CurrentMagicName" text="None" picking-mode="Ignore" class="magic-name"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

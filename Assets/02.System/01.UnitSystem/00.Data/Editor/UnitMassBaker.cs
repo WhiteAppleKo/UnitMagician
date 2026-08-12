@@ -9,7 +9,7 @@ namespace UnitSystem
         [MenuItem("Tools/UnitMagician/Bake Mass Values")]
         public static void BakeAllMassValues()
         {
-            var groups = Object.FindObjectsOfType<RuntimeDataUnitGroup>(true);
+            var groups = Object.FindObjectsByType<RuntimeDataUnitGroup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int bakeCount = 0;
 
             foreach (var group in groups)

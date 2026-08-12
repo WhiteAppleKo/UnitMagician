@@ -1,0 +1,77 @@
+.hud-container {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 320px;
+    padding: 12px;
+    background-color: rgba(20, 20, 30, 0.85);
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.stat-bar-container {
+    margin-bottom: 8px;
+}
+
+.stat-bar-bg {
+    height: 22px;
+    background-color: rgba(40, 40, 50, 0.9);
+    border-radius: 6px;
+    overflow: hidden;
+    justify-content: center;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.5);
+}
+
+.hp-fill {
+    height: 100%;
+    width: 100%;
+    background-color: #e74c3c;
+    border-radius: 5px;
+    transition-property: width;
+    transition-duration: 0.2s;
+}
+
+.mp-fill {
+    height: 100%;
+    width: 100%;
+    background-color: #2980b9;
+    border-radius: 5px;
+    transition-property: width;
+    transition-duration: 0.2s;
+}
+
+.stat-label {
+    position: absolute;
+    width: 100%;
+    -unity-text-align: middle-center;
+    color: #ffffff;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.magic-slot-container {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 6px;
+    padding: 6px;
+    background-color: rgba(30, 30, 40, 0.7);
+    border-radius: 8px;
+}
+
+.magic-icon {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(50, 50, 60, 0.9);
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.magic-name {
+    margin-left: 10px;
+    color: #f1c40f;
+    font-size: 14px;
+    -unity-font-style: bold;
+}

@@ -1,4 +1,5 @@
 using System;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace UnitSystem
@@ -12,7 +13,7 @@ namespace UnitSystem
             this.catalogService = catalogService;
         }
 
-        public bool ChangeUnit(RuntimeDataUnit targetRuntimeData, PureDataUnit newUnitData, float newValue)
+        public bool ChangeUnit(GameObject targetObject, RuntimeDataUnit targetRuntimeData, PureDataUnit newUnitData, float newValue, CharacterSystem.RuntimeStatData casterStatData = null, PipeLine.UnitMagic.UnitMagicPipeLine pipeLine = null)
         {
             if (targetRuntimeData == null)
             {
@@ -37,12 +38,40 @@ namespace UnitSystem
             float valueDiff = Mathf.Abs(targetRuntimeData.CurrentValue - newValue);
             int calculatedCost = Mathf.RoundToInt(baseCost * valueDiff);
 
-            // Debug Console 출력 (자원 시스템 대체)
-            Debug.Log($"[UnitChangeService] Mana Cost Calculated: {calculatedCost} (BaseCost: {baseCost}, Diff: {valueDiff})");
-            Debug.Log($"[UnitChangeService] Converting Unit: {targetRuntimeData.CurrentUnit}({targetRuntimeData.CurrentValue}) -> {newUnitData.UnitType}({newValue})");
+            var context = new PipeLine.Contexts.UnitMagicContext
+            {
+                CasterStatData = casterStatData,
+                TargetObject = targetObject,
+                TargetRuntimeData = targetRuntimeData,
+                SelectedPureData = newUnitData,
+                NewValue = newValue,
+                RequiredMana = calculatedCost
+            };
+
+            if (pipeLine != null)
+            {
+                pipeLine.Run(context).Forget();
+                return true;
+            }
+
+            // 마나 수치 검증 및 차감 연동 (Fallback)
+            if (casterStatData != null)
+            {
+                if (!casterStatData.TryConsumeMP(calculatedCost))
+                {
+                    Debug.LogWarning($"[UnitChangeService] Insufficient Mana! Required: {calculatedCost}, Current MP: {casterStatData.MP.CurrentValue}");
+                    return false;
+                }
+            }
+
+            Debug.Log($"[UnitChangeService] Mana Cost Consumed: {calculatedCost}. Unit Converting: {targetRuntimeData.CurrentUnit}({targetRuntimeData.CurrentValue}) -> {newUnitData.UnitType}({newValue})");
 
             // 런타임 데이터 업데이트
             targetRuntimeData.UpdateUnitData(newUnitData.UnitType, newValue, newUnitData);
+            if (targetObject != null && newUnitData.Applicator != null)
+            {
+                newUnitData.Applicator.Apply(targetObject, targetRuntimeData);
+            }
 
             return true;
         }

@@ -127,7 +127,9 @@ namespace UnitSystem
 
                                 if (changeService != null)
                                 {
-                                    changeService.ChangeUnit(matchingUnitData, selectedUnitData, newValue);
+                                    var playerStatComp = FindFirstObjectByType<CharacterSystem.CharacterStatComponent>();
+                                    var casterStatData = playerStatComp?.StatSystem?.RuntimeData;
+                                    changeService.ChangeUnit(hit.collider.gameObject, matchingUnitData, selectedUnitData, newValue, casterStatData);
                                 }
                             }
                         }
