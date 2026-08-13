@@ -13,18 +13,10 @@ MonoBehaviour:
   m_Name: CharacterDamagePipeLine
   m_EditorClassIdentifier: Assembly-CSharp::PipeLine.CharacterDamage.CharacterDamagePipeLine
   steps:
-  - rid: 6089459607497081074
-  - rid: 6089459607497081075
   - rid: 6089459607497081076
   references:
     version: 2
     RefIds:
-    - rid: 6089459607497081074
-      type: {class: EvasionStep, ns: PipeLine.CharacterDamage.Steps, asm: Assembly-CSharp}
-      data: 
-    - rid: 6089459607497081075
-      type: {class: DefenseStep, ns: PipeLine.CharacterDamage.Steps, asm: Assembly-CSharp}
-      data: 
     - rid: 6089459607497081076
       type: {class: ApplyDamageStep, ns: PipeLine.CharacterDamage.Steps, asm: Assembly-CSharp}
       data: 

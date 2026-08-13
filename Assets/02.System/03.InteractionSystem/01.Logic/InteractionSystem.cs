@@ -46,10 +46,21 @@ namespace InteractionSystem.Logic
                 }
             }
 
-            // 피격 스탯 차감 적용
+            // 피격 스탯 차감 적용 및 디버그 출력
             if (!context.IsEvaded && context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
                 statComponent.StatSystem?.TakeDamage(context.FinalDamage);
+                int currentHp = statComponent.StatSystem?.RuntimeData?.HP?.CurrentValue ?? 0;
+                int maxHp = statComponent.StatSystem?.RuntimeData?.HP?.MaxValue ?? 0;
+                Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {context.Attacker?.name} -> Victim: {context.Victim.name} | Raw: {context.RawDamage} | Final: {context.FinalDamage} | Crit: {context.IsCritical} | HP: {currentHp}/{maxHp}");
+            }
+            else if (context.IsEvaded)
+            {
+                Debug.Log($"<color=yellow>[InteractionSystem.Damage]</color> Victim: {context.Victim?.name} EVADED attack from {context.Attacker?.name}");
+            }
+            else if (context.Victim != null)
+            {
+                Debug.LogWarning($"<color=orange>[InteractionSystem.Damage]</color> Victim: {context.Victim.name} does NOT have CharacterStatComponent!");
             }
 
             OnDamageProcessed?.Invoke(context);
@@ -64,6 +75,9 @@ namespace InteractionSystem.Logic
             if (context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
                 statComponent.StatSystem?.Heal(context.RawDamage);
+                int currentHp = statComponent.StatSystem?.RuntimeData?.HP?.CurrentValue ?? 0;
+                int maxHp = statComponent.StatSystem?.RuntimeData?.HP?.MaxValue ?? 0;
+                Debug.Log($"<color=green>[InteractionSystem.Heal]</color> Victim: {context.Victim.name} Healed +{context.RawDamage} | HP: {currentHp}/{maxHp}");
             }
 
             OnHealProcessed?.Invoke(context);

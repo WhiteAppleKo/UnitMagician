@@ -10,11 +10,11 @@ namespace PipeLine.Contexts
         public GameObject Attacker { get; set; }
         public GameObject Victim { get; set; }
         public int RawDamage { get; set; }
-        public float AttackerAccRate { get; set; } = 0.9f;
-        public float VictimEvaRate { get; set; } = 0.1f;
-        public float CritRate { get; set; } = 0.2f;
-        public float CritMultiplier { get; set; } = 1.5f;
-        public int Defense { get; set; } = 10;
+        public float AttackerAccRate { get; set; }
+        public float VictimEvaRate { get; set; }
+        public float CritRate { get; set; }
+        public float CritMultiplier { get; set; }
+        public int Defense { get; set; }
 
         public bool IsEvaded { get; set; }
         public bool IsCritical { get; set; }
