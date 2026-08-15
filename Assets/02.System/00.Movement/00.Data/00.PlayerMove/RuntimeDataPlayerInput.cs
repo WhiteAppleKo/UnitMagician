@@ -6,6 +6,7 @@ namespace PlayerMovement
     public class RuntimeDataPlayerInput
     {
         public Vector2 InputDirection { get; private set; }
+        public Vector2 MouseDelta { get; private set; }
         
         public event Action<Vector2> OnInputChanged;
 
@@ -15,6 +16,11 @@ namespace PlayerMovement
             
             InputDirection = direction;
             OnInputChanged?.Invoke(InputDirection);
+        }
+
+        public void SetMouseDelta(Vector2 delta)
+        {
+            MouseDelta = delta;
         }
     }
 }

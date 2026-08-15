@@ -5,7 +5,7 @@
 ## 1. 개요 및 기본 정보
 
 * **프로젝트명**: UnitMagician
-* **장르**: 3D 쿼터뷰 탑다운 슈팅 액션
+* **장르**: 3D 잠입 액션 / 시점은 미정 1인칭, 탑뷰 전부 해보고 결정할 예정
 * **타깃 플랫폼**: PC (Windows)
 * **저장 위치**: `Assets/00.Documents/Project_Environment.md`
 

@@ -12,6 +12,7 @@ namespace CameraMovement
         private Button m_hybridBtn;
         private Button m_playerBtn;
         private Button m_mouseBtn;
+        private Button m_firstPersonBtn;
 
         [Inject]
         public void Construct(ICameraFollowService cameraFollowService)
@@ -58,6 +59,7 @@ namespace CameraMovement
                 m_hybridBtn = root.Q<Button>("Btn_HybridFocus");
                 m_playerBtn = root.Q<Button>("Btn_PlayerOnly");
                 m_mouseBtn = root.Q<Button>("Btn_MouseFocus");
+                m_firstPersonBtn = root.Q<Button>("Btn_FirstPerson");
 
                 if (m_hybridBtn != null)
                 {
@@ -76,12 +78,19 @@ namespace CameraMovement
                     m_mouseBtn.clicked -= OnMouseClicked;
                     m_mouseBtn.clicked += OnMouseClicked;
                 }
+
+                if (m_firstPersonBtn != null)
+                {
+                    m_firstPersonBtn.clicked -= OnFirstPersonClicked;
+                    m_firstPersonBtn.clicked += OnFirstPersonClicked;
+                }
             }
         }
 
         private void OnHybridClicked() => SetMode(CameraMode.HybridFocus);
         private void OnPlayerClicked() => SetMode(CameraMode.PlayerOnly);
         private void OnMouseClicked() => SetMode(CameraMode.MouseFocus);
+        private void OnFirstPersonClicked() => SetMode(CameraMode.FirstPerson);
 
         private void SetMode(CameraMode mode)
         {
@@ -96,6 +105,7 @@ namespace CameraMovement
             SetButtonActive(m_hybridBtn, mode == CameraMode.HybridFocus);
             SetButtonActive(m_playerBtn, mode == CameraMode.PlayerOnly);
             SetButtonActive(m_mouseBtn, mode == CameraMode.MouseFocus);
+            SetButtonActive(m_firstPersonBtn, mode == CameraMode.FirstPerson);
         }
 
         private void SetButtonActive(Button btn, bool isActive)

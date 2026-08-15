@@ -4,6 +4,7 @@ namespace CameraMovement
     {
         HybridFocus = 0,
         PlayerOnly = 1,
-        MouseFocus = 2
+        MouseFocus = 2,
+        FirstPerson = 3
     }
 }

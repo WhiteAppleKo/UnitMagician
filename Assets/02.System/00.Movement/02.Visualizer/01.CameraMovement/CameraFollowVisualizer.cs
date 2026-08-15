@@ -8,6 +8,7 @@ namespace CameraMovement
     {
         [SerializeField] private Transform pivotTarget;
         [SerializeField] private CinemachineCamera virtualCamera;
+        [SerializeField] private CinemachineCamera firstPersonVirtualCamera;
         [SerializeField] private Transform playerTransform;
 
         [SerializeField] private CameraSettingSO cameraSetting;
@@ -32,13 +33,16 @@ namespace CameraMovement
                 pivotTarget = pivotObj.transform;
             }
 
-            if (virtualCamera != null && pivotTarget != null)
+            if (pivotTarget != null)
             {
-                virtualCamera.Follow = pivotTarget;
-                virtualCamera.LookAt = pivotTarget;
-                LensSettings lens = virtualCamera.Lens;
-                lens.ModeOverride = LensSettings.OverrideModes.Perspective;
-                virtualCamera.Lens = lens;
+                if (virtualCamera != null)
+                {
+                    virtualCamera.Follow = pivotTarget;
+                    virtualCamera.LookAt = pivotTarget;
+                    LensSettings lens = virtualCamera.Lens;
+                    lens.ModeOverride = LensSettings.OverrideModes.Perspective;
+                    virtualCamera.Lens = lens;
+                }
             }
 
             if (m_cameraFollowService != null)
@@ -50,8 +54,9 @@ namespace CameraMovement
 
                 m_cameraFollowService.OnTargetPositionChanged += HandleTargetPositionChanged;
                 m_cameraFollowService.OnZoomSizeChanged += HandleZoomSizeChanged;
+                m_cameraFollowService.OnCameraModeChanged += HandleCameraModeChanged;
 
-                HandleZoomSizeChanged(m_cameraFollowService.CurrentZoomSize);
+                HandleCameraModeChanged(m_cameraFollowService.CurrentMode);
             }
         }
 
@@ -61,6 +66,26 @@ namespace CameraMovement
             {
                 m_cameraFollowService.OnTargetPositionChanged -= HandleTargetPositionChanged;
                 m_cameraFollowService.OnZoomSizeChanged -= HandleZoomSizeChanged;
+                m_cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
+            }
+        }
+
+        private void HandleCameraModeChanged(CameraMode mode)
+        {
+            bool isFirstPerson = mode == CameraMode.FirstPerson;
+
+            if (firstPersonVirtualCamera != null && virtualCamera != null)
+            {
+                firstPersonVirtualCamera.gameObject.SetActive(isFirstPerson);
+                virtualCamera.gameObject.SetActive(!isFirstPerson);
+
+                firstPersonVirtualCamera.Priority.Value = isFirstPerson ? 100 : 0;
+                virtualCamera.Priority.Value = isFirstPerson ? 0 : 100;
+            }
+
+            if (m_cameraFollowService != null && !isFirstPerson)
+            {
+                HandleZoomSizeChanged(m_cameraFollowService.CurrentZoomSize);
             }
         }
 
@@ -74,6 +99,12 @@ namespace CameraMovement
 
         private void HandleZoomSizeChanged(float zoomRatio)
         {
+            // 3인칭 쿼터뷰 모드 전용 동적 줌 (FOV & FollowOffset) 연산
+            if (m_cameraFollowService != null && m_cameraFollowService.CurrentMode == CameraMode.FirstPerson)
+            {
+                return;
+            }
+
             if (virtualCamera != null)
             {
                 float minFOV = cameraSetting != null ? cameraSetting.MinZoomFOV : 30f;

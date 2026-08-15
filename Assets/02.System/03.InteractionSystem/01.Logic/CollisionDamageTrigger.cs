@@ -36,14 +36,39 @@ namespace InteractionSystem.Logic
             this.interactionService = interactionService;
         }
 
+        private void Start()
+        {
+            IgnoreOwnerCollisions();
+        }
+
         public void SetOwner(GameObject newOwner)
         {
             owner = newOwner;
+            IgnoreOwnerCollisions();
         }
 
         public void SetBaseDamage(int damage)
         {
             baseDamage = damage;
+        }
+
+        public void IgnoreOwnerCollisions()
+        {
+            if (owner == null) return;
+
+            var myColliders = GetComponentsInChildren<Collider>(true);
+            var ownerColliders = owner.GetComponentsInChildren<Collider>(true);
+
+            foreach (var myCol in myColliders)
+            {
+                foreach (var ownerCol in ownerColliders)
+                {
+                    if (myCol != null && ownerCol != null && myCol != ownerCol)
+                    {
+                        Physics.IgnoreCollision(myCol, ownerCol, true);
+                    }
+                }
+            }
         }
 
         private void OnTriggerEnter(Collider other)

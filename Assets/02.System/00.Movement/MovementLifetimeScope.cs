@@ -14,7 +14,6 @@ namespace PlayerMovement
         [Header("Camera System")]
         [SerializeField] private CameraSettingSO cameraSetting;
         [SerializeField] private CameraFollowVisualizer cameraVisualizer;
-        [SerializeField] private CameraModeUIComponent cameraModeUI;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -34,10 +33,6 @@ namespace PlayerMovement
             if (cameraVisualizer != null)
             {
                 builder.RegisterComponent(cameraVisualizer);
-            }
-            if (cameraModeUI != null)
-            {
-                builder.RegisterComponent(cameraModeUI);
             }
         }
     }

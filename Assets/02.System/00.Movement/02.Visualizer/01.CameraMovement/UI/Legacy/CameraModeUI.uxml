@@ -4,6 +4,7 @@
             <engine:Button name="Btn_HybridFocus" text="Hybrid Focus" picking-mode="Position" style="height: 36px; padding-left: 14px; padding-right: 14px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
             <engine:Button name="Btn_PlayerOnly" text="Player Only" picking-mode="Position" style="height: 36px; padding-left: 14px; padding-right: 14px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
             <engine:Button name="Btn_MouseFocus" text="Mouse Focus" picking-mode="Position" style="height: 36px; padding-left: 14px; padding-right: 14px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+            <engine:Button name="Btn_FirstPerson" text="First Person" picking-mode="Position" style="height: 36px; padding-left: 14px; padding-right: 14px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
         </engine:VisualElement>
     </engine:VisualElement>
 </engine:UXML>

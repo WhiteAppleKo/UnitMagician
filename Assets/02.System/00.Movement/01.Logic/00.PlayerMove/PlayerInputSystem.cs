@@ -37,6 +37,13 @@ namespace PlayerMovement
             }
 
             m_runtimeData.SetInputDirection(inputDir);
+
+            Vector2 mouseDelta = Vector2.zero;
+            if (Mouse.current != null)
+            {
+                mouseDelta = Mouse.current.delta.ReadValue();
+            }
+            m_runtimeData.SetMouseDelta(mouseDelta);
         }
     }
 }

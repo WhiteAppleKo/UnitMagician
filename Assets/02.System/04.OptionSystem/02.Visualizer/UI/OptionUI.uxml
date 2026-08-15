@@ -1,0 +1,53 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements" precision="0">
+    <engine:VisualElement name="Root" picking-mode="Ignore" style="flex-grow: 1; width: 100%; height: 100%; position: absolute;">
+        <engine:VisualElement name="OptionPanel" picking-mode="Position" style="position: absolute; top: 50%; left: 50%; translate: -50% -50%; width: 480px; background-color: rgba(20, 20, 30, 0.94); padding: 20px; border-radius: 12px; border-width: 1px; border-color: rgba(255, 255, 255, 0.15); display: none;">
+            <!-- Header -->
+            <engine:VisualElement name="Header" picking-mode="Ignore" style="flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <engine:Label text="OPTIONS" picking-mode="Ignore" style="color: rgb(255, 255, 255); -unity-font-style: bold; font-size: 20px;" />
+                <engine:Button name="Btn_Close" text="X" picking-mode="Position" style="width: 28px; height: 28px; background-color: transparent; color: rgb(200, 200, 200); -unity-font-style: bold; border-width: 0;" />
+            </engine:VisualElement>
+
+            <!-- Tab Bar -->
+            <engine:VisualElement name="TabBar" picking-mode="Ignore" style="flex-direction: row; margin-bottom: 16px; border-bottom-width: 1px; border-bottom-color: rgba(255, 255, 255, 0.2); padding-bottom: 6px;">
+                <engine:Button name="Tab_General" text="General" picking-mode="Position" style="height: 32px; padding-left: 16px; padding-right: 16px; margin-right: 6px; border-radius: 4px; background-color: rgb(50, 50, 70); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+                <engine:Button name="Tab_Camera" text="Camera" picking-mode="Position" style="height: 32px; padding-left: 16px; padding-right: 16px; margin-right: 6px; border-radius: 4px; background-color: rgb(35, 35, 48); color: rgb(180, 180, 180);" />
+                <engine:Button name="Tab_Sound" text="Sound" picking-mode="Position" style="height: 32px; padding-left: 16px; padding-right: 16px; margin-right: 6px; border-radius: 4px; background-color: rgb(35, 35, 48); color: rgb(180, 180, 180);" />
+                <engine:Button name="Tab_Graphics" text="Graphics" picking-mode="Position" style="height: 32px; padding-left: 16px; padding-right: 16px; margin-right: 6px; border-radius: 4px; background-color: rgb(35, 35, 48); color: rgb(180, 180, 180);" />
+            </engine:VisualElement>
+
+            <!-- Tab Contents -->
+            <engine:VisualElement name="TabContents" picking-mode="Ignore" style="margin-bottom: 12px; min-height: 160px;">
+                <!-- General Content -->
+                <engine:VisualElement name="Content_General" picking-mode="Ignore" style="flex-direction: column; display: flex;">
+                    <engine:Button name="Btn_Resume" text="Resume Game" picking-mode="Position" style="height: 40px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(45, 95, 175); color: rgb(255, 255, 255); -unity-font-style: bold; font-size: 14px;" />
+                    <engine:Button name="Btn_Lobby" text="Return to Lobby" picking-mode="Position" style="height: 40px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(60, 60, 80); color: rgb(255, 255, 255); -unity-font-style: bold; font-size: 14px;" />
+                    <engine:Button name="Btn_Quit" text="Quit Game" picking-mode="Position" style="height: 40px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(165, 45, 45); color: rgb(255, 255, 255); -unity-font-style: bold; font-size: 14px;" />
+                </engine:VisualElement>
+
+                <!-- Camera Content -->
+                <engine:VisualElement name="Content_Camera" picking-mode="Ignore" style="flex-direction: column; display: none;">
+                    <engine:Label text="Camera View Mode" picking-mode="Ignore" style="color: rgb(200, 200, 200); margin-bottom: 8px; -unity-font-style: bold;" />
+                    <engine:Button name="Btn_HybridFocus" text="Hybrid Focus" picking-mode="Position" style="height: 36px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+                    <engine:Button name="Btn_PlayerOnly" text="Player Only" picking-mode="Position" style="height: 36px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+                    <engine:Button name="Btn_MouseFocus" text="Mouse Focus" picking-mode="Position" style="height: 36px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+                    <engine:Button name="Btn_FirstPerson" text="First Person" picking-mode="Position" style="height: 36px; margin-top: 4px; margin-bottom: 4px; border-radius: 6px; background-color: rgb(50, 50, 64); color: rgb(255, 255, 255); -unity-font-style: bold;" />
+                </engine:VisualElement>
+
+                <!-- Sound Content -->
+                <engine:VisualElement name="Content_Sound" picking-mode="Ignore" style="flex-direction: column; display: none;">
+                    <engine:Label text="Sound Settings" picking-mode="Ignore" style="color: rgb(200, 200, 200); margin-bottom: 8px; -unity-font-style: bold;" />
+                    <engine:Slider label="Master Volume" value="80" low-value="0" high-value="100" picking-mode="Position" style="color: rgb(255, 255, 255); margin-bottom: 12px;" />
+                    <engine:Slider label="BGM Volume" value="70" low-value="0" high-value="100" picking-mode="Position" style="color: rgb(255, 255, 255); margin-bottom: 12px;" />
+                    <engine:Slider label="SFX Volume" value="100" low-value="0" high-value="100" picking-mode="Position" style="color: rgb(255, 255, 255); margin-bottom: 12px;" />
+                </engine:VisualElement>
+
+                <!-- Graphics Content -->
+                <engine:VisualElement name="Content_Graphics" picking-mode="Ignore" style="flex-direction: column; display: none;">
+                    <engine:Label text="Graphics Settings" picking-mode="Ignore" style="color: rgb(200, 200, 200); margin-bottom: 8px; -unity-font-style: bold;" />
+                    <engine:Toggle label="Fullscreen Mode" value="true" picking-mode="Position" style="color: rgb(255, 255, 255); margin-bottom: 12px;" />
+                    <engine:Toggle label="V-Sync" value="true" picking-mode="Position" style="color: rgb(255, 255, 255); margin-bottom: 12px;" />
+                </engine:VisualElement>
+            </engine:VisualElement>
+        </engine:VisualElement>
+    </engine:VisualElement>
+</engine:UXML>

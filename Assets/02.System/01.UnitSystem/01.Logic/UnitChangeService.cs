@@ -1,6 +1,7 @@
 using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using InteractionSystem.Logic;
 
 namespace UnitSystem
 {
@@ -13,7 +14,7 @@ namespace UnitSystem
             this.catalogService = catalogService;
         }
 
-        public bool ChangeUnit(GameObject targetObject, RuntimeDataUnit targetRuntimeData, PureDataUnit newUnitData, float newValue, CharacterSystem.RuntimeStatData casterStatData = null, PipeLine.UnitMagic.UnitMagicPipeLine pipeLine = null)
+        public bool ChangeUnit(GameObject targetObject, RuntimeDataUnit targetRuntimeData, PureDataUnit newUnitData, float newValue, CharacterSystem.RuntimeStatData casterStatData = null, PipeLine.UnitMagic.UnitMagicPipeLine pipeLine = null, GameObject casterGameObject = null)
         {
             if (targetRuntimeData == null)
             {
@@ -40,6 +41,7 @@ namespace UnitSystem
 
             var context = new PipeLine.Contexts.UnitMagicContext
             {
+                Caster = casterGameObject,
                 CasterStatData = casterStatData,
                 TargetObject = targetObject,
                 TargetRuntimeData = targetRuntimeData,
@@ -51,6 +53,7 @@ namespace UnitSystem
             if (pipeLine != null)
             {
                 pipeLine.Run(context).Forget();
+                UpdateCollisionTriggerOwner(targetObject, casterGameObject);
                 return true;
             }
 
@@ -73,7 +76,29 @@ namespace UnitSystem
                 newUnitData.Applicator.Apply(targetObject, targetRuntimeData);
             }
 
+            // 소유자 권한 시전자(Caster)로 강탈 갱신
+            UpdateCollisionTriggerOwner(targetObject, casterGameObject);
+
             return true;
+        }
+
+        private void UpdateCollisionTriggerOwner(GameObject targetObject, GameObject casterGameObject)
+        {
+            if (targetObject == null || casterGameObject == null) return;
+
+            var parentTriggers = targetObject.GetComponentsInParent<CollisionDamageTrigger>(true);
+            foreach (var trigger in parentTriggers)
+            {
+                trigger.SetOwner(casterGameObject);
+                Debug.Log($"<color=cyan>[UnitChangeService]</color> Overtook Parent Owner for {trigger.name} -> New Owner: {casterGameObject.name}");
+            }
+
+            var childTriggers = targetObject.GetComponentsInChildren<CollisionDamageTrigger>(true);
+            foreach (var trigger in childTriggers)
+            {
+                trigger.SetOwner(casterGameObject);
+                Debug.Log($"<color=cyan>[UnitChangeService]</color> Overtook Child Owner for {trigger.name} -> New Owner: {casterGameObject.name}");
+            }
         }
     }
 }

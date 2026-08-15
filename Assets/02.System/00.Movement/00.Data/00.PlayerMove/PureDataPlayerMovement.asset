@@ -13,3 +13,6 @@ MonoBehaviour:
   m_Name: PureDataPlayerMovement
   m_EditorClassIdentifier: Assembly-CSharp::UnitMagician.Movement.PureDataPlayerMovement
   moveSpeed: 5
+  rotateSpeed: 5
+  minPitchAngle: -80
+  maxPitchAngle: 80

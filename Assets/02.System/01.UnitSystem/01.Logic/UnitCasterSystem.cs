@@ -129,7 +129,7 @@ namespace UnitSystem
                                 {
                                     var playerStatComp = FindFirstObjectByType<CharacterSystem.CharacterStatComponent>();
                                     var casterStatData = playerStatComp?.StatSystem?.RuntimeData;
-                                    changeService.ChangeUnit(hit.collider.gameObject, matchingUnitData, selectedUnitData, newValue, casterStatData);
+                                    changeService.ChangeUnit(hit.collider.gameObject, matchingUnitData, selectedUnitData, newValue, casterStatData, null, gameObject);
                                 }
                             }
                         }

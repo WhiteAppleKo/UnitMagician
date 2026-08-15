@@ -37,6 +37,24 @@ namespace PipeLine.UnitMagic.Steps
             context.IsSuccess = true;
             Debug.Log($"[ApplyUnitChangeStep] Unit Magic successfully applied to target: {context.TargetObject?.name}");
 
+            // 소유자 권한 시전자(Caster)로 강탈 갱신
+            if (context.TargetObject != null && context.Caster != null)
+            {
+                var parentTriggers = context.TargetObject.GetComponentsInParent<InteractionSystem.Logic.CollisionDamageTrigger>(true);
+                foreach (var trigger in parentTriggers)
+                {
+                    trigger.SetOwner(context.Caster);
+                    Debug.Log($"<color=cyan>[ApplyUnitChangeStep]</color> Overtook Owner for Parent {trigger.name} -> New Owner: {context.Caster.name}");
+                }
+
+                var childTriggers = context.TargetObject.GetComponentsInChildren<InteractionSystem.Logic.CollisionDamageTrigger>(true);
+                foreach (var trigger in childTriggers)
+                {
+                    trigger.SetOwner(context.Caster);
+                    Debug.Log($"<color=cyan>[ApplyUnitChangeStep]</color> Overtook Owner for Child {trigger.name} -> New Owner: {context.Caster.name}");
+                }
+            }
+
             foreach (var visualizer in Visualizers)
             {
                 visualizer?.ShowUnitChangeEffect(context);

@@ -323,12 +323,12 @@ namespace UnitSystem
                     return;
                 }
 
-                var statData = playerStatComponent?.StatSystem?.RuntimeData 
-                               ?? FindFirstObjectByType<CharacterSystem.CharacterStatComponent>()?.StatSystem?.RuntimeData;
+                var playerComp = playerStatComponent ?? FindFirstObjectByType<CharacterSystem.CharacterStatComponent>();
+                var statData = playerComp?.StatSystem?.RuntimeData;
 
                 var context = new PipeLine.Contexts.UnitMagicContext
                 {
-                    Caster = playerStatComponent != null ? playerStatComponent.gameObject : null,
+                    Caster = playerComp != null ? playerComp.gameObject : null,
                     CasterStatData = statData,
                     TargetObject = targetObject,
                     TargetRuntimeData = targetRuntimeData,

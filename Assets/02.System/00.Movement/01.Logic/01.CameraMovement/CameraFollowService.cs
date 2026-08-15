@@ -84,8 +84,8 @@ namespace CameraMovement
 
             Vector3 targetPivotPos;
 
-            // Section 5-4: 3가지 카메라 모드 시스템 분기 연산
-            if (m_currentMode == CameraMode.PlayerOnly)
+            // 카메라 모드 시스템 분기 연산
+            if (m_currentMode == CameraMode.FirstPerson || m_currentMode == CameraMode.PlayerOnly)
             {
                 targetPivotPos = playerPos;
             }
