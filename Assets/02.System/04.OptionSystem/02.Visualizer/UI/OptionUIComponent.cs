@@ -48,7 +48,6 @@ namespace OptionSystem
         private Button m_mouseBtn;
         private Button m_firstPersonBtn;
         private Button m_shoulderBtn;
-        private Button m_orbitBtn;
 
         // Action Buttons
         private Button m_resumeBtn;
@@ -129,7 +128,6 @@ namespace OptionSystem
                 m_mouseBtn = root.Q<Button>("Btn_MouseFocus");
                 m_firstPersonBtn = root.Q<Button>("Btn_FirstPerson");
                 m_shoulderBtn = root.Q<Button>("Btn_ThirdPersonShoulder");
-                m_orbitBtn = root.Q<Button>("Btn_ThirdPersonOrbit");
 
                 // Actions
                 m_resumeBtn = root.Q<Button>("Btn_Resume");
@@ -191,12 +189,6 @@ namespace OptionSystem
                     m_shoulderBtn.clicked += OnShoulderClicked;
                 }
 
-                if (m_orbitBtn != null)
-                {
-                    m_orbitBtn.clicked -= OnOrbitClicked;
-                    m_orbitBtn.clicked += OnOrbitClicked;
-                }
-
                 if (m_resumeBtn != null)
                 {
                     m_resumeBtn.clicked -= CloseOption;
@@ -229,7 +221,6 @@ namespace OptionSystem
             SetButtonVisibility(m_mouseBtn, setting.IsModeAllowed(CameraMode.MouseFocus));
             SetButtonVisibility(m_firstPersonBtn, setting.IsModeAllowed(CameraMode.FirstPerson));
             SetButtonVisibility(m_shoulderBtn, setting.IsModeAllowed(CameraMode.ThirdPersonShoulder));
-            SetButtonVisibility(m_orbitBtn, setting.IsModeAllowed(CameraMode.ThirdPersonOrbit));
         }
 
         private void SetButtonVisibility(Button btn, bool isAllowed)
@@ -261,7 +252,6 @@ namespace OptionSystem
         private void OnMouseClicked() => SetCameraMode(CameraMode.MouseFocus);
         private void OnFirstPersonClicked() => SetCameraMode(CameraMode.FirstPerson);
         private void OnShoulderClicked() => SetCameraMode(CameraMode.ThirdPersonShoulder);
-        private void OnOrbitClicked() => SetCameraMode(CameraMode.ThirdPersonOrbit);
 
         private void SetCameraMode(CameraMode mode)
         {
@@ -305,7 +295,6 @@ namespace OptionSystem
             SetButtonActive(m_mouseBtn, mode == CameraMode.MouseFocus);
             SetButtonActive(m_firstPersonBtn, mode == CameraMode.FirstPerson);
             SetButtonActive(m_shoulderBtn, mode == CameraMode.ThirdPersonShoulder);
-            SetButtonActive(m_orbitBtn, mode == CameraMode.ThirdPersonOrbit);
         }
 
         private void SetButtonActive(Button btn, bool isActive)

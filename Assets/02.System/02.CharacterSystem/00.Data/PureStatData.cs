@@ -8,11 +8,13 @@ namespace CharacterSystem
     public class PureStatData : ScriptableObject
     {
         [Header("Character Base Stats")]
+        [SerializeField] private FactionType defaultFaction = FactionType.Enemy;
         [SerializeField] private int maxHP = 100;
         [SerializeField] private int maxMP = 100;
         [SerializeField] private float baseMoveSpeed = 5.0f;
         [SerializeField] private List<PureDataUnit> defaultUnitMagics = new List<PureDataUnit>();
 
+        public FactionType DefaultFaction => defaultFaction;
         public int MaxHP => maxHP;
         public int MaxMP => maxMP;
         public float BaseMoveSpeed => baseMoveSpeed;

@@ -18,14 +18,16 @@ namespace Synty.AnimationBaseLocomotion.Samples
         private MeshRenderer _meshRenderer;
 
         /// <inheritdoc cref="Start" />
-        private void Start()
+        protected virtual void Start()
         {
             _highlightOrb = transform.Find("TargetHighlight");
-            _meshRenderer = _highlightOrb.GetComponent<MeshRenderer>();
-
-            if (_meshRenderer == null)
+            if (_highlightOrb != null)
             {
-                Debug.LogError("This script requires a MeshRenderer component on the GameObject.");
+                _meshRenderer = _highlightOrb.GetComponent<MeshRenderer>();
+                if (_meshRenderer == null)
+                {
+                    Debug.LogWarning($"[SampleObjectLockOn] TargetHighlight on {gameObject.name} requires a MeshRenderer component.");
+                }
             }
         }
 
@@ -33,7 +35,7 @@ namespace Synty.AnimationBaseLocomotion.Samples
         ///     Adds this object as a potential lock on target if the player is within range of the target.
         /// </summary>
         /// <param name="otherCollider">The collider to check.</param>
-        private void OnTriggerEnter(Collider otherCollider)
+        protected virtual void OnTriggerEnter(Collider otherCollider)
         {
             SamplePlayerAnimationController playerAnimationController = otherCollider.GetComponent<SamplePlayerAnimationController>();
             if (playerAnimationController != null)
@@ -53,7 +55,7 @@ namespace Synty.AnimationBaseLocomotion.Samples
         ///     Removes this object as a potential lock on target if the player is within range of the target.
         /// </summary>
         /// <param name="otherCollider">The collider to check.</param>
-        private void OnTriggerExit(Collider otherCollider)
+        protected virtual void OnTriggerExit(Collider otherCollider)
         {
             SamplePlayerAnimationController playerAnimationController = otherCollider.GetComponent<SamplePlayerAnimationController>();
             if (playerAnimationController != null)
@@ -76,14 +78,14 @@ namespace Synty.AnimationBaseLocomotion.Samples
         /// </summary>
         /// <param name="enable">Whether the highlight is enabled on this object; or not.</param>
         /// <param name="targetLock">Whether this object is locked on to; or not.</param>
-        public void Highlight(bool enable, bool targetLock)
+        public virtual void Highlight(bool enable, bool targetLock)
         {
             Material currentMaterial = targetLock ? _targetMat : _highlightMat;
 
             if (_highlightOrb != null)
             {
                 _highlightOrb.gameObject.SetActive(enable);
-                if (enable)
+                if (enable && _meshRenderer != null && currentMaterial != null)
                 {
                     _meshRenderer.material = currentMaterial;
                 }

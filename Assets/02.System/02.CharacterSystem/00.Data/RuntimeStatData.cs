@@ -9,6 +9,7 @@ namespace CharacterSystem
         private ClampValueInt hp;
         private ClampValueInt mp;
         private float moveSpeed;
+        private FactionType currentFaction;
 
         public ClampValueInt HP => hp;
         public ClampValueInt MP => mp;
@@ -23,9 +24,21 @@ namespace CharacterSystem
             }
         }
 
+        public FactionType CurrentFaction
+        {
+            get => currentFaction;
+            set
+            {
+                if (currentFaction == value) return;
+                currentFaction = value;
+                OnFactionChanged?.Invoke(currentFaction);
+            }
+        }
+
         public event Action OnDeath;
         public event Action OnInsufficientMana;
         public event Action<float> OnMoveSpeedChanged;
+        public event Action<FactionType> OnFactionChanged;
 
         public RuntimeStatData(PureStatData pureData)
         {
@@ -34,15 +47,30 @@ namespace CharacterSystem
                 hp = new ClampValueInt(0, pureData.MaxHP, pureData.MaxHP);
                 mp = new ClampValueInt(0, pureData.MaxMP, pureData.MaxMP);
                 moveSpeed = pureData.BaseMoveSpeed;
+                currentFaction = pureData.DefaultFaction;
             }
             else
             {
                 hp = new ClampValueInt(0, 100, 100);
                 mp = new ClampValueInt(0, 100, 100);
                 moveSpeed = 5.0f;
+                currentFaction = FactionType.Enemy;
             }
 
             hp.OnValueChanged += HandleHPChanged;
+        }
+
+        public bool IsHostile(FactionType other)
+        {
+            if (currentFaction == FactionType.Player || currentFaction == FactionType.Ally)
+            {
+                return other == FactionType.Enemy;
+            }
+            if (currentFaction == FactionType.Enemy)
+            {
+                return other == FactionType.Player || other == FactionType.Ally;
+            }
+            return false;
         }
 
         private void HandleHPChanged(int current, int max)
@@ -74,7 +102,8 @@ namespace CharacterSystem
                 maxHP = hp.MaxValue,
                 currentMP = mp.CurrentValue,
                 maxMP = mp.MaxValue,
-                moveSpeed = moveSpeed
+                moveSpeed = moveSpeed,
+                faction = (int)currentFaction
             };
             return JsonUtility.ToJson(dto);
         }
@@ -90,6 +119,7 @@ namespace CharacterSystem
             mp.SetRange(0, dto.maxMP);
             mp.SetCurrent(dto.currentMP);
             MoveSpeed = dto.moveSpeed;
+            CurrentFaction = (FactionType)dto.faction;
         }
 
         [Serializable]
@@ -100,6 +130,7 @@ namespace CharacterSystem
             public int currentMP;
             public int maxMP;
             public float moveSpeed;
+            public int faction;
         }
     }
 }

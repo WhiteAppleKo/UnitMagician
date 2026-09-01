@@ -21,9 +21,6 @@ namespace CameraMovement
         [Tooltip("3인칭 숄더뷰 가상 카메라")]
         [SerializeField] private CinemachineCamera shoulderVirtualCamera;
 
-        [Tooltip("3인칭 자유 궤도 가상 카메라")]
-        [SerializeField] private CinemachineCamera orbitVirtualCamera;
-
         private ICameraFollowService m_cameraFollowService;
         private ILocomotionVisualizer m_locomotionVisualizer;
         private PureDataCameraSetting m_cameraSetting;
@@ -135,7 +132,6 @@ namespace CameraMovement
             SetupVirtualCamera(topViewVirtualCamera, false);
             SetupVirtualCamera(firstPersonVirtualCamera, true);
             SetupVirtualCamera(shoulderVirtualCamera, false);
-            SetupVirtualCamera(orbitVirtualCamera, false);
 
             if (m_cameraFollowService != null)
             {
@@ -186,14 +182,12 @@ namespace CameraMovement
             {
                 CameraMode.FirstPerson => firstPersonVirtualCamera,
                 CameraMode.ThirdPersonShoulder => shoulderVirtualCamera,
-                CameraMode.ThirdPersonOrbit => orbitVirtualCamera,
                 _ => topViewVirtualCamera
             };
 
             SetCameraPriority(topViewVirtualCamera, topViewVirtualCamera == activeCamera);
             SetCameraPriority(firstPersonVirtualCamera, firstPersonVirtualCamera == activeCamera);
             SetCameraPriority(shoulderVirtualCamera, shoulderVirtualCamera == activeCamera);
-            SetCameraPriority(orbitVirtualCamera, orbitVirtualCamera == activeCamera);
 
             if (m_cameraFollowService != null && activeCamera == topViewVirtualCamera)
             {
@@ -222,13 +216,12 @@ namespace CameraMovement
 
             CameraMode currentMode = m_cameraFollowService != null 
                 ? m_cameraFollowService.CurrentMode 
-                : CameraMode.ThirdPersonOrbit;
+                : CameraMode.ThirdPersonShoulder;
 
             switch (currentMode)
             {
                 case CameraMode.FirstPerson:
                 case CameraMode.ThirdPersonShoulder:
-                case CameraMode.ThirdPersonOrbit:
                     pivotTarget.rotation = Quaternion.Euler(lookAngles.x, lookAngles.y, 0f);
                     break;
 

@@ -6,8 +6,7 @@ namespace CameraMovement
         PlayerOnly = 1,
         MouseFocus = 2,
         FirstPerson = 3,
-        ThirdPersonShoulder = 4,
-        ThirdPersonOrbit = 5
+        ThirdPersonShoulder = 4
     }
 }
 

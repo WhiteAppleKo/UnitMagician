@@ -38,11 +38,11 @@ namespace CharacterSystem
 
         private void HandleSlowStateChanged(bool isActive)
         {
-            float targetScale = isActive ? (runtimeData.PureData != null ? runtimeData.PureData.SlowTimeScale : 0.2f) : 1.0f;
+            float targetScale = isActive ? (runtimeData.PureData != null ? runtimeData.PureData.SlowTimeScale : 0.0f) : 1.0f;
             float defaultFixed = runtimeData.PureData != null ? runtimeData.PureData.DefaultFixedDeltaTime : 0.02f;
 
             Time.timeScale = targetScale;
-            Time.fixedDeltaTime = defaultFixed * targetScale;
+            Time.fixedDeltaTime = targetScale > 0f ? (defaultFixed * targetScale) : defaultFixed;
 
             visualizer?.SetTimeSlowEffect(isActive, targetScale);
         }
@@ -61,22 +61,18 @@ namespace CharacterSystem
 
         private void HandleInput()
         {
-            if (Mouse.current == null) return;
+            if (Keyboard.current == null) return;
 
-            bool isRightButtonPressed = Mouse.current.rightButton.isPressed;
-
-            if (isRightButtonPressed)
-            {
-                if (!runtimeData.IsSlowActive && runtimeData.CanActivateSlow())
-                {
-                    ActivateSlow();
-                }
-            }
-            else
+            // 키보드 T키를 누를 때마다 시간 정지 On/Off 토글
+            if (Keyboard.current.tKey.wasPressedThisFrame)
             {
                 if (runtimeData.IsSlowActive)
                 {
                     DeactivateSlow();
+                }
+                else if (runtimeData.CanActivateSlow())
+                {
+                    ActivateSlow();
                 }
             }
         }
@@ -88,6 +84,12 @@ namespace CharacterSystem
 
             if (runtimeData.IsSlowActive)
             {
+                // 인스펙터에서 실시간으로 조절한 slowTimeScale을 즉각 반영
+                float targetScale = pureData != null ? pureData.SlowTimeScale : 0.0f;
+                float defaultFixed = pureData != null ? pureData.DefaultFixedDeltaTime : 0.02f;
+                Time.timeScale = targetScale;
+                Time.fixedDeltaTime = targetScale > 0f ? (defaultFixed * targetScale) : defaultFixed;
+
                 float drainRate = pureData != null ? pureData.FocusDrainPerSecond : 20f;
                 runtimeData.DrainFocus(drainRate * unscaledDelta);
 

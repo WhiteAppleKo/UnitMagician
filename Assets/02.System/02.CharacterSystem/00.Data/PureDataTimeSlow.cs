@@ -6,7 +6,9 @@ namespace CharacterSystem
     public class PureDataTimeSlow : ScriptableObject
     {
         [Header("Time Scale Settings")]
-        [SerializeField] private float slowTimeScale = 0.2f;
+        [Tooltip("시간 정지/감속 시 적용할 TimeScale (0 = 완전 정지, 0.2 = 80% 감속 등 슬라이더로 조절 가능)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float slowTimeScale = 0.0f;
         [SerializeField] private float defaultFixedDeltaTime = 0.02f;
 
         [Header("Focus Gauge Settings")]

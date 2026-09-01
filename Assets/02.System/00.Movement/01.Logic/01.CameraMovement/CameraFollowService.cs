@@ -19,7 +19,7 @@ namespace CameraMovement
         private float m_targetZoomRatio = 0.5f;
         private float m_currentZoomRatio = 0.5f;
         private float m_zoomVelocity;
-        private CameraMode m_currentMode = CameraMode.ThirdPersonOrbit;
+        private CameraMode m_currentMode = CameraMode.ThirdPersonShoulder;
 
         public Vector3 CurrentTargetPosition => m_currentTargetPosition;
         public Vector2 CurrentLookAngles => m_currentLookAngles;
@@ -97,7 +97,6 @@ namespace CameraMovement
             {
                 case CameraMode.FirstPerson:
                 case CameraMode.ThirdPersonShoulder:
-                case CameraMode.ThirdPersonOrbit:
                     float sensitivity = m_cameraSetting.MouseSensitivity;
                     float invertMultiplier = m_cameraSetting.InvertY ? 1f : -1f;
 

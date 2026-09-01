@@ -20,6 +20,7 @@ namespace UnitSystem
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
         [SerializeField] private UnitGhostPreviewComponent ghostPreview;
+        [SerializeField] private MultiLockOnVisualizer multiLockOnVisualizer;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -27,6 +28,7 @@ namespace UnitSystem
             builder.RegisterInstance<IReadOnlyList<PureDataUnit>>(initialUnits);
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton);
+            builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
 
             // UI Toolkit Component Register
             if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
@@ -38,6 +40,16 @@ namespace UnitSystem
             // Gameplay Component Register
             if (unitCaster != null) builder.RegisterComponent(unitCaster);
             if (ghostPreview != null) builder.RegisterComponent(ghostPreview);
+
+            var multiLockOnVis = multiLockOnVisualizer;
+            if (multiLockOnVis == null) multiLockOnVis = FindAnyObjectByType<MultiLockOnVisualizer>();
+            if (multiLockOnVis != null)
+            {
+                builder.RegisterComponent(multiLockOnVis).As<IMultiLockOnVisualizer>();
+            }
+
+            // Logic System Register
+            builder.RegisterEntryPoint<MultiLockOnLogicSystem>(Lifetime.Singleton);
         }
     }
 }

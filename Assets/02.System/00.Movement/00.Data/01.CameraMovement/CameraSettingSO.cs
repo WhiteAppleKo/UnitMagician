@@ -8,7 +8,7 @@ namespace CameraMovement
     {
         [Header("Mode Whitelist & Default")]
         [Tooltip("게임 시작 시 기본 적용할 카메라 모드")]
-        [SerializeField] private CameraMode defaultMode = CameraMode.ThirdPersonOrbit;
+        [SerializeField] private CameraMode defaultMode = CameraMode.ThirdPersonShoulder;
 
         [Tooltip("해당 프로젝트/씬에서 허용할 카메라 모드 목록 (UI 노출 필터링)")]
         [SerializeField] private CameraMode[] allowedModes = new CameraMode[]
@@ -17,8 +17,7 @@ namespace CameraMovement
             CameraMode.PlayerOnly,
             CameraMode.MouseFocus,
             CameraMode.FirstPerson,
-            CameraMode.ThirdPersonShoulder,
-            CameraMode.ThirdPersonOrbit
+            CameraMode.ThirdPersonShoulder
         };
 
         [Header("Mouse Target Offset")]

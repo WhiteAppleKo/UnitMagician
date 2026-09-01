@@ -19,12 +19,21 @@ namespace UnitSystem
 
         private UnitChangeService changeService;
         private UnitQuickSlotUIComponent quickSlotUI;
+        private CameraMovement.ICameraFollowService cameraFollowService;
 
         [Inject]
-        public void Construct(UnitChangeService changeService, UnitQuickSlotUIComponent quickSlotUI)
+        public void Construct(
+            UnitChangeService changeService,
+            UnitQuickSlotUIComponent quickSlotUI,
+            IObjectResolver resolver = null)
         {
             this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
+
+            if (resolver != null && resolver.TryResolve<CameraMovement.ICameraFollowService>(out var camService))
+            {
+                this.cameraFollowService = camService;
+            }
         }
 
         private void OnEnable()
@@ -46,6 +55,15 @@ namespace UnitSystem
 
         private void HandleMouseHoverAndCast()
         {
+            // 1인칭 및 3인칭 숄더뷰 모드일 때는 마우스 탑뷰 캐스팅을 중단하고 락온 시스템에 위임
+            if (cameraFollowService != null && 
+               (cameraFollowService.CurrentMode == CameraMovement.CameraMode.FirstPerson || 
+                cameraFollowService.CurrentMode == CameraMovement.CameraMode.ThirdPersonShoulder))
+            {
+                HideTargetHoverUI();
+                return;
+            }
+
             var mouse = Mouse.current;
             if (mouse == null) return;
 
@@ -79,7 +97,7 @@ namespace UnitSystem
                 foreach (var hit in hits)
                 {
                     var targetDataGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
-                    if (targetDataGroup != null)
+                    if (targetDataGroup != null && targetDataGroup.IsTargetable)
                     {
                         var targetObj = targetDataGroup.gameObject;
                         if (isMouseClicked)

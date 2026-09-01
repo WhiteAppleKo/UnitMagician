@@ -1,12 +1,14 @@
 using UnityEngine;
 using VContainer;
+using Synty.AnimationBaseLocomotion.Samples;
 
 namespace CharacterSystem
 {
     /// <summary>
-    /// GameObject 상에서 CharacterStatSystem 인스턴스 참조 및 PureStatData 직렬화를 홀딩하는 컴포넌트입니다.
+    /// GameObject 상에서 CharacterStatSystem 인스턴스 참조 및 PureStatData 직렬화를 홀딩하며,
+    /// SampleObjectLockOn을 상속하여 적대 진영(Enemy) 대상에 대해서만 락온 하이라이트 마커를 활성화합니다.
     /// </summary>
-    public class CharacterStatComponent : MonoBehaviour
+    public class CharacterStatComponent : SampleObjectLockOn
     {
         [SerializeField] private PureStatData pureStatData;
 
@@ -35,6 +37,31 @@ namespace CharacterSystem
             {
                 StatSystem = new CharacterStatSystem(pureStatData);
             }
+        }
+
+        public bool IsEnemy()
+        {
+            if (StatSystem?.RuntimeData != null)
+            {
+                return StatSystem.RuntimeData.CurrentFaction == FactionType.Enemy;
+            }
+            if (pureStatData != null)
+            {
+                return pureStatData.DefaultFaction == FactionType.Enemy;
+            }
+            return false;
+        }
+
+        public override void Highlight(bool enable, bool targetLock)
+        {
+            // 적대 진영(Enemy)일 때만 락온 하이라이트 마커 활성화 허용 (아군/비적대는 비활성화)
+            if (!IsEnemy())
+            {
+                base.Highlight(false, false);
+                return;
+            }
+
+            base.Highlight(enable, targetLock);
         }
     }
 }

@@ -1,14 +1,27 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Synty.AnimationBaseLocomotion.Samples;
 
 namespace UnitSystem
 {
-    public class RuntimeDataUnitGroup : MonoBehaviour
+    public class RuntimeDataUnitGroup : SampleObjectLockOn
     {
         [Header("Unit Group Setup")]
         [SerializeField] public UnitType supportedUnits = UnitType.None;
+        [SerializeField] private bool isTargetable = true;
         [SerializeField, HideInInspector] public float bakedMassValue = 1.0f;
+
+        public bool IsTargetable => isTargetable;
+
+        public void SetTargetable(bool targetable)
+        {
+            isTargetable = targetable;
+            if (!isTargetable)
+            {
+                Highlight(false, false);
+            }
+        }
 
         public event Action<RuntimeDataUnitGroup, RuntimeDataUnit> OnUnitGroupChanged;
 
@@ -80,6 +93,26 @@ namespace UnitSystem
             return null;
         }
 
+        public override void Highlight(bool enable, bool targetLock)
+        {
+            if (!isTargetable)
+            {
+                base.Highlight(false, false);
+                return;
+            }
 
+            base.Highlight(enable, targetLock);
+        }
+
+        protected override void OnTriggerEnter(Collider otherCollider)
+        {
+            if (!isTargetable) return;
+            base.OnTriggerEnter(otherCollider);
+        }
+
+        protected override void OnTriggerExit(Collider otherCollider)
+        {
+            base.OnTriggerExit(otherCollider);
+        }
     }
 }
