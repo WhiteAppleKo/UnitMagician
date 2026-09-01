@@ -53,7 +53,7 @@ namespace CharacterSystem
         public void Construct(
             CharacterStatSystem statSystem,
             UnitMagicSlotSystem magicSlotSystem,
-            [Inject(Optional = true)] RuntimeDataTimeSlow timeSlowData = null)
+            RuntimeDataTimeSlow timeSlowData = null)
         {
             Initialize(statSystem, magicSlotSystem, timeSlowData);
         }
