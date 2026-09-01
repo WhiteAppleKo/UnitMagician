@@ -1,49 +1,141 @@
 using UnityEngine;
 using VContainer;
 using Unity.Cinemachine;
+using Movement.RefactoredLocomotion;
 
 namespace CameraMovement
 {
     public class CameraFollowVisualizer : MonoBehaviour
     {
+        [Header("Pivot & Targets")]
         [SerializeField] private Transform pivotTarget;
-        [SerializeField] private CinemachineCamera virtualCamera;
-        [SerializeField] private CinemachineCamera firstPersonVirtualCamera;
         [SerializeField] private Transform playerTransform;
 
-        [SerializeField] private CameraSettingSO cameraSetting;
+        [Header("Cinemachine Virtual Cameras")]
+        [Tooltip("탑뷰 / 쿼터뷰 가상 카메라")]
+        [SerializeField] private CinemachineCamera topViewVirtualCamera;
+
+        [Tooltip("1인칭 가상 카메라")]
+        [SerializeField] private CinemachineCamera firstPersonVirtualCamera;
+
+        [Tooltip("3인칭 숄더뷰 가상 카메라")]
+        [SerializeField] private CinemachineCamera shoulderVirtualCamera;
+
+        [Tooltip("3인칭 자유 궤도 가상 카메라")]
+        [SerializeField] private CinemachineCamera orbitVirtualCamera;
 
         private ICameraFollowService m_cameraFollowService;
+        private ILocomotionVisualizer m_locomotionVisualizer;
+        private PureDataCameraSetting m_cameraSetting;
 
         [Inject]
-        public void Construct(ICameraFollowService cameraFollowService, CameraSettingSO cameraSetting = null)
+        public void Construct(
+            ICameraFollowService cameraFollowService,
+            IObjectResolver resolver)
         {
             m_cameraFollowService = cameraFollowService;
-            if (cameraSetting != null)
+
+            if (resolver != null)
             {
-                this.cameraSetting = cameraSetting;
+                if (resolver.TryResolve<ILocomotionVisualizer>(out var locomotionVis))
+                {
+                    m_locomotionVisualizer = locomotionVis;
+                }
             }
+
+            m_cameraSetting = cameraFollowService?.Setting;
+        }
+
+        private const string PIVOT_OBJECT_NAME = "CameraPivotTarget";
+        private const int PRIORITY_ACTIVE = 100;
+        private const int PRIORITY_INACTIVE = 0;
+        private static readonly Vector3 TOPVIEW_OFFSET_DIRECTION = new Vector3(0f, 1f, -1f).normalized;
+
+        private Transform m_currentLockOnTarget;
+        private bool m_isLockedOn;
+
+        private void LateUpdate()
+        {
+            EnsurePlayerTransform();
+
+            if (playerTransform == null || pivotTarget == null) return;
+
+            if (m_cameraFollowService != null && 
+               (m_cameraFollowService.CurrentMode == CameraMode.HybridFocus || 
+                m_cameraFollowService.CurrentMode == CameraMode.MouseFocus))
+            {
+                pivotTarget.position = m_cameraFollowService.CurrentTargetPosition;
+            }
+            else
+            {
+                pivotTarget.position = playerTransform.position + Vector3.up * 1.4f;
+            }
+
+            // 락온 시 피벗 회전축을 타겟 방향으로 정렬
+            if (m_isLockedOn && m_currentLockOnTarget != null)
+            {
+                Vector3 toTarget = (m_currentLockOnTarget.position + Vector3.up * 1.0f) - pivotTarget.position;
+                if (toTarget != Vector3.zero)
+                {
+                    Quaternion lockRot = Quaternion.LookRotation(toTarget);
+                    pivotTarget.rotation = Quaternion.Slerp(pivotTarget.rotation, lockRot, 15f * Time.deltaTime);
+                }
+            }
+
+            // 1인칭 가상 카메라가 활성화되어 있을 때 피벗의 회전각 일치
+            if (firstPersonVirtualCamera != null && firstPersonVirtualCamera.Priority.Value == PRIORITY_ACTIVE)
+            {
+                firstPersonVirtualCamera.transform.position = pivotTarget.position;
+                firstPersonVirtualCamera.transform.rotation = pivotTarget.rotation;
+            }
+        }
+
+        private void EnsurePlayerTransform()
+        {
+            if (playerTransform != null) return;
+
+            if (m_locomotionVisualizer != null)
+            {
+                playerTransform = m_locomotionVisualizer.Transform;
+            }
+            else
+            {
+                var locVis = FindAnyObjectByType<LocomotionVisualizer>();
+                if (locVis != null) playerTransform = locVis.transform;
+            }
+
+            if (playerTransform != null && m_cameraFollowService != null)
+            {
+                m_cameraFollowService.SetTarget(playerTransform);
+            }
+        }
+
+        private void SetupVirtualCamera(CinemachineCamera vcam, bool isFirstPerson = false)
+        {
+            if (vcam == null || pivotTarget == null) return;
+            vcam.Follow = pivotTarget;
+            vcam.LookAt = isFirstPerson ? null : pivotTarget;
         }
 
         private void Start()
         {
+            EnsurePlayerTransform();
+
             if (pivotTarget == null)
             {
-                GameObject pivotObj = new GameObject("CameraPivotTarget");
+                GameObject pivotObj = new GameObject(PIVOT_OBJECT_NAME);
                 pivotTarget = pivotObj.transform;
-            }
-
-            if (pivotTarget != null)
-            {
-                if (virtualCamera != null)
+                if (playerTransform != null)
                 {
-                    virtualCamera.Follow = pivotTarget;
-                    virtualCamera.LookAt = pivotTarget;
-                    LensSettings lens = virtualCamera.Lens;
-                    lens.ModeOverride = LensSettings.OverrideModes.Perspective;
-                    virtualCamera.Lens = lens;
+                    pivotTarget.position = playerTransform.position + Vector3.up * 1.4f;
+                    pivotTarget.rotation = playerTransform.rotation;
                 }
             }
+
+            SetupVirtualCamera(topViewVirtualCamera, false);
+            SetupVirtualCamera(firstPersonVirtualCamera, true);
+            SetupVirtualCamera(shoulderVirtualCamera, false);
+            SetupVirtualCamera(orbitVirtualCamera, false);
 
             if (m_cameraFollowService != null)
             {
@@ -53,10 +145,16 @@ namespace CameraMovement
                 }
 
                 m_cameraFollowService.OnTargetPositionChanged += HandleTargetPositionChanged;
+                m_cameraFollowService.OnLookAnglesChanged += HandleLookAnglesChanged;
                 m_cameraFollowService.OnZoomSizeChanged += HandleZoomSizeChanged;
                 m_cameraFollowService.OnCameraModeChanged += HandleCameraModeChanged;
 
                 HandleCameraModeChanged(m_cameraFollowService.CurrentMode);
+            }
+
+            if (m_locomotionVisualizer != null)
+            {
+                m_locomotionVisualizer.OnCameraLockOnChanged += HandleLockOnChanged;
             }
         }
 
@@ -65,28 +163,49 @@ namespace CameraMovement
             if (m_cameraFollowService != null)
             {
                 m_cameraFollowService.OnTargetPositionChanged -= HandleTargetPositionChanged;
+                m_cameraFollowService.OnLookAnglesChanged -= HandleLookAnglesChanged;
                 m_cameraFollowService.OnZoomSizeChanged -= HandleZoomSizeChanged;
                 m_cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
             }
+
+            if (m_locomotionVisualizer != null)
+            {
+                m_locomotionVisualizer.OnCameraLockOnChanged -= HandleLockOnChanged;
+            }
+        }
+
+        private void HandleLockOnChanged(bool enable, Transform targetLockOn)
+        {
+            m_isLockedOn = enable;
+            m_currentLockOnTarget = (enable && targetLockOn != null) ? targetLockOn : null;
         }
 
         private void HandleCameraModeChanged(CameraMode mode)
         {
-            bool isFirstPerson = mode == CameraMode.FirstPerson;
-
-            if (firstPersonVirtualCamera != null && virtualCamera != null)
+            CinemachineCamera activeCamera = mode switch
             {
-                firstPersonVirtualCamera.gameObject.SetActive(isFirstPerson);
-                virtualCamera.gameObject.SetActive(!isFirstPerson);
+                CameraMode.FirstPerson => firstPersonVirtualCamera,
+                CameraMode.ThirdPersonShoulder => shoulderVirtualCamera,
+                CameraMode.ThirdPersonOrbit => orbitVirtualCamera,
+                _ => topViewVirtualCamera
+            };
 
-                firstPersonVirtualCamera.Priority.Value = isFirstPerson ? 100 : 0;
-                virtualCamera.Priority.Value = isFirstPerson ? 0 : 100;
-            }
+            SetCameraPriority(topViewVirtualCamera, topViewVirtualCamera == activeCamera);
+            SetCameraPriority(firstPersonVirtualCamera, firstPersonVirtualCamera == activeCamera);
+            SetCameraPriority(shoulderVirtualCamera, shoulderVirtualCamera == activeCamera);
+            SetCameraPriority(orbitVirtualCamera, orbitVirtualCamera == activeCamera);
 
-            if (m_cameraFollowService != null && !isFirstPerson)
+            if (m_cameraFollowService != null && activeCamera == topViewVirtualCamera)
             {
                 HandleZoomSizeChanged(m_cameraFollowService.CurrentZoomSize);
             }
+        }
+
+        private void SetCameraPriority(CinemachineCamera vcam, bool isActive)
+        {
+            if (vcam == null) return;
+            vcam.gameObject.SetActive(true);
+            vcam.Priority.Value = isActive ? PRIORITY_ACTIVE : PRIORITY_INACTIVE;
         }
 
         private void HandleTargetPositionChanged(Vector3 position)
@@ -97,36 +216,56 @@ namespace CameraMovement
             }
         }
 
+        private void HandleLookAnglesChanged(Vector2 lookAngles)
+        {
+            if (pivotTarget == null || m_isLockedOn) return;
+
+            CameraMode currentMode = m_cameraFollowService != null 
+                ? m_cameraFollowService.CurrentMode 
+                : CameraMode.ThirdPersonOrbit;
+
+            switch (currentMode)
+            {
+                case CameraMode.FirstPerson:
+                case CameraMode.ThirdPersonShoulder:
+                case CameraMode.ThirdPersonOrbit:
+                    pivotTarget.rotation = Quaternion.Euler(lookAngles.x, lookAngles.y, 0f);
+                    break;
+
+                case CameraMode.HybridFocus:
+                case CameraMode.PlayerOnly:
+                case CameraMode.MouseFocus:
+                default:
+                    break;
+            }
+        }
+
         private void HandleZoomSizeChanged(float zoomRatio)
         {
-            // 3인칭 쿼터뷰 모드 전용 동적 줌 (FOV & FollowOffset) 연산
-            if (m_cameraFollowService != null && m_cameraFollowService.CurrentMode == CameraMode.FirstPerson)
-            {
-                return;
-            }
+            if (m_cameraSetting == null) return;
 
-            if (virtualCamera != null)
+            // 탑뷰 줌 처리
+            if (topViewVirtualCamera != null && topViewVirtualCamera.Priority.Value == PRIORITY_ACTIVE)
             {
-                float minFOV = cameraSetting != null ? cameraSetting.MinZoomFOV : 30f;
-                float maxFOV = cameraSetting != null ? cameraSetting.MaxZoomFOV : 60f;
-                float minDistance = cameraSetting != null ? cameraSetting.MinCameraDistance : 8f;
-                float maxDistance = cameraSetting != null ? cameraSetting.MaxCameraDistance : 18f;
+                float minFOV = m_cameraSetting.MinZoomFOV;
+                float maxFOV = m_cameraSetting.MaxZoomFOV;
+                float minDistance = m_cameraSetting.MinCameraDistance;
+                float maxDistance = m_cameraSetting.MaxCameraDistance;
 
-                // zoomRatio: 0.0 (ZoomOut) -> maxFOV, maxDistance / 1.0 (ZoomIn) -> minFOV, minDistance
                 float fov = Mathf.Lerp(maxFOV, minFOV, zoomRatio);
                 float distance = Mathf.Lerp(maxDistance, minDistance, zoomRatio);
 
-                LensSettings lens = virtualCamera.Lens;
+                LensSettings lens = topViewVirtualCamera.Lens;
                 lens.ModeOverride = LensSettings.OverrideModes.Perspective;
                 lens.FieldOfView = fov;
-                virtualCamera.Lens = lens;
+                topViewVirtualCamera.Lens = lens;
 
-                if (virtualCamera.TryGetComponent<CinemachineFollow>(out var follow))
+                if (topViewVirtualCamera.TryGetComponent<CinemachineFollow>(out var follow))
                 {
-                    Vector3 baseDirection = new Vector3(0f, 1f, -1f).normalized;
-                    follow.FollowOffset = baseDirection * distance;
+                    follow.FollowOffset = TOPVIEW_OFFSET_DIRECTION * distance;
                 }
             }
         }
     }
 }
+

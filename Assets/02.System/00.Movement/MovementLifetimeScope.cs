@@ -1,39 +1,114 @@
-using CameraMovement;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
+using CameraMovement;
+using CameraMovement.UI;
+using Movement.RefactoredLocomotion;
+using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 
 namespace PlayerMovement
 {
     public class MovementLifetimeScope : LifetimeScope
     {
-        [Header("Player Movement")]
-        [SerializeField] private PureDataPlayerMovement pureData;
-        [SerializeField] private PlayerMovementVisualizer visualizer;
+        [Header("Locomotion (New System)")]
+        [SerializeField] private PureDataLocomotion locomotionPureData;
+        [SerializeField] private LocomotionVisualizer locomotionVisualizer;
+        [SerializeField] private LocomotionConfig locomotionConfig;
+        [SerializeField] private InputReader inputReader;
 
-        [Header("Camera System")]
-        [SerializeField] private CameraSettingSO cameraSetting;
+        [Header("Camera System (6 Modes)")]
+        [SerializeField] private PureDataCameraSetting cameraSetting;
         [SerializeField] private CameraFollowVisualizer cameraVisualizer;
+        [SerializeField] private CameraOptionUIController cameraOptionUI;
+
+        [Header("Legacy Compatibility (Optional)")]
+        [SerializeField] private PureDataPlayerMovement legacyPureData;
+        [SerializeField] private PlayerMovementVisualizer legacyVisualizer;
 
         protected override void Configure(IContainerBuilder builder)
         {
-            // Player Movement
-            builder.RegisterInstance(pureData);
-            builder.Register<RuntimeDataPlayerInput>(Lifetime.Singleton);
-            builder.RegisterComponent(visualizer).As<IPlayerMovementVisualizer>();
-            builder.RegisterEntryPoint<PlayerInputSystem>();
-            builder.RegisterEntryPoint<PlayerMovementSystem>();
-
-            // Camera System
-            if (cameraSetting != null)
+            // 1. Locomotion Config 자동 감지
+            if (locomotionConfig == null)
             {
-                builder.RegisterInstance(cameraSetting);
+                locomotionConfig = GetComponent<LocomotionConfig>();
+                if (locomotionConfig == null)
+                {
+                    locomotionConfig = FindAnyObjectByType<LocomotionConfig>();
+                }
             }
-            builder.RegisterEntryPoint<CameraFollowService>().As<ICameraFollowService>();
-            if (cameraVisualizer != null)
+
+            // 2. Data 등록
+            PureDataLocomotion pData = locomotionPureData;
+            if (pData == null && locomotionConfig != null) pData = locomotionConfig.PureData;
+            if (pData != null)
             {
-                builder.RegisterComponent(cameraVisualizer);
+                builder.RegisterInstance(pData);
+            }
+
+            PureDataCameraSetting camSetting = cameraSetting;
+            if (camSetting == null && locomotionConfig != null) camSetting = locomotionConfig.CameraPureData;
+            if (camSetting == null) camSetting = ScriptableObject.CreateInstance<PureDataCameraSetting>();
+            builder.RegisterInstance(camSetting);
+
+            // 3. Runtime Data 등록
+            builder.Register<RuntimeDataLocomotion>(Lifetime.Singleton);
+
+            // 4. Camera Service 등록 (ILateTickable)
+            builder.RegisterEntryPoint<CameraFollowService>(Lifetime.Singleton)
+                .AsSelf()
+                .As<ICameraFollowService>()
+                .As<ILateTickable>();
+
+            // 5. Visualizer 등록
+            LocomotionVisualizer locVis = locomotionVisualizer;
+            if (locVis == null && locomotionConfig != null) locVis = locomotionConfig.Visualizer;
+            if (locVis == null) locVis = FindAnyObjectByType<LocomotionVisualizer>();
+            if (locVis != null)
+            {
+                builder.RegisterComponent(locVis).As<ILocomotionVisualizer>();
+            }
+
+            CameraFollowVisualizer camVis = cameraVisualizer;
+            if (camVis == null && locomotionConfig != null) camVis = locomotionConfig.CameraVisualizer;
+            if (camVis == null) camVis = FindAnyObjectByType<CameraFollowVisualizer>();
+            if (camVis != null)
+            {
+                builder.RegisterComponent(camVis);
+            }
+
+            CameraOptionUIController optUI = cameraOptionUI;
+            if (optUI == null && locomotionConfig != null) optUI = locomotionConfig.CameraOptionUI;
+            if (optUI == null) optUI = FindAnyObjectByType<CameraOptionUIController>();
+            if (optUI != null)
+            {
+                builder.RegisterComponent(optUI);
+            }
+
+            // 6. Input Reader 등록
+            InputReader inReader = inputReader;
+            if (inReader == null && locomotionConfig != null) inReader = locomotionConfig.InputReader;
+            if (inReader == null) inReader = FindAnyObjectByType<InputReader>();
+            if (inReader != null)
+            {
+                builder.RegisterComponent(inReader);
+            }
+
+            // 7. Locomotion Logic System 등록
+            builder.RegisterEntryPoint<LocomotionLogicSystem>(Lifetime.Singleton);
+
+            // 8. 하위 호환 레거시 등록 (필요시)
+            if (legacyPureData != null)
+            {
+                builder.RegisterInstance(legacyPureData);
+                builder.Register<RuntimeDataPlayerInput>(Lifetime.Singleton);
+                if (legacyVisualizer != null)
+                {
+                    builder.RegisterComponent(legacyVisualizer).As<IPlayerMovementVisualizer>();
+                }
+                builder.RegisterEntryPoint<PlayerInputSystem>();
+                builder.RegisterEntryPoint<PlayerMovementSystem>();
             }
         }
     }
 }
+

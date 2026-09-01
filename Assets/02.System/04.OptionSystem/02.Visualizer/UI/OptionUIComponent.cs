@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
-
 using CameraMovement;
+using UI.Data;
 
 namespace OptionSystem
 {
@@ -25,6 +25,7 @@ namespace OptionSystem
     {
         [SerializeField] private UIDocument uiDocument;
         [SerializeField] private OptionSceneContext sceneContext = OptionSceneContext.InGame;
+        [SerializeField] private PureColorData colorData;
 
         private ICameraFollowService m_cameraFollowService;
         private VisualElement m_optionPanel;
@@ -46,6 +47,8 @@ namespace OptionSystem
         private Button m_playerBtn;
         private Button m_mouseBtn;
         private Button m_firstPersonBtn;
+        private Button m_shoulderBtn;
+        private Button m_orbitBtn;
 
         // Action Buttons
         private Button m_resumeBtn;
@@ -125,6 +128,8 @@ namespace OptionSystem
                 m_playerBtn = root.Q<Button>("Btn_PlayerOnly");
                 m_mouseBtn = root.Q<Button>("Btn_MouseFocus");
                 m_firstPersonBtn = root.Q<Button>("Btn_FirstPerson");
+                m_shoulderBtn = root.Q<Button>("Btn_ThirdPersonShoulder");
+                m_orbitBtn = root.Q<Button>("Btn_ThirdPersonOrbit");
 
                 // Actions
                 m_resumeBtn = root.Q<Button>("Btn_Resume");
@@ -180,6 +185,18 @@ namespace OptionSystem
                     m_firstPersonBtn.clicked += OnFirstPersonClicked;
                 }
 
+                if (m_shoulderBtn != null)
+                {
+                    m_shoulderBtn.clicked -= OnShoulderClicked;
+                    m_shoulderBtn.clicked += OnShoulderClicked;
+                }
+
+                if (m_orbitBtn != null)
+                {
+                    m_orbitBtn.clicked -= OnOrbitClicked;
+                    m_orbitBtn.clicked += OnOrbitClicked;
+                }
+
                 if (m_resumeBtn != null)
                 {
                     m_resumeBtn.clicked -= CloseOption;
@@ -197,7 +214,28 @@ namespace OptionSystem
                     m_quitBtn.clicked -= OnQuitClicked;
                     m_quitBtn.clicked += OnQuitClicked;
                 }
+
+                FilterAllowedModeButtons();
             }
+        }
+
+        private void FilterAllowedModeButtons()
+        {
+            if (m_cameraFollowService == null || m_cameraFollowService.Setting == null) return;
+
+            var setting = m_cameraFollowService.Setting;
+            SetButtonVisibility(m_hybridBtn, setting.IsModeAllowed(CameraMode.HybridFocus));
+            SetButtonVisibility(m_playerBtn, setting.IsModeAllowed(CameraMode.PlayerOnly));
+            SetButtonVisibility(m_mouseBtn, setting.IsModeAllowed(CameraMode.MouseFocus));
+            SetButtonVisibility(m_firstPersonBtn, setting.IsModeAllowed(CameraMode.FirstPerson));
+            SetButtonVisibility(m_shoulderBtn, setting.IsModeAllowed(CameraMode.ThirdPersonShoulder));
+            SetButtonVisibility(m_orbitBtn, setting.IsModeAllowed(CameraMode.ThirdPersonOrbit));
+        }
+
+        private void SetButtonVisibility(Button btn, bool isAllowed)
+        {
+            if (btn == null) return;
+            btn.style.display = isAllowed ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public void ApplySceneContext(OptionSceneContext context)
@@ -222,30 +260,17 @@ namespace OptionSystem
         private void OnPlayerClicked() => SetCameraMode(CameraMode.PlayerOnly);
         private void OnMouseClicked() => SetCameraMode(CameraMode.MouseFocus);
         private void OnFirstPersonClicked() => SetCameraMode(CameraMode.FirstPerson);
+        private void OnShoulderClicked() => SetCameraMode(CameraMode.ThirdPersonShoulder);
+        private void OnOrbitClicked() => SetCameraMode(CameraMode.ThirdPersonOrbit);
 
         private void SetCameraMode(CameraMode mode)
         {
-            if (m_cameraFollowService != null)
+            m_cameraFollowService?.SetCameraMode(mode);
+
+            if (m_isOpen)
             {
-                m_cameraFollowService.SetCameraMode(mode);
-            }
-            else
-            {
-                var visualizer = Object.FindAnyObjectByType<CameraFollowVisualizer>();
-                if (visualizer != null)
-                {
-                    // 씬 내 Visualizer를 통한 서비스 수집 시도
-                    var field = typeof(CameraFollowVisualizer).GetField("m_cameraFollowService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (field != null)
-                    {
-                        var service = field.GetValue(visualizer) as ICameraFollowService;
-                        if (service != null)
-                        {
-                            m_cameraFollowService = service;
-                            m_cameraFollowService.SetCameraMode(mode);
-                        }
-                    }
-                }
+                UnityEngine.Cursor.lockState = CursorLockMode.None;
+                UnityEngine.Cursor.visible = true;
             }
         }
 
@@ -263,9 +288,13 @@ namespace OptionSystem
             SetTabActive(m_tabSoundBtn, tabType == OptionTabType.Sound);
             SetTabActive(m_tabGraphicsBtn, tabType == OptionTabType.Graphics);
 
-            if (tabType == OptionTabType.Camera && m_cameraFollowService != null)
+            if (tabType == OptionTabType.Camera)
             {
-                UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
+                FilterAllowedModeButtons();
+                if (m_cameraFollowService != null)
+                {
+                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
+                }
             }
         }
 
@@ -275,19 +304,36 @@ namespace OptionSystem
             SetButtonActive(m_playerBtn, mode == CameraMode.PlayerOnly);
             SetButtonActive(m_mouseBtn, mode == CameraMode.MouseFocus);
             SetButtonActive(m_firstPersonBtn, mode == CameraMode.FirstPerson);
+            SetButtonActive(m_shoulderBtn, mode == CameraMode.ThirdPersonShoulder);
+            SetButtonActive(m_orbitBtn, mode == CameraMode.ThirdPersonOrbit);
         }
 
         private void SetButtonActive(Button btn, bool isActive)
         {
             if (btn == null) return;
-            btn.style.backgroundColor = isActive ? new Color(0.2f, 0.6f, 0.9f, 1f) : new Color(0.2f, 0.2f, 0.25f, 1f);
+            if (colorData != null)
+            {
+                btn.style.backgroundColor = new StyleColor(isActive ? colorData.ActiveModeColor : colorData.InactiveModeColor);
+            }
+            else
+            {
+                btn.style.backgroundColor = isActive ? new Color(0.2f, 0.6f, 0.9f, 1f) : new Color(0.2f, 0.2f, 0.25f, 1f);
+            }
         }
 
         private void SetTabActive(Button tabBtn, bool isActive)
         {
             if (tabBtn == null) return;
-            tabBtn.style.backgroundColor = isActive ? new Color(0.2f, 0.2f, 0.28f, 1f) : new Color(0.14f, 0.14f, 0.19f, 1f);
-            tabBtn.style.color = isActive ? new Color(1f, 1f, 1f, 1f) : new Color(0.7f, 0.7f, 0.7f, 1f);
+            if (colorData != null)
+            {
+                tabBtn.style.backgroundColor = new StyleColor(isActive ? colorData.ActiveTabBgColor : colorData.InactiveTabBgColor);
+                tabBtn.style.color = new StyleColor(isActive ? colorData.ActiveTabTextColor : colorData.InactiveTabTextColor);
+            }
+            else
+            {
+                tabBtn.style.backgroundColor = isActive ? new Color(0.2f, 0.2f, 0.28f, 1f) : new Color(0.14f, 0.14f, 0.19f, 1f);
+                tabBtn.style.color = isActive ? new Color(1f, 1f, 1f, 1f) : new Color(0.7f, 0.7f, 0.7f, 1f);
+            }
         }
 
         public void ToggleOption()
@@ -312,7 +358,6 @@ namespace OptionSystem
 
             SelectTab(OptionTabType.General);
 
-            // 인게임 일시정지 (TimeScale = 0)
             if (sceneContext == OptionSceneContext.InGame)
             {
                 Time.timeScale = 0f;
@@ -330,7 +375,6 @@ namespace OptionSystem
                 m_optionPanel.style.display = DisplayStyle.None;
             }
 
-            // 인게임 일시정지 해제 (TimeScale = 1)
             Time.timeScale = 1f;
 
             if (m_cameraFollowService != null && m_cameraFollowService.CurrentMode == CameraMode.FirstPerson)
@@ -355,3 +399,4 @@ namespace OptionSystem
         }
     }
 }
+

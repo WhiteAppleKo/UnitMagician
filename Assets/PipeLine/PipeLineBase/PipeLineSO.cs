@@ -6,7 +6,6 @@ namespace PipeLine.PipeLineBase
 {
     public interface IPipeLine<T>
     {
-        void Enqueue(IPipeLineStep<T> step, int priority);
         UniTask<T> Run(T context);
     }
 
@@ -20,11 +19,6 @@ namespace PipeLine.PipeLineBase
         [SerializeReference]
         protected List<IPipeLineStep<T>> steps = new List<IPipeLineStep<T>>();
 
-        public void Enqueue(IPipeLineStep<T> step, int priority)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public async UniTask<T> Run(T context)
         {
             if (steps == null) return context;
@@ -36,7 +30,6 @@ namespace PipeLine.PipeLineBase
                 // 각 단계 실행 후 중단 조건 체크
                 if (ShouldBreak(context))
                 {
-                    Debug.Log($"[{name}] Pipeline broken at step: {step.GetType().Name}");
                     break;
                 }
             }
@@ -50,3 +43,10 @@ namespace PipeLine.PipeLineBase
         protected virtual bool ShouldBreak(T context) => false;
     }
 }
+
+namespace PipeLine
+{
+    public interface IPipeLine<T> : PipeLineBase.IPipeLine<T> { }
+    public abstract class PipeLineSoBase : PipeLineBase.PipeLineSoBase { }
+    public abstract class PipeLineSo<T> : PipeLineBase.PipeLineSo<T> { }
+}

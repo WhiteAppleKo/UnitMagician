@@ -8,35 +8,43 @@ namespace CameraMovement
 {
     public class CameraFollowService : ICameraFollowService, ILateTickable
     {
-        private readonly CameraSettingSO m_cameraSetting;
+        private readonly PureDataCameraSetting m_cameraSetting;
         private readonly MouseWorldPositionProvider m_mousePositionProvider;
 
         private Transform m_targetTransform;
         private Vector3 m_currentTargetPosition;
         private Vector3 m_smoothVelocity;
 
+        private Vector2 m_currentLookAngles; // x: pitch (상하), y: yaw (좌우)
         private float m_targetZoomRatio = 0.5f;
         private float m_currentZoomRatio = 0.5f;
         private float m_zoomVelocity;
-        private CameraMode m_currentMode = CameraMode.HybridFocus;
+        private CameraMode m_currentMode = CameraMode.ThirdPersonOrbit;
 
         public Vector3 CurrentTargetPosition => m_currentTargetPosition;
+        public Vector2 CurrentLookAngles => m_currentLookAngles;
         public float CurrentZoomSize => m_currentZoomRatio;
         public CameraMode CurrentMode => m_currentMode;
+        public PureDataCameraSetting Setting => m_cameraSetting;
 
         public event Action<Vector3> OnTargetPositionChanged;
+        public event Action<Vector2> OnLookAnglesChanged;
         public event Action<float> OnZoomSizeChanged;
         public event Action<CameraMode> OnCameraModeChanged;
 
         [Inject]
-        public CameraFollowService(CameraSettingSO cameraSetting)
+        public CameraFollowService(PureDataCameraSetting cameraSetting)
         {
             m_cameraSetting = cameraSetting;
             m_mousePositionProvider = new MouseWorldPositionProvider();
-            
-            float defaultZoomRatio = cameraSetting != null ? cameraSetting.DefaultZoomRatio : 0.5f;
-            m_targetZoomRatio = defaultZoomRatio;
-            m_currentZoomRatio = defaultZoomRatio;
+
+            if (cameraSetting != null)
+            {
+                m_currentMode = cameraSetting.DefaultMode;
+                float defaultZoomRatio = cameraSetting.DefaultZoomRatio;
+                m_targetZoomRatio = defaultZoomRatio;
+                m_currentZoomRatio = defaultZoomRatio;
+            }
         }
 
         public void SetTarget(Transform target)
@@ -45,7 +53,9 @@ namespace CameraMovement
             if (target != null)
             {
                 m_currentTargetPosition = target.position;
+                m_currentLookAngles = new Vector2(0f, target.eulerAngles.y);
                 OnTargetPositionChanged?.Invoke(m_currentTargetPosition);
+                OnLookAnglesChanged?.Invoke(m_currentLookAngles);
                 OnZoomSizeChanged?.Invoke(m_currentZoomRatio);
                 OnCameraModeChanged?.Invoke(m_currentMode);
             }
@@ -53,56 +63,78 @@ namespace CameraMovement
 
         public void SetCameraMode(CameraMode mode)
         {
+            if (m_cameraSetting != null && !m_cameraSetting.IsModeAllowed(mode))
+            {
+                return;
+            }
+
             m_currentMode = mode;
             OnCameraModeChanged?.Invoke(m_currentMode);
         }
 
         public void LateTick()
         {
-            if (m_targetTransform == null) return;
+            if (m_targetTransform == null || m_cameraSetting == null) return;
 
+            Vector2 mouseDelta = Mouse.current != null ? Mouse.current.delta.ReadValue() : Vector2.zero;
             float wheelDelta = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
-            UpdateCameraOffset(Vector2.zero, wheelDelta);
+            UpdateCameraOffset(mouseDelta, wheelDelta);
         }
+
+        private const float WHEEL_SCROLL_THRESHOLD = 0.01f;
 
         public void UpdateCameraOffset(Vector2 mouseInput, float wheelDelta)
         {
-            if (m_targetTransform == null) return;
+            if (m_targetTransform == null || m_cameraSetting == null) return;
 
-            float mouseWeight = m_cameraSetting != null ? m_cameraSetting.MouseWeight : 0.25f;
-            float followSmoothTime = m_cameraSetting != null ? m_cameraSetting.FollowSmoothTime : 0.15f;
-            float zoomSpeed = m_cameraSetting != null ? m_cameraSetting.ZoomSpeed : 0.1f;
-
-            Camera mainCam = Camera.main;
-            Vector3 playerPos = m_targetTransform.position;
-            Vector3 mouseWorldPos = m_mousePositionProvider.GetMouseWorldPosition(mainCam);
-
-            if (mouseWorldPos == Vector3.zero)
-            {
-                mouseWorldPos = playerPos;
-            }
+            float followSmoothTime = m_cameraSetting.FollowSmoothTime;
+            float zoomSpeed = m_cameraSetting.ZoomSpeed;
+            Vector3 basePos = m_targetTransform.position + Vector3.up * 1.4f;
 
             Vector3 targetPivotPos;
 
-            // 카메라 모드 시스템 분기 연산
-            if (m_currentMode == CameraMode.FirstPerson || m_currentMode == CameraMode.PlayerOnly)
+            switch (m_currentMode)
             {
-                targetPivotPos = playerPos;
-            }
-            else if (m_currentMode == CameraMode.MouseFocus)
-            {
-                // 선제적 Pre-Clamp: SmoothDamp 전 목표 지점 한계 강제 설정으로 튕김 현상 원천 차단
-                float maxDistance = m_cameraSetting != null ? m_cameraSetting.MaxMouseFocusDistance : 5.5f;
-                Vector3 rawOffset = mouseWorldPos - playerPos;
-                targetPivotPos = playerPos + Vector3.ClampMagnitude(rawOffset, maxDistance);
-            }
-            else // HybridFocus (디폴트)
-            {
-                float effectiveMouseWeight = m_currentZoomRatio * mouseWeight;
-                targetPivotPos = Vector3.Lerp(playerPos, mouseWorldPos, effectiveMouseWeight);
+                case CameraMode.FirstPerson:
+                case CameraMode.ThirdPersonShoulder:
+                case CameraMode.ThirdPersonOrbit:
+                    float sensitivity = m_cameraSetting.MouseSensitivity;
+                    float invertMultiplier = m_cameraSetting.InvertY ? 1f : -1f;
+
+                    m_currentLookAngles.y += mouseInput.x * sensitivity * 0.1f;
+                    m_currentLookAngles.x += mouseInput.y * sensitivity * 0.1f * invertMultiplier;
+
+                    Vector2 limits = m_cameraSetting.VerticalAngleLimits;
+                    m_currentLookAngles.x = Mathf.Clamp(m_currentLookAngles.x, limits.x, limits.y);
+
+                    OnLookAnglesChanged?.Invoke(m_currentLookAngles);
+                    targetPivotPos = basePos;
+                    break;
+
+                case CameraMode.MouseFocus:
+                    Camera mouseCam = Camera.main;
+                    Vector3 mouseFocusWorldPos = m_mousePositionProvider.GetMouseWorldPosition(mouseCam);
+                    if (mouseFocusWorldPos == Vector3.zero) mouseFocusWorldPos = basePos;
+
+                    Vector3 rawOffset = mouseFocusWorldPos - basePos;
+                    targetPivotPos = basePos + Vector3.ClampMagnitude(rawOffset, m_cameraSetting.MaxMouseFocusDistance);
+                    break;
+
+                case CameraMode.HybridFocus:
+                    Camera hybridCam = Camera.main;
+                    Vector3 hybridWorldPos = m_mousePositionProvider.GetMouseWorldPosition(hybridCam);
+                    if (hybridWorldPos == Vector3.zero) hybridWorldPos = basePos;
+
+                    float effectiveMouseWeight = m_currentZoomRatio * m_cameraSetting.MouseWeight;
+                    targetPivotPos = Vector3.Lerp(basePos, hybridWorldPos, effectiveMouseWeight);
+                    break;
+
+                case CameraMode.PlayerOnly:
+                default:
+                    targetPivotPos = basePos;
+                    break;
             }
 
-            // 2. SmoothDamp 위치 보간
             m_currentTargetPosition = Vector3.SmoothDamp(
                 m_currentTargetPosition,
                 targetPivotPos,
@@ -114,8 +146,8 @@ namespace CameraMovement
 
             OnTargetPositionChanged?.Invoke(m_currentTargetPosition);
 
-            // 3. 마우스 휠 줌 연산 및 SmoothDamp 줌 보간 (zoomRatio: 0.0 = ZoomOut ~ 1.0 = ZoomIn)
-            if (Mathf.Abs(wheelDelta) > 0.01f)
+            // 3. 줌 연산
+            if (Mathf.Abs(wheelDelta) > WHEEL_SCROLL_THRESHOLD)
             {
                 float scrollDir = Mathf.Sign(wheelDelta);
                 m_targetZoomRatio = Mathf.Clamp01(m_targetZoomRatio + scrollDir * zoomSpeed);
@@ -134,3 +166,4 @@ namespace CameraMovement
         }
     }
 }
+

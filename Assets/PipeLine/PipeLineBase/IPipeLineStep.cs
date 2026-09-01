@@ -7,3 +7,9 @@ namespace PipeLine.PipeLineBase
         UniTask<T> Execute(T context);
     }
 }
+
+namespace PipeLine
+{
+    public interface IPipeLineStep<T> : PipeLineBase.IPipeLineStep<T> { }
+}
+

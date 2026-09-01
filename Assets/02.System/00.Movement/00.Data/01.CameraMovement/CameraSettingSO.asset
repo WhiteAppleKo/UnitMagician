@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24da32cecb30fd245958e4d00cca8023, type: 3}
   m_Name: CameraSettingSO
   m_EditorClassIdentifier: Assembly-CSharp::CameraMovement.CameraSettingSO
+  defaultMode: 4
+  allowedModes: 000000000100000002000000030000000400000005000000
   mouseWeight: 0.25
   followSmoothTime: 0.15
   minZoomFOV: 30
@@ -21,3 +23,8 @@ MonoBehaviour:
   zoomSpeed: 2
   defaultZoomRatio: 0.5
   maxMouseFocusDistance: 5.5
+  mouseSensitivity: 2
+  shoulderOffset: {x: 0.5, y: 0.2, z: -2.5}
+  orbitDistance: 5
+  verticalAngleLimits: {x: -30, y: 60}
+  invertY: 0
