@@ -5,11 +5,21 @@ using VContainer.Unity;
 
 public class CharacterLifetimeScope : LifetimeScope
 {
+    [Header("Character Stat Components")]
     [SerializeField] private CharacterStatComponent characterStatComponent;
     [SerializeField] private CharacterHUDUIView hudUIView;
 
+    [Header("Player State & Time Slow Pure Data (Optional)")]
+    [SerializeField] private PureDataPlayerState pureDataPlayerState;
+    [SerializeField] private PureDataTimeSlow pureDataTimeSlow;
+
+    [Header("Visualizers (Optional)")]
+    [SerializeField] private PlayerStateVisualizer playerStateVisualizer;
+    [SerializeField] private TimeSlowVisualizer timeSlowVisualizer;
+
     protected override void Configure(IContainerBuilder builder)
     {
+        // 1. Character Stat & Unit Magic Slot
         if (characterStatComponent != null)
         {
             builder.RegisterComponent(characterStatComponent);
@@ -24,10 +34,53 @@ public class CharacterLifetimeScope : LifetimeScope
                 characterStatComponent.Initialize(statSystem);
                 builder.RegisterInstance(statSystem);
             }
+            else
+            {
+                var statSystem = new CharacterStatSystem(ScriptableObject.CreateInstance<PureStatData>());
+                characterStatComponent.Initialize(statSystem);
+                builder.RegisterInstance(statSystem);
+            }
+        }
+        else
+        {
+            var defaultStat = ScriptableObject.CreateInstance<PureStatData>();
+            var statSystem = new CharacterStatSystem(defaultStat);
+            builder.RegisterInstance(statSystem);
         }
 
         builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton);
 
+        // 2. Pure Data 등록
+        PureDataPlayerState statePureData = pureDataPlayerState != null ? pureDataPlayerState : ScriptableObject.CreateInstance<PureDataPlayerState>();
+        builder.RegisterInstance(statePureData);
+
+        PureDataTimeSlow slowPureData = pureDataTimeSlow != null ? pureDataTimeSlow : ScriptableObject.CreateInstance<PureDataTimeSlow>();
+        builder.RegisterInstance(slowPureData);
+
+        // 3. Runtime Data 등록
+        builder.Register<RuntimeDataPlayerState>(Lifetime.Singleton);
+        builder.Register<RuntimeDataTimeSlow>(Lifetime.Singleton);
+
+        // 4. Visualizer 등록
+        var stateVis = playerStateVisualizer;
+        if (stateVis == null) stateVis = FindAnyObjectByType<PlayerStateVisualizer>();
+        if (stateVis != null)
+        {
+            builder.RegisterComponent(stateVis).As<IPlayerStateVisualizer>();
+        }
+
+        var slowVis = timeSlowVisualizer;
+        if (slowVis == null) slowVis = FindAnyObjectByType<TimeSlowVisualizer>();
+        if (slowVis != null)
+        {
+            builder.RegisterComponent(slowVis).As<ITimeSlowVisualizer>();
+        }
+
+        // 5. Logic Systems 등록
+        builder.RegisterEntryPoint<PlayerStateLogicSystem>(Lifetime.Singleton);
+        builder.RegisterEntryPoint<TimeSlowLogicSystem>(Lifetime.Singleton);
+
+        // 6. UI View 등록
         if (hudUIView != null)
         {
             builder.RegisterComponent(hudUIView);

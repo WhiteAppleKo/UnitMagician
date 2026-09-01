@@ -12,13 +12,16 @@ namespace CharacterSystem
 
         private VisualElement hpBar;
         private VisualElement mpBar;
+        private VisualElement focusBar;
         private Label hpLabel;
         private Label mpLabel;
+        private Label focusLabel;
         private VisualElement currentMagicIcon;
         private Label currentMagicName;
 
         private CharacterStatSystem statSystem;
         private UnitMagicSlotSystem magicSlotSystem;
+        private RuntimeDataTimeSlow timeSlowData;
 
         private void Awake()
         {
@@ -30,7 +33,7 @@ namespace CharacterSystem
 
         private void OnEnable()
         {
-            if (statSystem != null)
+            if (statSystem != null || timeSlowData != null)
             {
                 BindElements();
                 RefreshAll();
@@ -39,7 +42,7 @@ namespace CharacterSystem
 
         private void Start()
         {
-            if (statSystem != null)
+            if (statSystem != null || timeSlowData != null)
             {
                 BindElements();
                 RefreshAll();
@@ -47,15 +50,22 @@ namespace CharacterSystem
         }
 
         [Inject]
-        public void Construct(CharacterStatSystem statSystem, UnitMagicSlotSystem magicSlotSystem)
+        public void Construct(
+            CharacterStatSystem statSystem,
+            UnitMagicSlotSystem magicSlotSystem,
+            [Inject(Optional = true)] RuntimeDataTimeSlow timeSlowData = null)
         {
-            Initialize(statSystem, magicSlotSystem);
+            Initialize(statSystem, magicSlotSystem, timeSlowData);
         }
 
-        public void Initialize(CharacterStatSystem statSystem, UnitMagicSlotSystem magicSlotSystem)
+        public void Initialize(
+            CharacterStatSystem statSystem,
+            UnitMagicSlotSystem magicSlotSystem,
+            RuntimeDataTimeSlow timeSlowData = null)
         {
             this.statSystem = statSystem;
             this.magicSlotSystem = magicSlotSystem;
+            this.timeSlowData = timeSlowData;
 
             SubscribeEvents();
             BindElements();
@@ -73,8 +83,10 @@ namespace CharacterSystem
 
             hpBar = root.Q<VisualElement>("HPBarFill");
             mpBar = root.Q<VisualElement>("MPBarFill");
+            focusBar = root.Q<VisualElement>("FocusBarFill");
             hpLabel = root.Q<Label>("HPText");
             mpLabel = root.Q<Label>("MPText");
+            focusLabel = root.Q<Label>("FocusText");
             currentMagicIcon = root.Q<VisualElement>("CurrentMagicIcon");
             currentMagicName = root.Q<Label>("CurrentMagicName");
         }
@@ -91,6 +103,11 @@ namespace CharacterSystem
             {
                 magicSlotSystem.OnMagicChanged += UpdateMagicUI;
             }
+
+            if (timeSlowData?.FocusGauge != null)
+            {
+                timeSlowData.FocusGauge.OnValueChanged += UpdateFocusUI;
+            }
         }
 
         private void UnsubscribeEvents()
@@ -104,6 +121,11 @@ namespace CharacterSystem
             if (magicSlotSystem != null)
             {
                 magicSlotSystem.OnMagicChanged -= UpdateMagicUI;
+            }
+
+            if (timeSlowData?.FocusGauge != null)
+            {
+                timeSlowData.FocusGauge.OnValueChanged -= UpdateFocusUI;
             }
         }
 
@@ -123,6 +145,11 @@ namespace CharacterSystem
             if (magicSlotSystem != null)
             {
                 UpdateMagicUI(magicSlotSystem.CurrentMagic);
+            }
+
+            if (timeSlowData?.FocusGauge != null)
+            {
+                UpdateFocusUI(timeSlowData.FocusGauge.CurrentValue, timeSlowData.FocusGauge.MaxValue);
             }
         }
 
@@ -151,6 +178,20 @@ namespace CharacterSystem
             if (mpLabel != null)
             {
                 mpLabel.text = $"{current} / {max}";
+            }
+        }
+
+        private void UpdateFocusUI(int current, int max)
+        {
+            if (focusBar != null)
+            {
+                float ratio = max > 0 ? (float)current / max : 0f;
+                focusBar.style.width = Length.Percent(ratio * 100f);
+            }
+
+            if (focusLabel != null)
+            {
+                focusLabel.text = $"{current} / {max}";
             }
         }
 

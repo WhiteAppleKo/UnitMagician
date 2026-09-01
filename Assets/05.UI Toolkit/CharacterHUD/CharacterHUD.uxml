@@ -4,13 +4,19 @@
         <ui:VisualElement name="HPBarContainer" picking-mode="Ignore" class="stat-bar-container">
             <ui:VisualElement name="HPBarBG" picking-mode="Ignore" class="stat-bar-bg">
                 <ui:VisualElement name="HPBarFill" picking-mode="Ignore" class="hp-fill"/>
-                <ui:Label name="HPText" text="1 / 100" picking-mode="Ignore" parse-escape-sequences="true" class="stat-label"/>
+                <ui:Label name="HPText" text="100 / 100" picking-mode="Ignore" parse-escape-sequences="true" class="stat-label"/>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="MPBarContainer" picking-mode="Ignore" class="stat-bar-container">
             <ui:VisualElement name="MPBarBG" picking-mode="Ignore" class="stat-bar-bg">
                 <ui:VisualElement name="MPBarFill" picking-mode="Ignore" class="mp-fill"/>
-                <ui:Label name="MPText" text="1 / 100" picking-mode="Ignore" class="stat-label"/>
+                <ui:Label name="MPText" text="100 / 100" picking-mode="Ignore" class="stat-label"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="FocusBarContainer" picking-mode="Ignore" class="stat-bar-container">
+            <ui:VisualElement name="FocusBarBG" picking-mode="Ignore" class="stat-bar-bg">
+                <ui:VisualElement name="FocusBarFill" picking-mode="Ignore" class="focus-fill"/>
+                <ui:Label name="FocusText" text="100 / 100" picking-mode="Ignore" class="stat-label"/>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="MagicSlotContainer" picking-mode="Ignore" class="magic-slot-container">
