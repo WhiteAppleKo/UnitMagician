@@ -4,6 +4,9 @@ namespace CharacterSystem
 {
     public class TimeSlowVisualizer : MonoBehaviour, ITimeSlowVisualizer
     {
+        [Header("Time Settings")]
+        [SerializeField] private float defaultFixedDeltaTime = 0.02f;
+
         [Header("Audio & Feedback")]
         [SerializeField] private AudioSource slowAudioSource;
         [SerializeField] private AudioClip slowEnterSound;
@@ -23,9 +26,19 @@ namespace CharacterSystem
             }
         }
 
-        public void SetTimeSlowEffect(bool isActive, float timeScale)
+        private void OnDisable()
+        {
+            Time.timeScale = 1.0f;
+            Time.fixedDeltaTime = defaultFixedDeltaTime;
+        }
+
+        public void SetTimeSlowEffect(bool isActive, float targetScale)
         {
             OnSlowStateChanged?.Invoke(isActive);
+
+            // TimeScale 및 FixedDeltaTime 제어 전담 (DLV 원칙 준수)
+            Time.timeScale = targetScale;
+            Time.fixedDeltaTime = targetScale > 0f ? (defaultFixedDeltaTime * targetScale) : defaultFixedDeltaTime;
 
             if (slowVfxObject != null)
             {
@@ -46,7 +59,7 @@ namespace CharacterSystem
                 }
             }
 
-            Debug.Log($"<color=yellow>[TimeSlowVisualizer] TimeSlow Effect: {(isActive ? "ACTIVE" : "INACTIVE")}, TimeScale: {timeScale:F2}</color>");
+            Debug.Log($"<color=yellow>[TimeSlowVisualizer] TimeSlow Effect: {(isActive ? "ACTIVE" : "INACTIVE")}, TimeScale: {targetScale:F2}</color>");
         }
 
         public void UpdateFocusGaugeUI(int current, int max)

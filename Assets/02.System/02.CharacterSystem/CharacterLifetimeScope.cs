@@ -17,6 +17,9 @@ public class CharacterLifetimeScope : LifetimeScope
     [SerializeField] private PlayerStateVisualizer playerStateVisualizer;
     [SerializeField] private TimeSlowVisualizer timeSlowVisualizer;
 
+    [Header("Input (Optional)")]
+    [SerializeField] private Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
+
     protected override void Configure(IContainerBuilder builder)
     {
         // 1. Character Stat & Unit Magic Slot
@@ -74,6 +77,14 @@ public class CharacterLifetimeScope : LifetimeScope
         if (slowVis != null)
         {
             builder.RegisterComponent(slowVis).As<ITimeSlowVisualizer>();
+        }
+
+        // 4-1. InputReader 등록
+        var inReader = inputReader;
+        if (inReader == null) inReader = FindAnyObjectByType<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
+        if (inReader != null)
+        {
+            builder.RegisterComponent(inReader);
         }
 
         // 5. Logic Systems 등록

@@ -37,6 +37,8 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
 
         public Action onWalkToggled;
 
+        public Action onTimeSlowToggled;
+
         /// <inheritdoc cref="OnEnable" />
         private void OnEnable()
         {
@@ -53,6 +55,14 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
         public void OnDisable()
         {
             _controls.Player.Disable();
+        }
+
+        private void Update()
+        {
+            if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
+            {
+                onTimeSlowToggled?.Invoke();
+            }
         }
 
         /// <summary>

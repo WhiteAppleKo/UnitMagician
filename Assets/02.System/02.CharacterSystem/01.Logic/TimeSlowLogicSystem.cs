@@ -1,4 +1,5 @@
 using System;
+using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
@@ -10,28 +11,41 @@ namespace CharacterSystem
     {
         private readonly RuntimeDataTimeSlow runtimeData;
         private readonly ITimeSlowVisualizer visualizer;
+        private readonly InputReader inputReader;
 
         [Inject]
         public TimeSlowLogicSystem(
             RuntimeDataTimeSlow runtimeData,
-            ITimeSlowVisualizer visualizer = null)
+            ITimeSlowVisualizer visualizer = null,
+            InputReader inputReader = null)
         {
             this.runtimeData = runtimeData ?? throw new ArgumentNullException(nameof(runtimeData));
             this.visualizer = visualizer;
+            this.inputReader = inputReader;
 
             this.runtimeData.OnSlowStateChanged += HandleSlowStateChanged;
             this.runtimeData.OnFocusDepleted += HandleFocusDepleted;
+
+            if (this.inputReader != null)
+            {
+                this.inputReader.onTimeSlowToggled += ToggleSlow;
+            }
         }
 
         public void Dispose()
         {
+            if (inputReader != null)
+            {
+                inputReader.onTimeSlowToggled -= ToggleSlow;
+            }
+
             if (runtimeData != null)
             {
                 runtimeData.OnSlowStateChanged -= HandleSlowStateChanged;
                 runtimeData.OnFocusDepleted -= HandleFocusDepleted;
                 if (runtimeData.IsSlowActive)
                 {
-                    RestoreTimeScale();
+                    DeactivateSlow();
                 }
             }
         }
@@ -39,11 +53,6 @@ namespace CharacterSystem
         private void HandleSlowStateChanged(bool isActive)
         {
             float targetScale = isActive ? (runtimeData.PureData != null ? runtimeData.PureData.SlowTimeScale : 0.0f) : 1.0f;
-            float defaultFixed = runtimeData.PureData != null ? runtimeData.PureData.DefaultFixedDeltaTime : 0.02f;
-
-            Time.timeScale = targetScale;
-            Time.fixedDeltaTime = targetScale > 0f ? (defaultFixed * targetScale) : defaultFixed;
-
             visualizer?.SetTimeSlowEffect(isActive, targetScale);
         }
 
@@ -55,25 +64,20 @@ namespace CharacterSystem
 
         public void Tick()
         {
-            HandleInput();
+            if (inputReader == null)
+            {
+                HandleInputFallback();
+            }
             ProcessTimeSlow();
         }
 
-        private void HandleInput()
+        private void HandleInputFallback()
         {
             if (Keyboard.current == null) return;
 
-            // 키보드 T키를 누를 때마다 시간 정지 On/Off 토글
             if (Keyboard.current.tKey.wasPressedThisFrame)
             {
-                if (runtimeData.IsSlowActive)
-                {
-                    DeactivateSlow();
-                }
-                else if (runtimeData.CanActivateSlow())
-                {
-                    ActivateSlow();
-                }
+                ToggleSlow();
             }
         }
 
@@ -84,12 +88,6 @@ namespace CharacterSystem
 
             if (runtimeData.IsSlowActive)
             {
-                // 인스펙터에서 실시간으로 조절한 slowTimeScale을 즉각 반영
-                float targetScale = pureData != null ? pureData.SlowTimeScale : 0.0f;
-                float defaultFixed = pureData != null ? pureData.DefaultFixedDeltaTime : 0.02f;
-                Time.timeScale = targetScale;
-                Time.fixedDeltaTime = targetScale > 0f ? (defaultFixed * targetScale) : defaultFixed;
-
                 float drainRate = pureData != null ? pureData.FocusDrainPerSecond : 20f;
                 runtimeData.DrainFocus(drainRate * unscaledDelta);
 
@@ -111,6 +109,18 @@ namespace CharacterSystem
             }
         }
 
+        public void ToggleSlow()
+        {
+            if (runtimeData.IsSlowActive)
+            {
+                DeactivateSlow();
+            }
+            else if (runtimeData.CanActivateSlow())
+            {
+                ActivateSlow();
+            }
+        }
+
         public void ActivateSlow()
         {
             if (runtimeData.IsSlowActive) return;
@@ -121,13 +131,6 @@ namespace CharacterSystem
         {
             if (!runtimeData.IsSlowActive) return;
             runtimeData.SetSlowActive(false);
-        }
-
-        private void RestoreTimeScale()
-        {
-            Time.timeScale = 1.0f;
-            float defaultFixed = runtimeData.PureData != null ? runtimeData.PureData.DefaultFixedDeltaTime : 0.02f;
-            Time.fixedDeltaTime = defaultFixed;
         }
     }
 }
