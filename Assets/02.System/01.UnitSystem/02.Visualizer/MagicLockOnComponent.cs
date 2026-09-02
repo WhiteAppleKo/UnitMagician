@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnitSystem;
-using CharacterSystem;
 using Movement.Visualizer;
 using Movement.RefactoredLocomotion;
 using VContainer;
@@ -21,9 +20,6 @@ namespace UnitSystem
         private RuntimeDataMultiLockOn _multiLockOnData;
         private IMultiLockOnVisualizer _visualizer;
         private ILocomotionVisualizer _locomotionVisualizer;
-        private UnitChangeService _changeService;
-        private CharacterStatSystem _playerStatSystem;
-        private UnitQuickSlotUIComponent _quickSlotUI;
 
         private RuntimeDataUnitGroup _currentHoverTarget;
         private readonly Collider[] _scanColliderBuffer = new Collider[32];
@@ -31,14 +27,12 @@ namespace UnitSystem
         [Inject]
         public void Construct(
             RuntimeDataMultiLockOn multiLockOnData,
-            IMultiLockOnVisualizer visualizer,
-            UnitChangeService changeService,
-            CharacterStatSystem playerStatSystem = null)
+            IMultiLockOnVisualizer visualizer = null,
+            ILocomotionVisualizer locomotionVisualizer = null)
         {
             _multiLockOnData = multiLockOnData;
             _visualizer = visualizer;
-            _changeService = changeService;
-            _playerStatSystem = playerStatSystem;
+            _locomotionVisualizer = locomotionVisualizer;
         }
 
         private void Awake()
@@ -47,8 +41,6 @@ namespace UnitSystem
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
-            if (_quickSlotUI == null) _quickSlotUI = UnityEngine.Object.FindFirstObjectByType<UnitQuickSlotUIComponent>();
-            GetPlayerStatSystem();
         }
 
         private void OnEnable()
@@ -56,7 +48,6 @@ namespace UnitSystem
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
-            GetPlayerStatSystem();
 
             if (_visualizer != null)
             {
@@ -68,24 +59,6 @@ namespace UnitSystem
             _currentHoverTarget = null;
         }
 
-        private CharacterStatSystem GetPlayerStatSystem()
-        {
-            if (_playerStatSystem != null) return _playerStatSystem;
-
-            var statComp = GetComponentInParent<CharacterStatComponent>();
-            if (statComp == null)
-            {
-                statComp = UnityEngine.Object.FindFirstObjectByType<CharacterStatComponent>();
-            }
-
-            if (statComp != null)
-            {
-                _playerStatSystem = statComp.StatSystem;
-            }
-
-            return _playerStatSystem;
-        }
-
         private void OnDisable()
         {
             // 예비 타겟 마커 끄기
@@ -95,15 +68,8 @@ namespace UnitSystem
                 _currentHoverTarget = null;
             }
 
-            // 시간 정지 해제 순간 누적된 대상들에게 일괄 마법 변환 실행
-            if (_multiLockOnData != null && _multiLockOnData.TargetCount > 0)
-            {
-                ExecuteBatchCast();
-            }
-            else
-            {
-                ClearAllLockOns();
-            }
+            // 시간 정지 해제 순간 누적된 대상들에게 일괄 마법 변환 신호 발행
+            _multiLockOnData?.RequestBatchCast();
 
             if (_visualizer != null)
             {
@@ -224,134 +190,6 @@ namespace UnitSystem
             }
 
             _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
-        }
-
-        private void ExecuteBatchCast()
-        {
-            int targetCount = _multiLockOnData != null ? _multiLockOnData.TargetCount : 0;
-            if (targetCount == 0)
-            {
-                ClearAllLockOns();
-                return;
-            }
-
-            // 시간 정지 해제 시점에 최종 선택된 마법 단위 확인
-            if (_quickSlotUI == null) _quickSlotUI = UnityEngine.Object.FindFirstObjectByType<UnitQuickSlotUIComponent>();
-            PureDataUnit selectedUnitData = _quickSlotUI != null ? _quickSlotUI.CurrentSelectedUnit : null;
-            if (selectedUnitData == null && _quickSlotUI != null && _quickSlotUI.CatalogService != null)
-            {
-                var unlocked = _quickSlotUI.CatalogService.GetUnlockedUnits();
-                if (unlocked != null && unlocked.Count > 0)
-                {
-                    selectedUnitData = unlocked[0];
-                }
-            }
-
-            if (selectedUnitData == null)
-            {
-                Debug.LogWarning("[MagicLockOnComponent] Batch Cast Aborted: No Unit selected.");
-                ClearAllLockOns();
-                return;
-            }
-
-            var targets = new List<RuntimeDataUnitGroup>(_multiLockOnData.LockedTargets);
-            _multiLockOnData.ClearTargets();
-            _visualizer?.UpdateLockOnCount(0);
-
-            var statSystem = GetPlayerStatSystem();
-            RuntimeStatData casterStat = statSystem?.RuntimeData;
-
-            // 1. 총 필요 마나 사전 계산
-            int totalCost = 0;
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    float diff = Mathf.Abs(matchingUnitData.CurrentValue - newValue);
-                    totalCost += Mathf.RoundToInt(selectedUnitData.BaseCost * diff);
-                }
-            }
-
-            // 2. 마나 검증 및 부족 시 안전 예외 처리
-            if (casterStat != null && casterStat.MP.CurrentValue < totalCost)
-            {
-                Debug.LogWarning($"[MagicLockOnComponent] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStat.MP.CurrentValue})");
-                casterStat.TryConsumeMP(totalCost);
-                foreach (var target in targets)
-                {
-                    if (target != null) target.Highlight(false, false);
-                }
-                return;
-            }
-
-            if (_changeService == null && _quickSlotUI != null && _quickSlotUI.CatalogService != null)
-            {
-                _changeService = new UnitChangeService(_quickSlotUI.CatalogService);
-            }
-
-            GameObject casterObj = _locomotionVisualizer?.Transform != null
-                ? _locomotionVisualizer.Transform.root.gameObject
-                : transform.root.gameObject;
-
-            // 3. 순차적으로 마커를 즉시 끄면서 마법 변환 및 소유권 갱신 적용
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                // 마커 즉시 소등
-                targetGroup.Highlight(false, false);
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    _changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat, null, casterObj);
-                }
-            }
-
-            _visualizer?.PlayBatchCastEffect();
-        }
-
-        private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
-        {
-            if (targetUnit == null || spellUnit == null) return 0f;
-
-            float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;
-
-            switch (spellUnit.UnitType)
-            {
-                case UnitType.Mass:
-                    return originalVal * spellUnit.MassScaleMultiplier;
-                case UnitType.Volume:
-                    return originalVal;
-                case UnitType.Vector:
-                    return -targetUnit.CurrentValue;
-                default:
-                    return targetUnit.CurrentValue;
-            }
-        }
-
-        private void ClearAllLockOns()
-        {
-            if (_multiLockOnData == null) return;
-
-            var targets = new List<RuntimeDataUnitGroup>(_multiLockOnData.LockedTargets);
-            foreach (var target in targets)
-            {
-                if (target != null)
-                {
-                    target.Highlight(false, false);
-                }
-            }
-
-            _multiLockOnData.ClearTargets();
-            _visualizer?.UpdateLockOnCount(0);
         }
     }
 }

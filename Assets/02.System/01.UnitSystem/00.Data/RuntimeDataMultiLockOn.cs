@@ -19,6 +19,9 @@ namespace UnitSystem
         public event Action<RuntimeDataUnitGroup> OnTargetAdded;
         public event Action<RuntimeDataUnitGroup> OnTargetRemoved;
         public event Action OnTargetsCleared;
+        public event Action OnBatchCastRequested;
+
+        public void RequestBatchCast() => OnBatchCastRequested?.Invoke();
 
         public void AddTarget(RuntimeDataUnitGroup target)
         {

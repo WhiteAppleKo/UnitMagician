@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -66,6 +68,7 @@ namespace UnitSystem
             }
 
             EnsureStrategiesInitialized();
+            BindMultiLockOnEvents();
         }
 
         private void Awake()
@@ -78,6 +81,7 @@ namespace UnitSystem
         {
             EnsureStrategiesInitialized();
             BindCameraEvents();
+            BindMultiLockOnEvents();
         }
 
         private void EnsureStrategiesInitialized()
@@ -174,9 +178,27 @@ namespace UnitSystem
             }
         }
 
+        private void BindMultiLockOnEvents()
+        {
+            if (multiLockOnData != null)
+            {
+                multiLockOnData.OnBatchCastRequested -= HandleBatchCastRequested;
+                multiLockOnData.OnBatchCastRequested += HandleBatchCastRequested;
+            }
+        }
+
+        private void UnbindMultiLockOnEvents()
+        {
+            if (multiLockOnData != null)
+            {
+                multiLockOnData.OnBatchCastRequested -= HandleBatchCastRequested;
+            }
+        }
+
         private void OnEnable()
         {
             BindCameraEvents();
+            BindMultiLockOnEvents();
         }
 
         private void OnDisable()
@@ -185,6 +207,7 @@ namespace UnitSystem
             {
                 cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
             }
+            UnbindMultiLockOnEvents();
 
             currentStrategy?.Exit();
         }
@@ -195,6 +218,7 @@ namespace UnitSystem
             {
                 cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
             }
+            UnbindMultiLockOnEvents();
 
             currentStrategy?.Exit();
             topViewStrategy?.Dispose();
@@ -240,6 +264,144 @@ namespace UnitSystem
         {
             // 전략 패턴: 매 프레임 if 조건문 분기 없이 현재 활성화된 전략의 Update만 단일 위임 호출
             currentStrategy?.Update();
+        }
+
+        private void HandleBatchCastRequested()
+        {
+            int targetCount = multiLockOnData != null ? multiLockOnData.TargetCount : 0;
+            if (targetCount == 0)
+            {
+                ClearAllLockOns();
+                return;
+            }
+
+            if (quickSlotUI == null)
+            {
+                quickSlotUI = FindFirstObjectByType<UnitQuickSlotUIComponent>();
+            }
+
+            PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
+            if (selectedUnitData == null && quickSlotUI != null && quickSlotUI.CatalogService != null)
+            {
+                var unlocked = quickSlotUI.CatalogService.GetUnlockedUnits();
+                if (unlocked != null && unlocked.Count > 0)
+                {
+                    selectedUnitData = unlocked[0];
+                }
+            }
+
+            if (selectedUnitData == null)
+            {
+                Debug.LogWarning("[UnitCasterSystem] Batch Cast Aborted: No Unit selected.");
+                ClearAllLockOns();
+                return;
+            }
+
+            var targets = new List<RuntimeDataUnitGroup>(multiLockOnData.LockedTargets);
+            multiLockOnData.ClearTargets();
+            multiLockOnVisualizer?.UpdateLockOnCount(0);
+
+            if (playerStatSystem == null)
+            {
+                var playerStatComp = FindFirstObjectByType<CharacterStatComponent>();
+                if (playerStatComp != null)
+                {
+                    playerStatSystem = playerStatComp.StatSystem;
+                }
+            }
+
+            RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
+
+            // 1. 총 필요 마나 사전 계산
+            int totalCost = 0;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var targetGroup = targets[i];
+                if (targetGroup == null) continue;
+
+                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
+                if (matchingUnitData != null)
+                {
+                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
+                    float diff = Mathf.Abs(matchingUnitData.CurrentValue - newValue);
+                    totalCost += Mathf.RoundToInt(selectedUnitData.BaseCost * diff);
+                }
+            }
+
+            // 2. 마나 검증 및 부족 시 안전 예외 처리
+            if (casterStat != null && casterStat.MP.CurrentValue < totalCost)
+            {
+                Debug.LogWarning($"[UnitCasterSystem] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStat.MP.CurrentValue})");
+                casterStat.TryConsumeMP(totalCost);
+                foreach (var target in targets)
+                {
+                    if (target != null) target.Highlight(false, false);
+                }
+                return;
+            }
+
+            if (changeService == null && quickSlotUI != null && quickSlotUI.CatalogService != null)
+            {
+                changeService = new UnitChangeService(quickSlotUI.CatalogService);
+            }
+
+            GameObject casterObj = gameObject;
+
+            // 3. 순차적으로 마커를 즉시 끄면서 마법 변환 및 소유권 갱신 적용
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var targetGroup = targets[i];
+                if (targetGroup == null) continue;
+
+                // 마커 즉시 소등
+                targetGroup.Highlight(false, false);
+
+                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
+                if (matchingUnitData != null)
+                {
+                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
+                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat, null, casterObj);
+                }
+            }
+
+            // 4. 시각 효과 재생
+            multiLockOnVisualizer?.PlayBatchCastEffect();
+        }
+
+        private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
+        {
+            if (targetUnit == null || spellUnit == null) return 0f;
+
+            float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;
+
+            switch (spellUnit.UnitType)
+            {
+                case UnitType.Mass:
+                    return originalVal * spellUnit.MassScaleMultiplier;
+                case UnitType.Volume:
+                    return originalVal;
+                case UnitType.Vector:
+                    return -targetUnit.CurrentValue;
+                default:
+                    return targetUnit.CurrentValue;
+            }
+        }
+
+        private void ClearAllLockOns()
+        {
+            if (multiLockOnData == null) return;
+
+            var targets = new List<RuntimeDataUnitGroup>(multiLockOnData.LockedTargets);
+            foreach (var target in targets)
+            {
+                if (target != null)
+                {
+                    target.Highlight(false, false);
+                }
+            }
+
+            multiLockOnData.ClearTargets();
+            multiLockOnVisualizer?.UpdateLockOnCount(0);
         }
     }
 }
