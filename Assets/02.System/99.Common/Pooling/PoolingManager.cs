@@ -5,7 +5,7 @@ using UnityEngine.Serialization; // 유니티 내장 풀 사용을 위해 필수
 
 namespace Pooling
 {
-    public class PoolingManager<T, TData> : MonoBehaviour where T : MonoBehaviour, IPoolable<TData>
+    public class PoolingManager<T, TData> : MonoBehaviour, IPoolService<T, TData> where T : MonoBehaviour, IPoolable<TData>
     {
         [SerializeField] private T m_PoolPrefab;
         [SerializeField] private int m_DefaultSize = 10;
@@ -59,9 +59,18 @@ namespace Pooling
 
         // --- 외부 접근용 메서드 ---
 
+        public T Get(TData data)
+        {
+            m_Data = data;
+            return m_Pool.Get();
+        }
+
         public T Get()
         {
-            m_Data = poolSettingData.ReCalculateRuntimeData();
+            if (poolSettingData != null)
+            {
+                m_Data = poolSettingData.ReCalculateRuntimeData();
+            }
             return m_Pool.Get();
         }
 
