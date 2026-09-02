@@ -4,6 +4,7 @@ using VContainer;
 
 namespace CameraMovement
 {
+    [System.Obsolete("CameraModeUIComponent is deprecated. Use OptionSystem.OptionUIComponent instead.")]
     public class CameraModeUIComponent : MonoBehaviour
     {
         [SerializeField] private UIDocument uiDocument;

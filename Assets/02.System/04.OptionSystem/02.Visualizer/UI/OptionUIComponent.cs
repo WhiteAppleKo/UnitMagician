@@ -4,6 +4,7 @@ using UnityEngine.UIElements;
 using VContainer;
 using CameraMovement;
 using UI.Data;
+using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 
 namespace OptionSystem
 {
@@ -28,6 +29,7 @@ namespace OptionSystem
         [SerializeField] private PureColorData colorData;
 
         private ICameraFollowService m_cameraFollowService;
+        private InputReader m_inputReader;
         private VisualElement m_optionPanel;
         
         // Tab Buttons
@@ -61,25 +63,67 @@ namespace OptionSystem
         public bool IsOpen => m_isOpen;
 
         [Inject]
-        public void Construct(ICameraFollowService cameraFollowService = null)
+        public void Construct(ICameraFollowService cameraFollowService = null, InputReader inputReader = null)
         {
+            UnsubscribeEvents();
             m_cameraFollowService = cameraFollowService;
+            m_inputReader = inputReader;
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeEvents();
+                if (m_cameraFollowService != null)
+                {
+                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
+                }
+            }
         }
 
         private void OnEnable()
         {
             RegisterButtonCallbacks();
+            SubscribeEvents();
             if (m_cameraFollowService != null)
             {
-                m_cameraFollowService.OnCameraModeChanged += UpdateCameraModeHighlights;
+                UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
             }
         }
 
         private void OnDisable()
         {
+            UnsubscribeEvents();
+        }
+
+        private void OnDestroy()
+        {
+            UnsubscribeEvents();
+        }
+
+        private void SubscribeEvents()
+        {
             if (m_cameraFollowService != null)
             {
                 m_cameraFollowService.OnCameraModeChanged -= UpdateCameraModeHighlights;
+                m_cameraFollowService.OnCameraModeChanged += UpdateCameraModeHighlights;
+            }
+
+            if (m_inputReader != null)
+            {
+                m_inputReader.onOptionToggled -= ToggleOption;
+                m_inputReader.onOptionToggled += ToggleOption;
+            }
+        }
+
+        private void UnsubscribeEvents()
+        {
+            if (m_cameraFollowService != null)
+            {
+                m_cameraFollowService.OnCameraModeChanged -= UpdateCameraModeHighlights;
+            }
+
+            if (m_inputReader != null)
+            {
+                m_inputReader.onOptionToggled -= ToggleOption;
             }
         }
 
@@ -92,7 +136,8 @@ namespace OptionSystem
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            // InputReader 미주입 시 폴백 처리
+            if (m_inputReader == null && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 ToggleOption();
             }
