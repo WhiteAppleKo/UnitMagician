@@ -20,6 +20,7 @@ namespace UnitSystem
 
         private void EnsureUI()
         {
+            if (this == null) return;
             if (uiDocument == null) uiDocument = GetComponent<UIDocument>();
             if (uiDocument != null && uiDocument.rootVisualElement != null)
             {

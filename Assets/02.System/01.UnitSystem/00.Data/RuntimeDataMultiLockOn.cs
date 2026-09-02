@@ -14,6 +14,8 @@ namespace UnitSystem
         public IReadOnlyList<RuntimeDataUnitGroup> LockedTargets => lockedTargets;
         public int TargetCount => lockedTargets.Count;
 
+        public bool Contains(RuntimeDataUnitGroup target) => target != null && lockedTargets.Contains(target);
+
         public event Action<RuntimeDataUnitGroup> OnTargetAdded;
         public event Action<RuntimeDataUnitGroup> OnTargetRemoved;
         public event Action OnTargetsCleared;
@@ -21,6 +23,7 @@ namespace UnitSystem
         public void AddTarget(RuntimeDataUnitGroup target)
         {
             if (target == null) return;
+            if (lockedTargets.Contains(target)) return;
 
             lockedTargets.Add(target);
             Debug.Log($"<color=magenta>[RuntimeDataMultiLockOn] Target Added:</color> {target.gameObject.name} (Total Locked: {lockedTargets.Count})");

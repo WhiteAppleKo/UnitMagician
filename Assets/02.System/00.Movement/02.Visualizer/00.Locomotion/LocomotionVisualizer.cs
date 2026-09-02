@@ -83,6 +83,12 @@ namespace Movement.RefactoredLocomotion
             {
                 targetLockOnPos = transform.Find("TargetLockOnPos");
             }
+
+            // PlayerLockOnController 자동 확인
+            if (GetComponent<Movement.Visualizer.PlayerLockOnController>() == null)
+            {
+                gameObject.AddComponent<Movement.Visualizer.PlayerLockOnController>();
+            }
         }
 
         public void Move(Vector3 velocity)

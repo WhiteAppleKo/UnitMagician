@@ -87,6 +87,25 @@ namespace UnitSystem
             if (uiDocument == null) uiDocument = GetComponent<UIDocument>();
             if (mainCamera == null) mainCamera = Camera.main;
 
+            if (quickSlotUI == null)
+            {
+                quickSlotUI = FindFirstObjectByType<UnitQuickSlotUIComponent>();
+            }
+
+            if (cameraFollowService == null)
+            {
+                var camVis = FindFirstObjectByType<CameraFollowVisualizer>();
+                if (camVis != null)
+                {
+                    cameraFollowService = camVis.CameraFollowService;
+                }
+            }
+
+            if (timeSlowData == null)
+            {
+                timeSlowData = new RuntimeDataTimeSlow(null);
+            }
+
             if (multiLockOnData == null)
             {
                 multiLockOnData = new RuntimeDataMultiLockOn();
@@ -138,6 +157,15 @@ namespace UnitSystem
 
         private void BindCameraEvents()
         {
+            if (cameraFollowService == null)
+            {
+                var camVis = FindFirstObjectByType<CameraFollowVisualizer>();
+                if (camVis != null)
+                {
+                    cameraFollowService = camVis.CameraFollowService;
+                }
+            }
+
             if (cameraFollowService != null)
             {
                 cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
@@ -186,7 +214,8 @@ namespace UnitSystem
             {
                 case CameraMode.FirstPerson:
                 case CameraMode.ThirdPersonShoulder:
-                    SwitchStrategy(aimLockOnStrategy);
+                    // 1인칭 및 3인칭 숄더뷰 마법 락온은 자식 오브젝트(MagicLockOnComponent)가 시간 정지 시 전담합니다.
+                    SwitchStrategy(null);
                     break;
 
                 case CameraMode.HybridFocus:

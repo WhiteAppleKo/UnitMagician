@@ -22,6 +22,7 @@ namespace CameraMovement
         [SerializeField] private CinemachineCamera shoulderVirtualCamera;
 
         private ICameraFollowService m_cameraFollowService;
+        public ICameraFollowService CameraFollowService => m_cameraFollowService;
         private ILocomotionVisualizer m_locomotionVisualizer;
         private PureDataCameraSetting m_cameraSetting;
 

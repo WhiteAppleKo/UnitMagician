@@ -72,23 +72,27 @@ namespace UnitSystem
 
         public void Update()
         {
-            // 마우스 좌/우클릭 즉시 시전 및 마나 소모 완전 차단 (숄더뷰/1인칭에서는 클릭 시전 로직 없음)
-
+            // 전략 패턴: Update에서는 조건 분기 없이 순수 마법 조준 및 락온만 실행
             if (lockOnCooldownTimer > 0f)
             {
                 lockOnCooldownTimer -= Time.unscaledDeltaTime;
             }
 
-            // 시간 정지 중일 때만 시야 내 대상 다중 락온 누적 수행
-            if (timeSlowData != null && timeSlowData.IsSlowActive)
-            {
-                ProcessAimTargeting();
-            }
+            ProcessAimTargeting();
         }
 
         private void ProcessAimTargeting()
         {
             PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
+            if (selectedUnitData == null)
+            {
+                var catalogService = UnityEngine.Object.FindFirstObjectByType<UnitQuickSlotUIComponent>();
+                if (catalogService != null)
+                {
+                    selectedUnitData = catalogService.CurrentSelectedUnit;
+                }
+            }
+
             if (selectedUnitData == null)
             {
                 lastHoveredTarget = null;

@@ -20,6 +20,7 @@ namespace UnitSystem
         private PureDataUnit currentSelectedUnit;
 
         public PureDataUnit CurrentSelectedUnit => currentSelectedUnit;
+        public IUnitCatalogService CatalogService => catalogService;
 
         [Inject]
         public void Construct(IUnitCatalogService catalogService)

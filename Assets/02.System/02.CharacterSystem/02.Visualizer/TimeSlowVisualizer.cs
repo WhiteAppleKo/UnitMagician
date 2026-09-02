@@ -13,6 +13,8 @@ namespace CharacterSystem
         [Header("Visual Effects (Optional)")]
         [SerializeField] private GameObject slowVfxObject;
 
+        public event System.Action<bool> OnSlowStateChanged;
+
         private void Awake()
         {
             if (slowAudioSource == null)
@@ -23,6 +25,8 @@ namespace CharacterSystem
 
         public void SetTimeSlowEffect(bool isActive, float timeScale)
         {
+            OnSlowStateChanged?.Invoke(isActive);
+
             if (slowVfxObject != null)
             {
                 slowVfxObject.SetActive(isActive);
