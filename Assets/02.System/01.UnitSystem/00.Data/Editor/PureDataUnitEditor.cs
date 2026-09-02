@@ -41,7 +41,7 @@ namespace UnitSystem
             EditorGUILayout.PropertyField(iconProp);
             EditorGUILayout.PropertyField(applicatorProp);
 
-            UnitType currentType = (UnitType)unitTypeProp.enumValueIndex;
+            UnitType currentType = (UnitType)unitTypeProp.intValue;
 
             // UnitType 변경되거나 Applicator 미할당 시 100% 자동 매핑
             if (isTypeChanged || applicatorProp.objectReferenceValue == null)
@@ -52,19 +52,19 @@ namespace UnitSystem
             EditorGUILayout.Space(10);
 
             // 부피 / 액체 단위 타입 선택 시
-            if (currentType == UnitType.Volume)
+            if ((currentType & UnitType.Volume) != 0)
             {
                 EditorGUILayout.LabelField("Volume / Liquid Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(overlayMaterialProp);
             }
             // 무게 단위 타입 선택 시
-            else if (currentType == UnitType.Mass)
+            if ((currentType & UnitType.Mass) != 0)
             {
                 EditorGUILayout.LabelField("Mass Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(massScaleMultiplierProp);
             }
             // 방향 단위 타입 선택 시
-            else if (currentType == UnitType.Vector)
+            if ((currentType & UnitType.Vector) != 0)
             {
                 EditorGUILayout.LabelField("Vector / Direction Settings", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox("Vector uses VectorUnitApplicatorSO to reverse object velocity & direction.", MessageType.Info);
@@ -79,23 +79,23 @@ namespace UnitSystem
             string defaultAssetName = "";
             System.Type targetClassType = null;
 
-            switch (type)
+            if ((type & UnitType.Mass) != 0)
             {
-                case UnitType.Mass:
-                    searchType = "t:MassUnitApplicatorSO";
-                    defaultAssetName = "MassUnitApplicator";
-                    targetClassType = typeof(MassUnitApplicatorSO);
-                    break;
-                case UnitType.Volume:
-                    searchType = "t:VolumeUnitApplicatorSO";
-                    defaultAssetName = "VolumeUnitApplicator";
-                    targetClassType = typeof(VolumeUnitApplicatorSO);
-                    break;
-                case UnitType.Vector:
-                    searchType = "t:VectorUnitApplicatorSO";
-                    defaultAssetName = "VectorUnitApplicator";
-                    targetClassType = typeof(VectorUnitApplicatorSO);
-                    break;
+                searchType = "t:MassUnitApplicatorSO";
+                defaultAssetName = "MassUnitApplicator";
+                targetClassType = typeof(MassUnitApplicatorSO);
+            }
+            else if ((type & UnitType.Volume) != 0)
+            {
+                searchType = "t:VolumeUnitApplicatorSO";
+                defaultAssetName = "VolumeUnitApplicator";
+                targetClassType = typeof(VolumeUnitApplicatorSO);
+            }
+            else if ((type & UnitType.Vector) != 0)
+            {
+                searchType = "t:VectorUnitApplicatorSO";
+                defaultAssetName = "VectorUnitApplicator";
+                targetClassType = typeof(VectorUnitApplicatorSO);
             }
 
             if (targetClassType == null) return;
