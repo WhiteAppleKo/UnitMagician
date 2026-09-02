@@ -52,8 +52,7 @@ namespace CameraMovement
 
         private void Awake()
         {
-            // 시간 정지(Time.timeScale = 0) 중에도 Cinemachine이 독립 시간(unscaledDeltaTime)으로 동작하도록 강제
-            CinemachineCore.UniformDeltaTimeGetter = () => Time.unscaledDeltaTime;
+            // 시간 정지(Time.timeScale = 0) 중에도 Cinemachine이 독립 시간으로 동작하도록 설정
             ApplyIgnoreTimeScaleToBrain();
         }
 

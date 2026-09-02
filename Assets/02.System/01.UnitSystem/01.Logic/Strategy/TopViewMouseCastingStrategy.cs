@@ -14,7 +14,6 @@ namespace UnitSystem
     public class TopViewMouseCastingStrategy : IUnitCastingStrategy
     {
         private Camera mainCamera;
-        private LayerMask targetLayer;
         private UIDocument uiDocument;
         private UnitChangeService changeService;
         private UnitQuickSlotUIComponent quickSlotUI;
@@ -26,14 +25,12 @@ namespace UnitSystem
 
         public TopViewMouseCastingStrategy(
             Camera mainCamera,
-            LayerMask targetLayer,
             UIDocument uiDocument,
             UnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             GameObject ownerObject)
         {
             this.mainCamera = mainCamera;
-            this.targetLayer = targetLayer;
             this.uiDocument = uiDocument;
             this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
@@ -100,7 +97,7 @@ namespace UnitSystem
             }
 
             float castRadius = 0.3f;
-            RaycastHit[] hits = Physics.SphereCastAll(ray, castRadius, 100f, targetLayer);
+            RaycastHit[] hits = Physics.SphereCastAll(ray, castRadius, 100f);
 
             if (hits != null && hits.Length > 0)
             {

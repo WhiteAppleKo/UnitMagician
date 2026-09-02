@@ -784,37 +784,85 @@ namespace Movement.RefactoredLocomotion
             return 0.0f;
         }
 
+        private const float LOCK_ON_SCAN_RADIUS = 25f;
+        private readonly Collider[] scanColliderBuffer = new Collider[32];
+
         private void UpdateBestTarget()
         {
+            // 플레이어/카메라가 직접 주변 반경 스캔 (타겟 트리거에 의존하지 않음)
+            int hitCount = Physics.OverlapSphereNonAlloc(_visualizer.Position, LOCK_ON_SCAN_RADIUS, scanColliderBuffer);
+
+            _runtimeData.TargetCandidates.Clear();
+            var candidateSet = new System.Collections.Generic.HashSet<GameObject>();
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                var col = scanColliderBuffer[i];
+                if (col == null) continue;
+
+                // 플레이어 본인 제외
+                if (_visualizer.Transform != null && col.transform.root == _visualizer.Transform.root) continue;
+
+                // 오직 적 캐릭터만 락온 후보로 수집 (CharacterStatComponent & IsEnemy == true)
+                var charStat = col.GetComponentInParent<CharacterSystem.CharacterStatComponent>();
+                if (charStat != null && charStat.IsEnemy())
+                {
+                    if (candidateSet.Add(charStat.gameObject))
+                    {
+                        _runtimeData.TargetCandidates.Add(charStat.gameObject);
+                    }
+                }
+            }
+
             var candidates = _runtimeData.TargetCandidates;
             GameObject newBestTarget = null;
+            float bestScore = float.MinValue;
 
-            if (candidates.Count == 1)
-            {
-                newBestTarget = candidates[0];
-            }
-            else if (candidates.Count > 1)
-            {
-                float bestScore = 0f;
+            Vector3 camPos = _visualizer.GetCameraPosition();
+            Vector3 camForward = _visualizer.GetCameraForward();
 
-                foreach (var target in candidates)
+            foreach (var target in candidates)
+            {
+                if (target == null) continue;
+
+                // 기존 하이라이트 끄기 (현재 확정 락온된 대상이 아닌 경우)
+                if (target != _runtimeData.CurrentLockOnTarget || !_runtimeData.IsLockedOn)
                 {
-                    if (target == null) continue;
                     _visualizer.HighlightTarget(target, false, false);
+                }
 
-                    float distance = Vector3.Distance(_visualizer.Position, target.transform.position);
-                    float distanceScore = 1f / distance * 100f;
+                Vector3 targetPos = target.transform.position + Vector3.up * 1.0f;
+                Vector3 toTargetFromCam = targetPos - camPos;
+                float distFromCam = toTargetFromCam.magnitude;
+                if (distFromCam < 0.1f) continue;
 
-                    Vector3 targetDir = target.transform.position - _visualizer.GetCameraPosition();
-                    float angleInView = Vector3.Dot(targetDir.normalized, _visualizer.GetCameraForward());
-                    float angleScore = angleInView * 40f;
+                Vector3 dirFromCam = toTargetFromCam / distFromCam;
+                float dot = Vector3.Dot(camForward, dirFromCam);
 
-                    float totalScore = distanceScore + angleScore;
-                    if (totalScore > bestScore)
+                // 카메라 전방 시야각 내에 있는 대상만 고려 (내적 > 0.25)
+                if (dot < 0.25f) continue;
+
+                // 플레이어와의 거리 계산
+                float distFromPlayer = Vector3.Distance(_visualizer.Position, target.transform.position);
+
+                // 가중치 점수 계산 (화면 중앙 일치도 + 거리 가중치)
+                float angleScore = dot * 60f;
+                float distanceScore = (1f / Mathf.Max(distFromPlayer, 1.0f)) * 40f;
+                float totalScore = angleScore + distanceScore;
+
+                // 시야 차폐 검사 (Linecast): 벽 뒤에 가려진 대상 제외
+                if (Physics.Linecast(camPos, targetPos, out RaycastHit hit))
+                {
+                    if (hit.collider.transform.root != target.transform.root && !hit.collider.isTrigger)
                     {
-                        bestScore = totalScore;
-                        newBestTarget = target;
+                        continue;
                     }
+                }
+
+                if (totalScore > bestScore)
+                {
+                    bestScore = totalScore;
+                    newBestTarget = target;
                 }
             }
 

@@ -103,6 +103,13 @@ namespace UnitSystem
 
         private void ProcessAimTargeting()
         {
+            PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
+            if (selectedUnitData == null)
+            {
+                lastHoveredTarget = null;
+                return;
+            }
+
             Camera cam = Camera.main;
             if (cam == null) return;
 
@@ -121,20 +128,30 @@ namespace UnitSystem
 
             foreach (var hit in hits)
             {
+                // 플레이어 본인 제외
+                if (hit.collider.transform.root == cam.transform.root) continue;
+
                 var unitGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
-                if (unitGroup == null) continue;
 
-                // 1. 사물 타겟팅 불가 대상 제외
-                if (!unitGroup.IsTargetable) continue;
-
-                // 2. 캐릭터인 경우 적대(Enemy) 진영만 락온 허용 (아군/비적대 제외)
-                var charStat = hit.collider.GetComponentInParent<CharacterStatComponent>();
-                if (charStat != null && !charStat.IsEnemy())
+                // 1. RuntimeDataUnitGroup이 없는 단순 적/아군 캐릭터는 마법 락온에서 완전히 배제
+                if (unitGroup == null)
                 {
                     continue;
                 }
 
-                // 3. 쿨다운 및 중복 락온 처리
+                // 2. 타겟팅 불가 사물(IsTargetable == false) 제외
+                if (!unitGroup.IsTargetable)
+                {
+                    continue;
+                }
+
+                // 3. 현재 선택된 마법 단위를 지원하지 않는 사물/적 배제
+                if (!unitGroup.HasUnit(selectedUnitData.UnitType))
+                {
+                    continue;
+                }
+
+                // 4. 쿨다운 및 중복 락온 처리
                 if (unitGroup != lastHoveredTarget || lockOnCooldownTimer <= 0f)
                 {
                     multiLockOnData.AddTarget(unitGroup);

@@ -20,56 +20,23 @@ namespace Synty.AnimationBaseLocomotion.Samples
         /// <inheritdoc cref="Start" />
         protected virtual void Start()
         {
-            _highlightOrb = transform.Find("TargetHighlight");
-            if (_highlightOrb != null)
+            EnsureHighlightTarget();
+        }
+
+        private void EnsureHighlightTarget()
+        {
+            if (_highlightOrb != null) return;
+
+            // 직계 자식뿐만 아니라 하위 모든 계층에서 TargetHighlight를 안전하게 탐색
+            var allChildren = GetComponentsInChildren<Transform>(true);
+            foreach (var child in allChildren)
             {
-                _meshRenderer = _highlightOrb.GetComponent<MeshRenderer>();
-                if (_meshRenderer == null)
+                if (child.name.Equals("TargetHighlight", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    Debug.LogWarning($"[SampleObjectLockOn] TargetHighlight on {gameObject.name} requires a MeshRenderer component.");
+                    _highlightOrb = child;
+                    _meshRenderer = child.GetComponent<MeshRenderer>();
+                    break;
                 }
-            }
-        }
-
-        /// <summary>
-        ///     Adds this object as a potential lock on target if the player is within range of the target.
-        /// </summary>
-        /// <param name="otherCollider">The collider to check.</param>
-        protected virtual void OnTriggerEnter(Collider otherCollider)
-        {
-            SamplePlayerAnimationController playerAnimationController = otherCollider.GetComponent<SamplePlayerAnimationController>();
-            if (playerAnimationController != null)
-            {
-                playerAnimationController.AddTargetCandidate(gameObject);
-                return;
-            }
-
-            Movement.RefactoredLocomotion.ILocomotionVisualizer visualizer = otherCollider.GetComponent<Movement.RefactoredLocomotion.ILocomotionVisualizer>();
-            if (visualizer != null)
-            {
-                visualizer.AddTargetCandidate(gameObject);
-            }
-        }
-
-        /// <summary>
-        ///     Removes this object as a potential lock on target if the player is within range of the target.
-        /// </summary>
-        /// <param name="otherCollider">The collider to check.</param>
-        protected virtual void OnTriggerExit(Collider otherCollider)
-        {
-            SamplePlayerAnimationController playerAnimationController = otherCollider.GetComponent<SamplePlayerAnimationController>();
-            if (playerAnimationController != null)
-            {
-                playerAnimationController.RemoveTarget(gameObject);
-                Highlight(false, false);
-                return;
-            }
-
-            Movement.RefactoredLocomotion.ILocomotionVisualizer visualizer = otherCollider.GetComponent<Movement.RefactoredLocomotion.ILocomotionVisualizer>();
-            if (visualizer != null)
-            {
-                visualizer.RemoveTarget(gameObject);
-                Highlight(false, false);
             }
         }
 
@@ -80,11 +47,14 @@ namespace Synty.AnimationBaseLocomotion.Samples
         /// <param name="targetLock">Whether this object is locked on to; or not.</param>
         public virtual void Highlight(bool enable, bool targetLock)
         {
-            Material currentMaterial = targetLock ? _targetMat : _highlightMat;
+            EnsureHighlightTarget();
 
             if (_highlightOrb != null)
             {
                 _highlightOrb.gameObject.SetActive(enable);
+
+                // 인스펙터에 머티리얼이 할당된 경우에만 교체하고, 비어있을 때는 원본 머티리얼 유지
+                Material currentMaterial = targetLock ? _targetMat : _highlightMat;
                 if (enable && _meshRenderer != null && currentMaterial != null)
                 {
                     _meshRenderer.material = currentMaterial;

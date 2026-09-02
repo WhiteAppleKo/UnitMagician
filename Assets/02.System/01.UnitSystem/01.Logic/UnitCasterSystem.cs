@@ -16,7 +16,6 @@ namespace UnitSystem
     {
         [Header("Targeting Settings")]
         [SerializeField] private Camera mainCamera;
-        [SerializeField] private LayerMask targetLayer = -1;
         [SerializeField] private UIDocument uiDocument;
 
         private UnitChangeService changeService;
@@ -109,7 +108,6 @@ namespace UnitSystem
 
             topViewStrategy = new TopViewMouseCastingStrategy(
                 mainCamera,
-                targetLayer,
                 uiDocument,
                 changeService,
                 quickSlotUI,
@@ -122,8 +120,7 @@ namespace UnitSystem
                 changeService,
                 quickSlotUI,
                 multiLockOnVisualizer,
-                playerStatSystem,
-                targetLayer
+                playerStatSystem
             );
 
             isInitialized = true;

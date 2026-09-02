@@ -103,16 +103,5 @@ namespace UnitSystem
 
             base.Highlight(enable, targetLock);
         }
-
-        protected override void OnTriggerEnter(Collider otherCollider)
-        {
-            if (!isTargetable) return;
-            base.OnTriggerEnter(otherCollider);
-        }
-
-        protected override void OnTriggerExit(Collider otherCollider)
-        {
-            base.OnTriggerExit(otherCollider);
-        }
     }
 }

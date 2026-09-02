@@ -17,7 +17,6 @@ namespace UnitSystem
         private readonly UnitQuickSlotUIComponent quickSlotUI;
         private readonly IMultiLockOnVisualizer visualizer;
         private readonly CharacterStatSystem playerStatSystem;
-        private readonly LayerMask targetLayer;
 
         private float lockOnCooldownTimer = 0f;
         private const float LOCK_ON_INTERVAL = 0.2f;
@@ -30,8 +29,7 @@ namespace UnitSystem
             UnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             IMultiLockOnVisualizer visualizer,
-            CharacterStatSystem playerStatSystem,
-            LayerMask targetLayer)
+            CharacterStatSystem playerStatSystem)
         {
             this.multiLockOnData = multiLockOnData ?? throw new ArgumentNullException(nameof(multiLockOnData));
             this.timeSlowData = timeSlowData;
@@ -39,7 +37,6 @@ namespace UnitSystem
             this.quickSlotUI = quickSlotUI;
             this.visualizer = visualizer;
             this.playerStatSystem = playerStatSystem;
-            this.targetLayer = targetLayer;
 
             if (this.timeSlowData != null)
             {
@@ -91,6 +88,13 @@ namespace UnitSystem
 
         private void ProcessAimTargeting()
         {
+            PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
+            if (selectedUnitData == null)
+            {
+                lastHoveredTarget = null;
+                return;
+            }
+
             Camera cam = Camera.main;
             if (cam == null) return;
 
@@ -98,7 +102,7 @@ namespace UnitSystem
             float castRadius = 0.6f;
             float maxDistance = 60f;
 
-            RaycastHit[] hits = Physics.SphereCastAll(aimRay, castRadius, maxDistance, targetLayer);
+            RaycastHit[] hits = Physics.SphereCastAll(aimRay, castRadius, maxDistance);
             if (hits == null || hits.Length == 0)
             {
                 lastHoveredTarget = null;
@@ -109,20 +113,30 @@ namespace UnitSystem
 
             foreach (var hit in hits)
             {
+                // 플레이어 본인 제외
+                if (hit.collider.transform.root == cam.transform.root) continue;
+
                 var unitGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
-                if (unitGroup == null) continue;
 
-                // 1. 사물 타겟팅 불가 대상 제외 (IsTargetable == false)
-                if (!unitGroup.IsTargetable) continue;
-
-                // 2. 캐릭터인 경우 적대(Enemy) 진영만 락온 허용 (아군/비적대 제외)
-                var charStat = hit.collider.GetComponentInParent<CharacterStatComponent>();
-                if (charStat != null && !charStat.IsEnemy())
+                // 1. RuntimeDataUnitGroup이 없는 단순 적/아군 캐릭터는 마법 락온에서 완전히 배제
+                if (unitGroup == null)
                 {
                     continue;
                 }
 
-                // 3. 쿨다운 및 락온 대상 누적 처리
+                // 2. 타겟팅 불가 사물(IsTargetable == false) 제외
+                if (!unitGroup.IsTargetable)
+                {
+                    continue;
+                }
+
+                // 3. 현재 선택된 마법 단위를 지원하지 않는 사물/적 배제
+                if (!unitGroup.HasUnit(selectedUnitData.UnitType))
+                {
+                    continue;
+                }
+
+                // 위 조건들을 모두 만족하는 유효 마법 대상만 락온 목록에 누적 및 하이라이트
                 if (unitGroup != lastHoveredTarget || lockOnCooldownTimer <= 0f)
                 {
                     multiLockOnData.AddTarget(unitGroup);
