@@ -12,14 +12,25 @@ namespace UnitSystem
         {
             if (target == null || runtimeData == null) return;
 
-            var meshRenderer = target.GetComponent<MeshRenderer>();
-            if (meshRenderer != null)
-            {
-                Material matToApply = runtimeData.CurrentUnitData != null && runtimeData.CurrentUnitData.OverlayMaterial != null ? runtimeData.CurrentUnitData.OverlayMaterial : overlayMaterial;
+            Material matToApply = runtimeData.CurrentUnitData != null && runtimeData.CurrentUnitData.OverlayMaterial != null 
+                ? runtimeData.CurrentUnitData.OverlayMaterial 
+                : overlayMaterial;
 
-                if (matToApply != null)
+            if (matToApply != null)
+            {
+                var visualizer = target.GetComponent<IUnitTargetVisualizer>();
+                if (visualizer != null)
                 {
-                    meshRenderer.material = matToApply;
+                    visualizer.ApplyMaterial(matToApply);
+                }
+                else
+                {
+                    // Fallback for targets without IUnitTargetVisualizer
+                    var meshRenderer = target.GetComponent<MeshRenderer>();
+                    if (meshRenderer != null)
+                    {
+                        meshRenderer.material = matToApply;
+                    }
                 }
             }
 

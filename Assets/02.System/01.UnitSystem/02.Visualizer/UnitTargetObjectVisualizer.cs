@@ -13,9 +13,14 @@ namespace UnitSystem
 
         private void Awake()
         {
-            rb = GetComponent<Rigidbody>();
-            meshRenderer = GetComponent<MeshRenderer>();
+            EnsureComponents();
             CaptureInitialScale();
+        }
+
+        private void EnsureComponents()
+        {
+            if (rb == null) rb = GetComponent<Rigidbody>();
+            if (meshRenderer == null) meshRenderer = GetComponent<MeshRenderer>();
         }
 
         private void CaptureInitialScale()
@@ -24,6 +29,44 @@ namespace UnitSystem
             {
                 initialTransformScale = transform.localScale != Vector3.zero ? transform.localScale : Vector3.one;
                 isScaleCaptured = true;
+            }
+        }
+
+        public void ApplyMassScale(float mass, float scaleMultiplier)
+        {
+            EnsureComponents();
+            CaptureInitialScale();
+
+            if (rb != null)
+            {
+                rb.mass = Mathf.Max(0.1f, mass);
+            }
+
+            transform.localScale = InitialScale * scaleMultiplier;
+        }
+
+        public void ApplyVelocity(Vector3 direction, float speed)
+        {
+            EnsureComponents();
+
+            if (rb != null)
+            {
+                rb.linearVelocity = direction * speed;
+            }
+
+            if (direction != Vector3.zero)
+            {
+                transform.forward = direction;
+            }
+        }
+
+        public void ApplyMaterial(Material material)
+        {
+            EnsureComponents();
+
+            if (meshRenderer != null && material != null)
+            {
+                meshRenderer.material = material;
             }
         }
 

@@ -12,15 +12,24 @@ namespace UnitSystem
             Vector3 applyDirection = runtimeData.VectorDirection != Vector3.zero ? runtimeData.VectorDirection : target.transform.forward;
             float applySpeed = runtimeData.VectorSpeed;
 
-            var rb = target.GetComponent<Rigidbody>();
-            if (rb != null)
+            var visualizer = target.GetComponent<IUnitTargetVisualizer>();
+            if (visualizer != null)
             {
-                rb.linearVelocity = applyDirection * applySpeed;
+                visualizer.ApplyVelocity(applyDirection, applySpeed);
             }
-
-            if (applyDirection != Vector3.zero)
+            else
             {
-                target.transform.forward = applyDirection;
+                // Fallback for targets without IUnitTargetVisualizer
+                var rb = target.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.linearVelocity = applyDirection * applySpeed;
+                }
+
+                if (applyDirection != Vector3.zero)
+                {
+                    target.transform.forward = applyDirection;
+                }
             }
 
             Debug.Log($"[VectorUnitApplicatorSO] Applied Vector for {target.name}. Direction: {applyDirection}, Speed: {applySpeed}");
