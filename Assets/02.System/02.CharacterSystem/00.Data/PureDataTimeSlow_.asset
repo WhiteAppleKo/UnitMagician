@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e93e432d610c95141bfc459ff643e8ce, type: 3}
   m_Name: PureDataTimeSlow_
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.PureDataTimeSlow
-  slowTimeScale: 0.2
+  slowTimeScale: 0
   defaultFixedDeltaTime: 0.02
   maxFocus: 100
   minFocus: 0

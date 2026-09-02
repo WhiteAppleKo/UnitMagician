@@ -1142,6 +1142,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3374cefaa6c749445b4c557acebe588b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1565979558}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3374cefaa6c749445b4c557acebe588b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1565979565}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3374cefaa6c749445b4c557acebe588b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1565979564}
   m_SourcePrefab: {fileID: 100100000, guid: 3374cefaa6c749445b4c557acebe588b, type: 3}
 --- !u!1 &454087739
 GameObject:
@@ -1562,6 +1568,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 762676b4ddbac304ab29d6729aafbc0b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.CharacterStatComponent
+  _highlightMat: {fileID: 0}
+  _targetMat: {fileID: 0}
   pureStatData: {fileID: 11400000, guid: ae794a09e2bd3c143a85a413e3fff0bc, type: 2}
 --- !u!54 &576400251
 Rigidbody:
@@ -2674,6 +2682,10 @@ MonoBehaviour:
   autoInjectGameObjects: []
   characterStatComponent: {fileID: 1565979558}
   hudUIView: {fileID: 1200176979}
+  pureDataPlayerState: {fileID: 11400000, guid: 0f7c99e2f09c4c645aedaa97d3c05a9a, type: 2}
+  pureDataTimeSlow: {fileID: 11400000, guid: 049127691fc9f344f87918149156ffd8, type: 2}
+  playerStateVisualizer: {fileID: 1565979565}
+  timeSlowVisualizer: {fileID: 1565979564}
 --- !u!4 &973781894
 Transform:
   m_ObjectHideFlags: 0
@@ -4010,6 +4022,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 762676b4ddbac304ab29d6729aafbc0b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.CharacterStatComponent
+  _highlightMat: {fileID: 0}
+  _targetMat: {fileID: 0}
   pureStatData: {fileID: 11400000, guid: e515115f7b5e8e94bb6262089d3e95fb, type: 2}
 --- !u!114 &1565979559
 MonoBehaviour:
@@ -4080,6 +4094,39 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3374cefaa6c749445b4c557acebe588b, type: 3}
   m_PrefabInstance: {fileID: 449925950}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1565979564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565979557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75fdbfe155c6d4a4eba656f5277112c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.TimeSlowVisualizer
+  slowAudioSource: {fileID: 0}
+  slowEnterSound: {fileID: 0}
+  slowExitSound: {fileID: 0}
+  slowPitch: 0.5
+  slowVfxObject: {fileID: 0}
+--- !u!114 &1565979565
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565979557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 581a8f7480c5ba6469bdb40a78e444d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.PlayerStateVisualizer
+  animator: {fileID: 0}
+  castingParticle: {fileID: 0}
+  stateAudioSource: {fileID: 0}
+  castingSound: {fileID: 0}
 --- !u!4 &1569568086 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fa2d15d63a1f3fe4187cd2e4e8bbeaea, type: 3}
@@ -4623,6 +4670,7 @@ MonoBehaviour:
   vectorGizmoUI: {fileID: 1179478211}
   unitCaster: {fileID: 1535937103}
   ghostPreview: {fileID: 1834538405}
+  multiLockOnVisualizer: {fileID: 0}
 --- !u!4 &1834538404
 Transform:
   m_ObjectHideFlags: 0
@@ -4810,7 +4858,6 @@ MonoBehaviour:
   topViewVirtualCamera: {fileID: 657334829}
   firstPersonVirtualCamera: {fileID: 782091546}
   shoulderVirtualCamera: {fileID: 639749966}
-  orbitVirtualCamera: {fileID: 449431362}
 --- !u!4 &1887385776
 Transform:
   m_ObjectHideFlags: 0
@@ -5191,7 +5238,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMovement.UI.CameraOptionUIController
   uiDocument: {fileID: 1938360905}
   sceneContext: 0
-  colorData: {fileID: 11400000, guid: 1d4013e47c96f0d42805e0d3f65c1339, type: 2}
+  colorData: {fileID: 11400000, guid: 8c82211fd3601d148b61129686af4fdb, type: 2}
 --- !u!114 &1938360905
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5206,7 +5253,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
   m_PanelSettings: {fileID: 11400000, guid: 5444b0bc3d93b42419a901b8b91b012c, type: 2}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 2cf0e515a360aa540b6cd72fc43eaa51, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: ba481527492c0034a9e2199efa26adf9, type: 3}
   m_SortingOrder: 0
   m_Position: 0
   m_WorldSpaceSizeMode: 1

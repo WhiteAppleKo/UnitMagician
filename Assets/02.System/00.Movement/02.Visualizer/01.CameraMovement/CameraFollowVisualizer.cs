@@ -47,9 +47,32 @@ namespace CameraMovement
         private const int PRIORITY_ACTIVE = 100;
         private const int PRIORITY_INACTIVE = 0;
         private static readonly Vector3 TOPVIEW_OFFSET_DIRECTION = new Vector3(0f, 1f, -1f).normalized;
-
         private Transform m_currentLockOnTarget;
         private bool m_isLockedOn;
+
+        private void Awake()
+        {
+            // 시간 정지(Time.timeScale = 0) 중에도 Cinemachine이 독립 시간(unscaledDeltaTime)으로 동작하도록 강제
+            CinemachineCore.UniformDeltaTimeGetter = () => Time.unscaledDeltaTime;
+            ApplyIgnoreTimeScaleToBrain();
+        }
+
+        private void ApplyIgnoreTimeScaleToBrain()
+        {
+            Camera mainCam = Camera.main;
+            if (mainCam != null && mainCam.TryGetComponent<CinemachineBrain>(out var brain))
+            {
+                brain.IgnoreTimeScale = true;
+            }
+            else
+            {
+                var anyBrain = FindAnyObjectByType<CinemachineBrain>();
+                if (anyBrain != null)
+                {
+                    anyBrain.IgnoreTimeScale = true;
+                }
+            }
+        }
 
         private void LateUpdate()
         {
@@ -68,14 +91,14 @@ namespace CameraMovement
                 pivotTarget.position = playerTransform.position + Vector3.up * 1.4f;
             }
 
-            // 락온 시 피벗 회전축을 타겟 방향으로 정렬
+            // 락온 시 피벗 회전축을 타겟 방향으로 정렬 (독립 시간 적용)
             if (m_isLockedOn && m_currentLockOnTarget != null)
             {
                 Vector3 toTarget = (m_currentLockOnTarget.position + Vector3.up * 1.0f) - pivotTarget.position;
                 if (toTarget != Vector3.zero)
                 {
                     Quaternion lockRot = Quaternion.LookRotation(toTarget);
-                    pivotTarget.rotation = Quaternion.Slerp(pivotTarget.rotation, lockRot, 15f * Time.deltaTime);
+                    pivotTarget.rotation = Quaternion.Slerp(pivotTarget.rotation, lockRot, 15f * Time.unscaledDeltaTime);
                 }
             }
 
@@ -116,6 +139,7 @@ namespace CameraMovement
 
         private void Start()
         {
+            ApplyIgnoreTimeScaleToBrain();
             EnsurePlayerTransform();
 
             if (pivotTarget == null)

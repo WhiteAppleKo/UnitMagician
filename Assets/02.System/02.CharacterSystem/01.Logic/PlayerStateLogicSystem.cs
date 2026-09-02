@@ -83,13 +83,7 @@ namespace CharacterSystem
 
         private void HandleInput()
         {
-            if (Mouse.current == null) return;
-
-            // 마우스 좌클릭 시 단위 마법 시전 시도
-            if (Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                TryCastCurrentMagic();
-            }
+            // 마우스 좌/우클릭 시전 처리는 UnitCasterSystem 전략 패턴(TopViewMouseCastingStrategy / AimLockOnCastingStrategy)으로 일원화됨
         }
 
         public bool TryCastCurrentMagic()

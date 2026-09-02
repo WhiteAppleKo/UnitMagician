@@ -38,7 +38,10 @@ namespace UnitSystem
             if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
 
             // Gameplay Component Register
-            if (unitCaster != null) builder.RegisterComponent(unitCaster);
+            var caster = unitCaster;
+            if (caster == null) caster = FindAnyObjectByType<UnitCasterSystem>();
+            if (caster != null) builder.RegisterComponent(caster);
+
             if (ghostPreview != null) builder.RegisterComponent(ghostPreview);
 
             var multiLockOnVis = multiLockOnVisualizer;
@@ -48,8 +51,7 @@ namespace UnitSystem
                 builder.RegisterComponent(multiLockOnVis).As<IMultiLockOnVisualizer>();
             }
 
-            // Logic System Register
-            builder.RegisterEntryPoint<MultiLockOnLogicSystem>(Lifetime.Singleton);
+            // 단위 마법 조작/락온 로직은 UnitCasterSystem(전략 패턴 Context)으로 일원화됨
         }
     }
 }
