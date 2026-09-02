@@ -6,8 +6,12 @@ namespace PlayerMovement
     {
         Transform Transform { get; }
         Vector3 Position { get; }
+        Vector3 Forward { get; }
+        Vector3 Right { get; }
         void Move(Vector3 direction, float speed);
         void Rotate(Vector3 direction, float rotateSpeed);
-        void SetFirstPersonCameraPitch(float pitchAngle);
+        void RotateYaw(float angle);
+        void SetFirstPersonCameraPitch(float pitch);
+        void SetCursorLocked(bool isLocked);
     }
 }

@@ -13,6 +13,8 @@ namespace PlayerMovement
 
         public Transform Transform => transform;
         public Vector3 Position => transform.position;
+        public Vector3 Forward => transform.forward;
+        public Vector3 Right => transform.right;
 
         private void Awake()
         {
@@ -32,11 +34,36 @@ namespace PlayerMovement
             }
         }
 
-        public void SetFirstPersonCameraPitch(float pitchAngle)
+        public void SetFirstPersonCameraPitch(float pitch)
         {
             if (firstPersonCameraPivot != null)
             {
-                firstPersonCameraPivot.localRotation = Quaternion.Euler(pitchAngle, 0f, 0f);
+                firstPersonCameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+            }
+        }
+
+        public void RotateYaw(float angle)
+        {
+            transform.Rotate(0f, angle, 0f);
+        }
+
+        public void SetCursorLocked(bool isLocked)
+        {
+            if (isLocked)
+            {
+                if (Cursor.lockState != CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+            }
+            else
+            {
+                if (Cursor.lockState != CursorLockMode.None)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
             }
         }
 

@@ -111,9 +111,11 @@ namespace PlayerMovement
             {
                 builder.RegisterInstance(legacyPureData);
                 builder.Register<RuntimeDataPlayerInput>(Lifetime.Singleton);
-                if (legacyVisualizer != null)
+                PlayerMovementVisualizer legVis = legacyVisualizer;
+                if (legVis == null) legVis = FindAnyObjectByType<PlayerMovementVisualizer>();
+                if (legVis != null)
                 {
-                    builder.RegisterComponent(legacyVisualizer).As<IPlayerMovementVisualizer>();
+                    builder.RegisterComponent(legVis).As<IPlayerMovementVisualizer>();
                 }
                 builder.RegisterEntryPoint<PlayerInputSystem>();
                 builder.RegisterEntryPoint<PlayerMovementSystem>();
