@@ -48,6 +48,7 @@ namespace UnitSystem
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
             if (_quickSlotUI == null) _quickSlotUI = UnityEngine.Object.FindFirstObjectByType<UnitQuickSlotUIComponent>();
+            GetPlayerStatSystem();
         }
 
         private void OnEnable()
@@ -55,6 +56,7 @@ namespace UnitSystem
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
+            GetPlayerStatSystem();
 
             if (_visualizer != null)
             {
@@ -64,6 +66,24 @@ namespace UnitSystem
 
             _multiLockOnData?.ClearTargets();
             _currentHoverTarget = null;
+        }
+
+        private CharacterStatSystem GetPlayerStatSystem()
+        {
+            if (_playerStatSystem != null) return _playerStatSystem;
+
+            var statComp = GetComponentInParent<CharacterStatComponent>();
+            if (statComp == null)
+            {
+                statComp = UnityEngine.Object.FindFirstObjectByType<CharacterStatComponent>();
+            }
+
+            if (statComp != null)
+            {
+                _playerStatSystem = statComp.StatSystem;
+            }
+
+            return _playerStatSystem;
         }
 
         private void OnDisable()
@@ -238,8 +258,10 @@ namespace UnitSystem
             _multiLockOnData.ClearTargets();
             _visualizer?.UpdateLockOnCount(0);
 
-            RuntimeStatData casterStat = _playerStatSystem?.RuntimeData;
+            var statSystem = GetPlayerStatSystem();
+            RuntimeStatData casterStat = statSystem?.RuntimeData;
 
+            // 1. 총 필요 마나 사전 계산
             int totalCost = 0;
             for (int i = 0; i < targets.Count; i++)
             {
@@ -255,6 +277,7 @@ namespace UnitSystem
                 }
             }
 
+            // 2. 마나 검증 및 부족 시 안전 예외 처리
             if (casterStat != null && casterStat.MP.CurrentValue < totalCost)
             {
                 Debug.LogWarning($"[MagicLockOnComponent] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStat.MP.CurrentValue})");
@@ -271,7 +294,11 @@ namespace UnitSystem
                 _changeService = new UnitChangeService(_quickSlotUI.CatalogService);
             }
 
-            // 순차적으로 마커를 즉시 끄면서 마법 변환 적용
+            GameObject casterObj = _locomotionVisualizer?.Transform != null
+                ? _locomotionVisualizer.Transform.root.gameObject
+                : transform.root.gameObject;
+
+            // 3. 순차적으로 마커를 즉시 끄면서 마법 변환 및 소유권 갱신 적용
             for (int i = 0; i < targets.Count; i++)
             {
                 var targetGroup = targets[i];
@@ -284,7 +311,7 @@ namespace UnitSystem
                 if (matchingUnitData != null)
                 {
                     float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    _changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat);
+                    _changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat, null, casterObj);
                 }
             }
 
