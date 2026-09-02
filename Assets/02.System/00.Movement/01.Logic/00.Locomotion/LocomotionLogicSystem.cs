@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Movement.Visualizer;
 using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 using UnityEngine;
 using VContainer;
@@ -16,18 +17,21 @@ namespace Movement.RefactoredLocomotion
         private readonly RuntimeDataLocomotion _runtimeData;
         private readonly ILocomotionVisualizer _visualizer;
         private readonly InputReader _inputReader;
+        private readonly ILockOnController _lockOnController;
 
         [Inject]
         public LocomotionLogicSystem(
             PureDataLocomotion pureData,
             RuntimeDataLocomotion runtimeData,
             ILocomotionVisualizer visualizer,
-            InputReader inputReader)
+            InputReader inputReader,
+            ILockOnController lockOnController = null)
         {
             _pureData = pureData;
             _runtimeData = runtimeData;
             _visualizer = visualizer;
             _inputReader = inputReader;
+            _lockOnController = lockOnController;
 
             RegisterInputEvents();
             SwitchState(LocomotionAnimationState.Locomotion);
@@ -37,12 +41,6 @@ namespace Movement.RefactoredLocomotion
 
         private void RegisterInputEvents()
         {
-            if (_visualizer != null)
-            {
-                _visualizer.OnTargetCandidateAdded += AddTargetCandidate;
-                _visualizer.OnTargetCandidateRemoved += RemoveTarget;
-            }
-
             if (_inputReader == null) return;
 
             _inputReader.onLockOnToggled += ToggleLockOn;
@@ -57,12 +55,6 @@ namespace Movement.RefactoredLocomotion
 
         public void Dispose()
         {
-            if (_visualizer != null)
-            {
-                _visualizer.OnTargetCandidateAdded -= AddTargetCandidate;
-                _visualizer.OnTargetCandidateRemoved -= RemoveTarget;
-            }
-
             if (_inputReader == null) return;
 
             _inputReader.onLockOnToggled -= ToggleLockOn;
@@ -293,14 +285,7 @@ namespace Movement.RefactoredLocomotion
 
         private void ToggleLockOn()
         {
-            if (_visualizer != null && _visualizer.Transform != null)
-            {
-                var lockOnCtrl = _visualizer.Transform.GetComponent<Movement.Visualizer.PlayerLockOnController>();
-                if (lockOnCtrl != null)
-                {
-                    lockOnCtrl.ToggleLockOn();
-                }
-            }
+            _lockOnController?.ToggleLockOn();
         }
 
         private void ToggleWalk() => EnableWalk(!_runtimeData.IsWalking);
@@ -771,14 +756,6 @@ namespace Movement.RefactoredLocomotion
                 return Mathf.Clamp(timeVar, 0.0f, 1.0f);
             }
             return 0.0f;
-        }
-
-        public void AddTargetCandidate(GameObject target)
-        {
-        }
-
-        public void RemoveTarget(GameObject target)
-        {
         }
 
         #endregion

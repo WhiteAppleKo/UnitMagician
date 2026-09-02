@@ -2,6 +2,7 @@ using UnityEngine;
 using CharacterSystem;
 using Movement.Visualizer;
 using UnitSystem;
+using VContainer;
 
 namespace Movement.Visualizer
 {
@@ -13,7 +14,7 @@ namespace Movement.Visualizer
     /// <summary>
     /// 플레이어 루트에 부착되어 T키(시간 정지) 상태에 따라 자식 NormalLockOn / MagicLockOn 오브젝트를 활성화/비활성화 전환하는 컨트롤러
     /// </summary>
-    public class PlayerLockOnController : MonoBehaviour
+    public class PlayerLockOnController : MonoBehaviour, ILockOnController
     {
         [Header("Child LockOn Objects")]
         [SerializeField] private GameObject normalLockOnObject;
@@ -23,6 +24,22 @@ namespace Movement.Visualizer
         private MagicLockOnComponent _magicLockOn;
         private ILockOnComponent _currentActiveLockOn;
         private TimeSlowVisualizer _timeSlowVisualizer;
+
+        [Inject]
+        public void Construct(TimeSlowVisualizer timeSlowVisualizer)
+        {
+            if (_timeSlowVisualizer != null)
+            {
+                _timeSlowVisualizer.OnSlowStateChanged -= HandleSlowStateChanged;
+            }
+
+            _timeSlowVisualizer = timeSlowVisualizer;
+
+            if (_timeSlowVisualizer != null && isActiveAndEnabled)
+            {
+                _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
+            }
+        }
 
         private void Awake()
         {
@@ -55,10 +72,13 @@ namespace Movement.Visualizer
                 _magicLockOn = magicLockOnObject.GetComponent<MagicLockOnComponent>();
             }
 
-            _timeSlowVisualizer = GetComponentInParent<TimeSlowVisualizer>();
             if (_timeSlowVisualizer == null)
             {
-                _timeSlowVisualizer = UnityEngine.Object.FindFirstObjectByType<TimeSlowVisualizer>();
+                _timeSlowVisualizer = GetComponentInParent<TimeSlowVisualizer>();
+                if (_timeSlowVisualizer == null)
+                {
+                    _timeSlowVisualizer = FindAnyObjectByType<TimeSlowVisualizer>();
+                }
             }
 
             // 기본 상태: 일반 락온 ON, 마법 락온 OFF
@@ -74,6 +94,7 @@ namespace Movement.Visualizer
         {
             if (_timeSlowVisualizer != null)
             {
+                _timeSlowVisualizer.OnSlowStateChanged -= HandleSlowStateChanged;
                 _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
             }
         }

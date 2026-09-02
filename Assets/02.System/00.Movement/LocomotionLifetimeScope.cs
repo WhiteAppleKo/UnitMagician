@@ -3,6 +3,7 @@ using VContainer;
 using VContainer.Unity;
 using CameraMovement;
 using CameraMovement.UI;
+using Movement.Visualizer;
 
 namespace Movement.RefactoredLocomotion
 {
@@ -57,6 +58,16 @@ namespace Movement.RefactoredLocomotion
                 {
                     builder.RegisterComponent(visualizer).As<ILocomotionVisualizer>();
                 }
+            }
+
+            var lockOnController = FindAnyObjectByType<PlayerLockOnController>();
+            if (lockOnController != null)
+            {
+                builder.RegisterComponent(lockOnController).As<ILockOnController>();
+            }
+            else
+            {
+                builder.RegisterComponentInHierarchy<PlayerLockOnController>().As<ILockOnController>();
             }
 
             if (config.CameraVisualizer != null)
