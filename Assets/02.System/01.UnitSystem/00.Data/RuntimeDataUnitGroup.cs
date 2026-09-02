@@ -5,6 +5,10 @@ using Synty.AnimationBaseLocomotion.Samples;
 
 namespace UnitSystem
 {
+    /// <summary>
+    /// 오브젝트에 부착되는 단위 데이터 그룹 및 락온 타겟 컴포넌트입니다.
+    /// Mass, Volume, Vector 등 다중 단위 런타임 데이터를 관리하고 상태 변경 이벤트를 발행합니다.
+    /// </summary>
     public class RuntimeDataUnitGroup : SampleObjectLockOn
     {
         [Header("Unit Group Setup")]
@@ -12,20 +16,19 @@ namespace UnitSystem
         [SerializeField] private bool isTargetable = true;
         [SerializeField, HideInInspector] public float bakedMassValue = 1.0f;
 
+        public UnitType SupportedUnits => supportedUnits;
         public bool IsTargetable => isTargetable;
-
-        public void SetTargetable(bool targetable)
+        public float BakedMassValue
         {
-            isTargetable = targetable;
-            if (!isTargetable)
-            {
-                Highlight(false, false);
-            }
+            get => bakedMassValue;
+            set => bakedMassValue = value;
         }
 
         public event Action<RuntimeDataUnitGroup, RuntimeDataUnit> OnUnitGroupChanged;
+        public event Action<bool> OnTargetableChanged;
 
         public List<RuntimeDataUnit> UnitRuntimeDataList { get; private set; } = new();
+        public IReadOnlyList<RuntimeDataUnit> Units => UnitRuntimeDataList;
 
         private void Awake()
         {
@@ -37,6 +40,7 @@ namespace UnitSystem
 
         public void InitUnits()
         {
+            UnbindUnitEvents();
             UnitRuntimeDataList.Clear();
 
             // 플래그 체크 후 개별 인스턴스 생성
@@ -63,6 +67,13 @@ namespace UnitSystem
 
         private void OnDestroy()
         {
+            UnbindUnitEvents();
+        }
+
+        private void UnbindUnitEvents()
+        {
+            if (UnitRuntimeDataList == null) return;
+
             foreach (var data in UnitRuntimeDataList)
             {
                 if (data != null) data.OnUnitChanged -= HandleUnitChanged;
@@ -85,12 +96,25 @@ namespace UnitSystem
 
             foreach (var unitData in UnitRuntimeDataList)
             {
-                if ((unitData.CurrentUnit & targetType) == targetType)
+                if (unitData != null && (unitData.CurrentUnit & targetType) == targetType)
                 {
                     return unitData;
                 }
             }
             return null;
+        }
+
+        public void SetTargetable(bool targetable)
+        {
+            if (isTargetable == targetable) return;
+
+            isTargetable = targetable;
+            if (!isTargetable)
+            {
+                Highlight(false, false);
+            }
+
+            OnTargetableChanged?.Invoke(isTargetable);
         }
 
         public override void Highlight(bool enable, bool targetLock)
