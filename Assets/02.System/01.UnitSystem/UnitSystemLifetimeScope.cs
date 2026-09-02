@@ -28,6 +28,7 @@ namespace UnitSystem
             builder.RegisterInstance<IReadOnlyList<PureDataUnit>>(initialUnits);
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton);
+            builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
 
             // UI Toolkit Component Register

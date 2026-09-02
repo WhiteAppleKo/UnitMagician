@@ -21,6 +21,7 @@ namespace UnitSystem
         [SerializeField] private UIDocument uiDocument;
 
         private UnitChangeService changeService;
+        private IUnitBatchCastingService batchCastingService;
         private UnitQuickSlotUIComponent quickSlotUI;
         private RuntimeDataMultiLockOn multiLockOnData;
         private RuntimeDataTimeSlow timeSlowData;
@@ -47,14 +48,21 @@ namespace UnitSystem
             UnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             RuntimeDataMultiLockOn multiLockOnData,
+            IUnitBatchCastingService batchCastingService = null,
             IObjectResolver resolver = null)
         {
             this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
             this.multiLockOnData = multiLockOnData;
+            this.batchCastingService = batchCastingService;
 
             if (resolver != null)
             {
+                if (this.batchCastingService == null && resolver.TryResolve<IUnitBatchCastingService>(out var resolvedBatchService))
+                {
+                    this.batchCastingService = resolvedBatchService;
+                }
+
                 if (resolver.TryResolve<ICameraFollowService>(out var camService))
                 {
                     this.cameraFollowService = camService;
@@ -93,7 +101,7 @@ namespace UnitSystem
             BindMultiLockOnEvents();
         }
 
-        private void EnsureStrategiesInitialized()
+        public void EnsureStrategiesInitialized()
         {
             if (isInitialized) return;
 
@@ -131,12 +139,18 @@ namespace UnitSystem
 
             EnsurePlayerStatBound();
 
+            if (batchCastingService == null && changeService != null)
+            {
+                batchCastingService = new UnitBatchCastingService(changeService);
+            }
+
             topViewStrategy = new TopViewMouseCastingStrategy(
                 mainCamera,
                 uiDocument,
                 changeService,
                 quickSlotUI,
-                gameObject
+                gameObject,
+                batchCastingService
             );
 
             aimLockOnStrategy = new AimLockOnCastingStrategy(
@@ -145,7 +159,8 @@ namespace UnitSystem
                 changeService,
                 quickSlotUI,
                 multiLockOnVisualizer,
-                playerStatSystem
+                playerStatSystem,
+                batchCastingService
             );
 
             isInitialized = true;
@@ -329,65 +344,32 @@ namespace UnitSystem
 
             RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
 
-            // 1. 총 필요 마나 사전 계산
-            int totalCost = 0;
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    float diff = Mathf.Abs(matchingUnitData.CurrentValue - newValue);
-                    int baseCost = selectedUnitData.BaseCost > 0 ? selectedUnitData.BaseCost : 10;
-                    totalCost += Mathf.Max(Mathf.RoundToInt(baseCost * diff), baseCost);
-                }
-            }
-
-            // 2. 마나 검증 및 부족 시 안전 예외 처리
-            if (casterStat != null && casterStat.MP.CurrentValue < totalCost)
-            {
-                Debug.LogWarning($"[UnitCasterSystem] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStat.MP.CurrentValue})");
-                casterStat.TryConsumeMP(totalCost);
-                foreach (var target in targets)
-                {
-                    if (target != null) target.Highlight(false, false);
-                }
-                return;
-            }
-
             if (changeService == null && quickSlotUI != null && quickSlotUI.CatalogService != null)
             {
                 changeService = new UnitChangeService(quickSlotUI.CatalogService);
             }
 
-            GameObject casterObj = gameObject;
-
-            // 3. 순차적으로 마커를 즉시 끄면서 마법 변환 및 소유권 갱신 적용
-            for (int i = 0; i < targets.Count; i++)
+            if (batchCastingService == null && changeService != null)
             {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                // 마커 즉시 소등
-                targetGroup.Highlight(false, false);
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat, null, casterObj);
-                }
+                batchCastingService = new UnitBatchCastingService(changeService);
             }
 
-            // 4. 시각 효과 재생
-            multiLockOnVisualizer?.PlayBatchCastEffect();
+            GameObject casterObj = gameObject;
+
+            bool success = batchCastingService != null && batchCastingService.ExecuteBatchCast(targets, selectedUnitData, casterStat, casterObj);
+            if (success)
+            {
+                multiLockOnVisualizer?.PlayBatchCastEffect();
+            }
         }
 
         private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
         {
+            if (batchCastingService != null)
+            {
+                return batchCastingService.CalculateNewValue(targetUnit, spellUnit);
+            }
+
             if (targetUnit == null || spellUnit == null) return 0f;
 
             float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;

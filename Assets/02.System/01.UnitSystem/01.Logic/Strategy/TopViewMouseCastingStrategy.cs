@@ -18,6 +18,7 @@ namespace UnitSystem
         private UnitChangeService changeService;
         private UnitQuickSlotUIComponent quickSlotUI;
         private GameObject ownerObject;
+        private IUnitBatchCastingService batchCastingService;
 
         private VisualElement targetInfoContainer;
         private Label targetNameText;
@@ -28,13 +29,15 @@ namespace UnitSystem
             UIDocument uiDocument,
             UnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
-            GameObject ownerObject)
+            GameObject ownerObject,
+            IUnitBatchCastingService batchCastingService = null)
         {
             this.mainCamera = mainCamera;
             this.uiDocument = uiDocument;
             this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
             this.ownerObject = ownerObject;
+            this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(changeService);
 
             InitializeUI();
         }
@@ -216,6 +219,11 @@ namespace UnitSystem
 
         private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
         {
+            if (batchCastingService != null)
+            {
+                return batchCastingService.CalculateNewValue(targetUnit, spellUnit);
+            }
+
             if (targetUnit == null || spellUnit == null) return 0f;
 
             float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;

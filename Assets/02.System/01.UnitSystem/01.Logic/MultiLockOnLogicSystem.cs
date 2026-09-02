@@ -17,6 +17,7 @@ namespace UnitSystem
         private readonly RuntimeDataTimeSlow timeSlowData;
         private readonly ICameraFollowService cameraFollowService;
         private readonly UnitChangeService changeService;
+        private readonly IUnitBatchCastingService batchCastingService;
         private readonly UnitQuickSlotUIComponent quickSlotUI;
         private readonly IMultiLockOnVisualizer visualizer;
         private readonly CharacterStatSystem playerStatSystem;
@@ -31,12 +32,14 @@ namespace UnitSystem
             RuntimeDataTimeSlow timeSlowData,
             ICameraFollowService cameraFollowService,
             UnitChangeService changeService,
-            IObjectResolver resolver)
+            IObjectResolver resolver,
+            IUnitBatchCastingService batchCastingService = null)
         {
             this.multiLockOnData = multiLockOnData ?? throw new ArgumentNullException(nameof(multiLockOnData));
             this.timeSlowData = timeSlowData ?? throw new ArgumentNullException(nameof(timeSlowData));
             this.cameraFollowService = cameraFollowService;
             this.changeService = changeService;
+            this.batchCastingService = batchCastingService ?? (resolver != null && resolver.TryResolve<IUnitBatchCastingService>(out var resolvedBatchService) ? resolvedBatchService : new UnitBatchCastingService(changeService));
 
             if (resolver != null)
             {
@@ -199,68 +202,13 @@ namespace UnitSystem
             var targets = multiLockOnData.LockedTargets;
             RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
 
-            // 1. 총 필요 마나 사전 계산
-            int totalCost = 0;
-            for (int i = 0; i < targets.Count; i++)
+            bool success = batchCastingService.ExecuteBatchCast(targets, selectedUnitData, casterStat, null);
+            if (success)
             {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    float diff = Mathf.Abs(matchingUnitData.CurrentValue - newValue);
-                    totalCost += Mathf.RoundToInt(selectedUnitData.BaseCost * diff);
-                }
+                visualizer?.PlayBatchCastEffect();
             }
 
-            // 2. 마나 검증
-            if (casterStat != null && casterStat.MP.CurrentValue < totalCost)
-            {
-                Debug.LogWarning($"[MultiLockOnLogicSystem] Batch Cast Failed! Insufficient Mana. (Required: {totalCost}, Current MP: {casterStat.MP.CurrentValue})");
-                casterStat.TryConsumeMP(totalCost); // Trigger OnInsufficientMana event & log
-                ClearAllLockOns();
-                return;
-            }
-
-            Debug.Log($"<color=green>[MultiLockOnLogicSystem] Executing Batch Cast on {targetCount} targets! Total Mana Cost: {totalCost}</color>");
-
-            // 3. 일괄 마법 변환 실행
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnitData.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
-                    changeService.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnitData, newValue, casterStat);
-                }
-            }
-
-            visualizer?.PlayBatchCastEffect();
             ClearAllLockOns();
-        }
-
-        private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
-        {
-            if (targetUnit == null || spellUnit == null) return 0f;
-
-            float originalVal = targetUnit.OriginalValue > 0f ? targetUnit.OriginalValue : 1.0f;
-
-            switch (spellUnit.UnitType)
-            {
-                case UnitType.Mass:
-                    return originalVal * spellUnit.MassScaleMultiplier;
-                case UnitType.Volume:
-                    return originalVal;
-                case UnitType.Vector:
-                    return -targetUnit.CurrentValue;
-                default:
-                    return targetUnit.CurrentValue;
-            }
         }
 
         private void ClearAllLockOns()
