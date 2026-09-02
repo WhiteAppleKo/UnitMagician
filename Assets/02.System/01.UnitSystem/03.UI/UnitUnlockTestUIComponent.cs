@@ -14,7 +14,18 @@ namespace UnitSystem
         [Inject]
         public void Construct(IUnitCatalogService catalogService)
         {
+            if (this.catalogService != null)
+            {
+                this.catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+            }
+
             this.catalogService = catalogService;
+            if (this.catalogService != null)
+            {
+                this.catalogService.OnUnitUnlocked += HandleUnitUnlocked;
+            }
+
+            GenerateUnlockButtons();
         }
 
         private void OnEnable()
@@ -28,6 +39,14 @@ namespace UnitSystem
         }
 
         private void OnDisable()
+        {
+            if (catalogService != null)
+            {
+                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+            }
+        }
+
+        private void OnDestroy()
         {
             if (catalogService != null)
             {
@@ -51,6 +70,7 @@ namespace UnitSystem
 
             if (uiDocument != null && uiDocument.rootVisualElement != null)
             {
+                uiDocument.rootVisualElement.pickingMode = PickingMode.Ignore;
                 buttonContainer = uiDocument.rootVisualElement.Q<VisualElement>("UnlockButtonContainer");
                 
                 if (buttonContainer != null)

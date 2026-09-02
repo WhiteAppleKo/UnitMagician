@@ -30,13 +30,26 @@ namespace UnitSystem
             builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
+            builder.Register<RuntimeDataUnitQuickSlot>(Lifetime.Singleton);
+
+            // Logic Systems Register
+            builder.RegisterEntryPoint<UnitQuickSlotLogicSystem>(Lifetime.Singleton).AsSelf();
 
             // UI Toolkit Component Register
-            if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
-            if (inventoryUI != null) builder.RegisterComponent(inventoryUI);
-            if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
-            if (unlockTestUI != null) builder.RegisterComponent(unlockTestUI);
-            if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
+            var qsUI = quickSlotUI != null ? quickSlotUI : FindAnyObjectByType<UnitQuickSlotUIComponent>();
+            if (qsUI != null) builder.RegisterComponent(qsUI);
+
+            var invUI = inventoryUI != null ? inventoryUI : FindAnyObjectByType<UnitInventoryUIComponent>();
+            if (invUI != null) builder.RegisterComponent(invUI);
+
+            var popUI = unlockPopupUI != null ? unlockPopupUI : FindAnyObjectByType<UnitUnlockPopupUIComponent>();
+            if (popUI != null) builder.RegisterComponent(popUI);
+
+            var testUI = unlockTestUI != null ? unlockTestUI : FindAnyObjectByType<UnitUnlockTestUIComponent>();
+            if (testUI != null) builder.RegisterComponent(testUI);
+
+            var gizmoUI = vectorGizmoUI != null ? vectorGizmoUI : FindAnyObjectByType<UnitVectorGizmoUIComponent>();
+            if (gizmoUI != null) builder.RegisterComponent(gizmoUI);
 
             // Gameplay Component Register
             var caster = unitCaster;

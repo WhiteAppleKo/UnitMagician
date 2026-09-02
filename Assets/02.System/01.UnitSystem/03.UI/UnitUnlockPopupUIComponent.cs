@@ -22,6 +22,11 @@ namespace UnitSystem
         [Inject]
         public void Construct(IUnitCatalogService catalogService)
         {
+            if (this.catalogService != null)
+            {
+                this.catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+            }
+
             this.catalogService = catalogService;
             if (this.catalogService != null)
             {
@@ -31,6 +36,22 @@ namespace UnitSystem
 
         private void OnEnable()
         {
+            if (catalogService != null)
+            {
+                catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+                catalogService.OnUnitUnlocked += ShowUnlockPopup;
+            }
+
+            InitUI();
+        }
+
+        private void Start()
+        {
+            InitUI();
+        }
+
+        private void InitUI()
+        {
             if (uiDocument == null)
             {
                 uiDocument = GetComponent<UIDocument>();
@@ -39,6 +60,8 @@ namespace UnitSystem
             if (uiDocument != null && uiDocument.rootVisualElement != null)
             {
                 var root = uiDocument.rootVisualElement;
+                root.pickingMode = PickingMode.Ignore;
+
                 popupPanel = root.Q<VisualElement>(popupPanelName);
                 popupTitleLabel = root.Q<Label>(popupTitleLabelName);
                 popupIconElement = root.Q<VisualElement>(popupIconElementName);
@@ -56,8 +79,18 @@ namespace UnitSystem
             ClosePopup();
         }
 
+        private void OnDisable()
+        {
+            CancelInvoke(nameof(ClosePopup));
+            if (catalogService != null)
+            {
+                catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+            }
+        }
+
         private void OnDestroy()
         {
+            CancelInvoke(nameof(ClosePopup));
             if (catalogService != null)
             {
                 catalogService.OnUnitUnlocked -= ShowUnlockPopup;

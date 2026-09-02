@@ -15,15 +15,28 @@ namespace UnitSystem
         [Inject]
         public void Construct(IUnitCatalogService catalogService)
         {
+            if (this.catalogService != null)
+            {
+                this.catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+            }
+
             this.catalogService = catalogService;
             if (this.catalogService != null)
             {
                 this.catalogService.OnUnitUnlocked += HandleUnitUnlocked;
             }
+
+            RefreshInventory();
         }
 
         private void OnEnable()
         {
+            if (catalogService != null)
+            {
+                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+                catalogService.OnUnitUnlocked += HandleUnitUnlocked;
+            }
+
             InitContainer();
             RefreshInventory();
         }
@@ -43,7 +56,16 @@ namespace UnitSystem
 
             if (uiDocument != null && uiDocument.rootVisualElement != null)
             {
+                uiDocument.rootVisualElement.pickingMode = PickingMode.Ignore;
                 inventoryContainer = uiDocument.rootVisualElement.Q<VisualElement>(containerElementName);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (catalogService != null)
+            {
+                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
             }
         }
 
