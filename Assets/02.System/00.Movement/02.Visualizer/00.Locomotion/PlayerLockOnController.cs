@@ -26,7 +26,15 @@ namespace Movement.Visualizer
         private TimeSlowVisualizer _timeSlowVisualizer;
 
         [Inject]
-        public void Construct(TimeSlowVisualizer timeSlowVisualizer)
+        public void Construct(IObjectResolver resolver = null)
+        {
+            if (resolver != null && resolver.TryResolve<TimeSlowVisualizer>(out var timeSlowVis))
+            {
+                Initialize(timeSlowVis);
+            }
+        }
+
+        public void Initialize(TimeSlowVisualizer timeSlowVisualizer)
         {
             if (_timeSlowVisualizer != null)
             {
@@ -75,10 +83,6 @@ namespace Movement.Visualizer
             if (_timeSlowVisualizer == null)
             {
                 _timeSlowVisualizer = GetComponentInParent<TimeSlowVisualizer>();
-                if (_timeSlowVisualizer == null)
-                {
-                    _timeSlowVisualizer = FindAnyObjectByType<TimeSlowVisualizer>();
-                }
             }
 
             // 기본 상태: 일반 락온 ON, 마법 락온 OFF

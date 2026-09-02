@@ -11,36 +11,12 @@ public class OptionLifetimeScope : LifetimeScope
 
     protected override void Configure(IContainerBuilder builder)
     {
-        // 1. OptionUIComponent 등록 (인스펙터 -> 씬 탐색 -> Hierarchy 탐색)
-        OptionUIComponent optUI = optionUIComponent;
-        if (optUI == null)
-        {
-            optUI = GetComponent<OptionUIComponent>();
-        }
-        if (optUI == null)
-        {
-            optUI = FindAnyObjectByType<OptionUIComponent>();
-        }
+        // 1. OptionUIComponent 등록
+        if (optionUIComponent != null) builder.RegisterComponent(optionUIComponent);
+        else builder.RegisterComponentInHierarchy<OptionUIComponent>();
 
-        if (optUI != null)
-        {
-            builder.RegisterComponent(optUI);
-        }
-        else
-        {
-            builder.RegisterComponentInHierarchy<OptionUIComponent>();
-        }
-
-        // 2. InputReader 등록 (존재 시)
-        InputReader inReader = inputReader;
-        if (inReader == null)
-        {
-            inReader = FindAnyObjectByType<InputReader>();
-        }
-
-        if (inReader != null)
-        {
-            builder.RegisterComponent(inReader);
-        }
+        // 2. InputReader 등록
+        if (inputReader != null) builder.RegisterComponent(inputReader);
+        else builder.RegisterComponentInHierarchy<InputReader>();
     }
 }

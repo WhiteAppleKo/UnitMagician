@@ -22,35 +22,21 @@ public class CharacterLifetimeScope : LifetimeScope
 
     protected override void Configure(IContainerBuilder builder)
     {
-        // 1. Character Stat & Unit Magic Slot
+        // 1. Character Stat Component & Service
         if (characterStatComponent != null)
         {
             builder.RegisterComponent(characterStatComponent);
-
-            if (characterStatComponent.StatSystem != null)
+            if (characterStatComponent.PureStatData != null)
             {
-                builder.RegisterInstance(characterStatComponent.StatSystem).As<ICharacterStatService>().AsSelf();
-            }
-            else if (characterStatComponent.PureStatData != null)
-            {
-                var statSystem = new CharacterStatSystem(characterStatComponent.PureStatData);
-                characterStatComponent.Initialize(statSystem);
-                builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
-            }
-            else
-            {
-                var statSystem = new CharacterStatSystem(ScriptableObject.CreateInstance<PureStatData>());
-                characterStatComponent.Initialize(statSystem);
-                builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
+                builder.RegisterInstance(characterStatComponent.PureStatData);
             }
         }
         else
         {
-            var defaultStat = ScriptableObject.CreateInstance<PureStatData>();
-            var statSystem = new CharacterStatSystem(defaultStat);
-            builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
+            builder.RegisterComponentInHierarchy<CharacterStatComponent>();
         }
 
+        builder.Register<CharacterStatSystem>(Lifetime.Singleton).As<ICharacterStatService>().AsSelf();
         builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton).As<IUnitMagicSlotService>().AsSelf();
 
         // 2. Pure Data 등록
@@ -65,40 +51,22 @@ public class CharacterLifetimeScope : LifetimeScope
         builder.Register<RuntimeDataTimeSlow>(Lifetime.Singleton);
 
         // 4. Visualizer 등록
-        var stateVis = playerStateVisualizer;
-        if (stateVis == null) stateVis = FindAnyObjectByType<PlayerStateVisualizer>();
-        if (stateVis != null)
-        {
-            builder.RegisterComponent(stateVis).As<IPlayerStateVisualizer>();
-        }
+        if (playerStateVisualizer != null) builder.RegisterComponent(playerStateVisualizer).As<IPlayerStateVisualizer>();
+        else builder.RegisterComponentInHierarchy<PlayerStateVisualizer>().As<IPlayerStateVisualizer>();
 
-        var slowVis = timeSlowVisualizer;
-        if (slowVis == null) slowVis = FindAnyObjectByType<TimeSlowVisualizer>();
-        if (slowVis != null)
-        {
-            builder.RegisterComponent(slowVis).As<ITimeSlowVisualizer>();
-        }
+        if (timeSlowVisualizer != null) builder.RegisterComponent(timeSlowVisualizer).As<ITimeSlowVisualizer>();
+        else builder.RegisterComponentInHierarchy<TimeSlowVisualizer>().As<ITimeSlowVisualizer>();
 
         // 4-1. InputReader 등록
-        var inReader = inputReader;
-        if (inReader == null) inReader = FindAnyObjectByType<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
-        if (inReader != null)
-        {
-            builder.RegisterComponent(inReader);
-        }
+        if (inputReader != null) builder.RegisterComponent(inputReader);
+        else builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
 
         // 5. Logic Systems 등록
         builder.RegisterEntryPoint<PlayerStateLogicSystem>(Lifetime.Singleton);
         builder.RegisterEntryPoint<TimeSlowLogicSystem>(Lifetime.Singleton);
 
         // 6. UI View 등록
-        if (hudUIView != null)
-        {
-            builder.RegisterComponent(hudUIView);
-        }
-        else
-        {
-            builder.RegisterComponentInHierarchy<CharacterHUDUIView>();
-        }
+        if (hudUIView != null) builder.RegisterComponent(hudUIView);
+        else builder.RegisterComponentInHierarchy<CharacterHUDUIView>();
     }
 }

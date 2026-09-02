@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.PureDataUnit
   unitType: 1
   unitName: Torus
-  baseCost: 10
+  baseCost: 12
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
   applicator: {fileID: 11400000, guid: f480aa3c068a1304db8cc762442303cd, type: 2}
   overlayMaterial: {fileID: -876546973899608171, guid: 1309825521bec83449a4f89112d8c9ee, type: 3}

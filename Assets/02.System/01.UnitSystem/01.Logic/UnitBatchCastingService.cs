@@ -13,6 +13,7 @@ namespace UnitSystem
         float CalculateNewValue(RuntimeDataUnit targetUnit, PureDataUnit spellUnit);
         int CalculateUnitCost(RuntimeDataUnit targetUnit, PureDataUnit spellUnit);
         int CalculateTotalCost(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit);
+        bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, ICharacterStatService statService, GameObject casterObject = null);
         bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, CharacterStatSystem casterStat, GameObject casterObject = null);
         bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, RuntimeStatData casterStatData, GameObject casterObject = null);
     }
@@ -50,12 +51,8 @@ namespace UnitSystem
 
         public int CalculateUnitCost(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
         {
-            if (targetUnit == null || spellUnit == null) return 0;
-
-            float newValue = CalculateNewValue(targetUnit, spellUnit);
-            float diff = Mathf.Abs(targetUnit.CurrentValue - newValue);
-            int baseCost = spellUnit.BaseCost > 0 ? spellUnit.BaseCost : 10;
-            return Mathf.Max(Mathf.RoundToInt(baseCost * diff), baseCost);
+            if (spellUnit == null) return 0;
+            return spellUnit.BaseCost;
         }
 
         public int CalculateTotalCost(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit)
@@ -78,6 +75,11 @@ namespace UnitSystem
             return totalCost;
         }
 
+        public bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, ICharacterStatService statService, GameObject casterObject = null)
+        {
+            return ExecuteBatchCast(targets, selectedUnit, statService?.RuntimeData, casterObject);
+        }
+
         public bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, CharacterStatSystem casterStat, GameObject casterObject = null)
         {
             return ExecuteBatchCast(targets, selectedUnit, casterStat?.RuntimeData, casterObject);
@@ -96,21 +98,31 @@ namespace UnitSystem
             int totalCost = CalculateTotalCost(targets, selectedUnit);
 
             // 마나 검증 및 부족 시 안전 예외 처리
-            if (casterStatData != null && casterStatData.MP.CurrentValue < totalCost)
+            if (casterStatData != null)
             {
-                Debug.LogWarning($"[UnitBatchCastingService] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStatData.MP.CurrentValue})");
-                casterStatData.TryConsumeMP(totalCost);
-                for (int i = 0; i < targets.Count; i++)
+                if (casterStatData.MP.CurrentValue < totalCost)
                 {
-                    var target = targets[i];
-                    if (target != null) target.Highlight(false, false);
+                    Debug.LogWarning($"[UnitBatchCastingService] Insufficient Mana. (Required: {totalCost}, Current MP: {casterStatData.MP.CurrentValue})");
+                    for (int i = 0; i < targets.Count; i++)
+                    {
+                        var target = targets[i];
+                        if (target != null) target.Highlight(false, false);
+                    }
+                    return false;
                 }
-                return false;
+
+                // 총 필요 마나 1회 일괄 차감
+                casterStatData.TryConsumeMP(totalCost);
+                Debug.Log($"<color=green>[UnitBatchCastingService] Consumed {totalCost} MP! Remaining MP: {casterStatData.MP.CurrentValue}</color>");
+            }
+            else
+            {
+                Debug.LogWarning("[UnitBatchCastingService] Caster Stat Data is null! Mana not consumed.");
             }
 
             Debug.Log($"<color=green>[UnitBatchCastingService] Executing Batch Cast on {targets.Count} targets! Total Mana Cost: {totalCost}</color>");
 
-            // 타겟 순차 변환 및 마커 소등
+            // 타겟 순차 변환 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit에는 null 전달하여 중복 차감 방지)
             for (int i = 0; i < targets.Count; i++)
             {
                 var targetGroup = targets[i];
@@ -122,7 +134,7 @@ namespace UnitSystem
                 if (matchingUnitData != null)
                 {
                     float newValue = CalculateNewValue(matchingUnitData, selectedUnit);
-                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnit, newValue, casterStatData, null, casterObject);
+                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnit, newValue, null, null, casterObject);
                 }
             }
 

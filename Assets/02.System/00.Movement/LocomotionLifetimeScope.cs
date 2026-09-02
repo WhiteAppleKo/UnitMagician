@@ -19,11 +19,6 @@ namespace Movement.RefactoredLocomotion
                 config = GetComponent<LocomotionConfig>();
             }
 
-            if (config == null)
-            {
-                config = FindAnyObjectByType<LocomotionConfig>();
-            }
-
             if (config == null) return;
 
             // 1. Pure Data 등록 (로코모션 & 카메라)
@@ -55,72 +50,20 @@ namespace Movement.RefactoredLocomotion
                 .As<ILateTickable>();
 
             // 5. Visualizer 등록
-            if (config.Visualizer != null)
-            {
-                builder.RegisterComponent(config.Visualizer).As<ILocomotionVisualizer>();
-            }
-            else
-            {
-                var visualizer = FindAnyObjectByType<LocomotionVisualizer>();
-                if (visualizer != null)
-                {
-                    builder.RegisterComponent(visualizer).As<ILocomotionVisualizer>();
-                }
-            }
+            if (config.Visualizer != null) builder.RegisterComponent(config.Visualizer).As<ILocomotionVisualizer>();
+            else builder.RegisterComponentInHierarchy<LocomotionVisualizer>().As<ILocomotionVisualizer>();
 
-            var lockOnController = FindAnyObjectByType<PlayerLockOnController>();
-            if (lockOnController != null)
-            {
-                builder.RegisterComponent(lockOnController).As<ILockOnController>();
-            }
-            else
-            {
-                builder.RegisterComponentInHierarchy<PlayerLockOnController>().As<ILockOnController>();
-            }
+            builder.RegisterComponentInHierarchy<PlayerLockOnController>().As<ILockOnController>();
 
-            if (config.CameraVisualizer != null)
-            {
-                builder.RegisterComponent(config.CameraVisualizer)
-                    .AsSelf()
-                    .As<ICameraFollowVisualizer>();
-            }
-            else
-            {
-                var cameraVisualizer = FindAnyObjectByType<CameraFollowVisualizer>();
-                if (cameraVisualizer != null)
-                {
-                    builder.RegisterComponent(cameraVisualizer)
-                        .AsSelf()
-                        .As<ICameraFollowVisualizer>();
-                }
-            }
+            if (config.CameraVisualizer != null) builder.RegisterComponent(config.CameraVisualizer).AsSelf().As<ICameraFollowVisualizer>();
+            else builder.RegisterComponentInHierarchy<CameraFollowVisualizer>().AsSelf().As<ICameraFollowVisualizer>();
 
-            if (config.CameraOptionUI != null)
-            {
-                builder.RegisterComponent(config.CameraOptionUI);
-            }
-            else
-            {
-                var cameraOptionUI = FindAnyObjectByType<CameraOptionUIController>();
-                if (cameraOptionUI != null)
-                {
-                    builder.RegisterComponent(cameraOptionUI);
-                }
-            }
+            if (config.CameraOptionUI != null) builder.RegisterComponent(config.CameraOptionUI);
+            else builder.RegisterComponentInHierarchy<CameraOptionUIController>();
 
             // 5. Input Reader 등록
-            if (config.InputReader != null)
-            {
-                builder.RegisterComponent(config.InputReader);
-            }
-            else
-            {
-                var inputReader = FindAnyObjectByType<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
-                if (inputReader != null)
-                {
-                    builder.RegisterComponent(inputReader);
-                }
-            }
+            if (config.InputReader != null) builder.RegisterComponent(config.InputReader);
+            else builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
 
             // 6. Locomotion Logic System 등록 (ITickable, IDisposable)
             builder.RegisterEntryPoint<LocomotionLogicSystem>(Lifetime.Singleton);

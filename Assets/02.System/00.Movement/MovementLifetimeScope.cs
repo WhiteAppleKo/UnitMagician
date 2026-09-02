@@ -31,10 +31,6 @@ namespace PlayerMovement
             if (locomotionConfig == null)
             {
                 locomotionConfig = GetComponent<LocomotionConfig>();
-                if (locomotionConfig == null)
-                {
-                    locomotionConfig = FindAnyObjectByType<LocomotionConfig>();
-                }
             }
 
             // 2. Data 등록
@@ -68,40 +64,18 @@ namespace PlayerMovement
                 .As<ILateTickable>();
 
             // 6. Visualizer 등록
-            LocomotionVisualizer locVis = locomotionVisualizer;
-            if (locVis == null && locomotionConfig != null) locVis = locomotionConfig.Visualizer;
-            if (locVis == null) locVis = FindAnyObjectByType<LocomotionVisualizer>();
-            if (locVis != null)
-            {
-                builder.RegisterComponent(locVis).As<ILocomotionVisualizer>();
-            }
+            if (locomotionVisualizer != null) builder.RegisterComponent(locomotionVisualizer).As<ILocomotionVisualizer>();
+            else builder.RegisterComponentInHierarchy<LocomotionVisualizer>().As<ILocomotionVisualizer>();
 
-            CameraFollowVisualizer camVis = cameraVisualizer;
-            if (camVis == null && locomotionConfig != null) camVis = locomotionConfig.CameraVisualizer;
-            if (camVis == null) camVis = FindAnyObjectByType<CameraFollowVisualizer>();
-            if (camVis != null)
-            {
-                builder.RegisterComponent(camVis)
-                    .AsSelf()
-                    .As<ICameraFollowVisualizer>();
-            }
+            if (cameraVisualizer != null) builder.RegisterComponent(cameraVisualizer).AsSelf().As<ICameraFollowVisualizer>();
+            else builder.RegisterComponentInHierarchy<CameraFollowVisualizer>().AsSelf().As<ICameraFollowVisualizer>();
 
-            CameraOptionUIController optUI = cameraOptionUI;
-            if (optUI == null && locomotionConfig != null) optUI = locomotionConfig.CameraOptionUI;
-            if (optUI == null) optUI = FindAnyObjectByType<CameraOptionUIController>();
-            if (optUI != null)
-            {
-                builder.RegisterComponent(optUI);
-            }
+            if (cameraOptionUI != null) builder.RegisterComponent(cameraOptionUI);
+            else builder.RegisterComponentInHierarchy<CameraOptionUIController>();
 
             // 6. Input Reader 등록
-            InputReader inReader = inputReader;
-            if (inReader == null && locomotionConfig != null) inReader = locomotionConfig.InputReader;
-            if (inReader == null) inReader = FindAnyObjectByType<InputReader>();
-            if (inReader != null)
-            {
-                builder.RegisterComponent(inReader);
-            }
+            if (inputReader != null) builder.RegisterComponent(inputReader);
+            else builder.RegisterComponentInHierarchy<InputReader>();
 
             // 7. Locomotion Logic System 등록
             builder.RegisterEntryPoint<LocomotionLogicSystem>(Lifetime.Singleton);
@@ -111,12 +85,8 @@ namespace PlayerMovement
             {
                 builder.RegisterInstance(legacyPureData);
                 builder.Register<RuntimeDataPlayerInput>(Lifetime.Singleton);
-                PlayerMovementVisualizer legVis = legacyVisualizer;
-                if (legVis == null) legVis = FindAnyObjectByType<PlayerMovementVisualizer>();
-                if (legVis != null)
-                {
-                    builder.RegisterComponent(legVis).As<IPlayerMovementVisualizer>();
-                }
+                if (legacyVisualizer != null) builder.RegisterComponent(legacyVisualizer).As<IPlayerMovementVisualizer>();
+                else builder.RegisterComponentInHierarchy<PlayerMovementVisualizer>().As<IPlayerMovementVisualizer>();
                 builder.RegisterEntryPoint<PlayerInputSystem>();
                 builder.RegisterEntryPoint<PlayerMovementSystem>();
             }

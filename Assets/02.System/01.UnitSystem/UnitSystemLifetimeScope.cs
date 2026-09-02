@@ -36,36 +36,33 @@ namespace UnitSystem
             builder.RegisterEntryPoint<UnitQuickSlotLogicSystem>(Lifetime.Singleton).AsSelf();
 
             // UI Toolkit Component Register
-            var qsUI = quickSlotUI != null ? quickSlotUI : FindAnyObjectByType<UnitQuickSlotUIComponent>();
-            if (qsUI != null) builder.RegisterComponent(qsUI);
+            if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
+            else builder.RegisterComponentInHierarchy<UnitQuickSlotUIComponent>();
 
-            var invUI = inventoryUI != null ? inventoryUI : FindAnyObjectByType<UnitInventoryUIComponent>();
-            if (invUI != null) builder.RegisterComponent(invUI);
+            if (inventoryUI != null) builder.RegisterComponent(inventoryUI);
+            else builder.RegisterComponentInHierarchy<UnitInventoryUIComponent>();
 
-            var popUI = unlockPopupUI != null ? unlockPopupUI : FindAnyObjectByType<UnitUnlockPopupUIComponent>();
-            if (popUI != null) builder.RegisterComponent(popUI);
+            if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
+            else builder.RegisterComponentInHierarchy<UnitUnlockPopupUIComponent>();
 
-            var testUI = unlockTestUI != null ? unlockTestUI : FindAnyObjectByType<UnitUnlockTestUIComponent>();
-            if (testUI != null) builder.RegisterComponent(testUI);
+            if (unlockTestUI != null) builder.RegisterComponent(unlockTestUI);
+            else builder.RegisterComponentInHierarchy<UnitUnlockTestUIComponent>();
 
-            var gizmoUI = vectorGizmoUI != null ? vectorGizmoUI : FindAnyObjectByType<UnitVectorGizmoUIComponent>();
-            if (gizmoUI != null) builder.RegisterComponent(gizmoUI);
+            if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
+            else builder.RegisterComponentInHierarchy<UnitVectorGizmoUIComponent>();
 
             // Gameplay Component Register
-            var caster = unitCaster;
-            if (caster == null) caster = FindAnyObjectByType<UnitCasterSystem>();
-            if (caster != null) builder.RegisterComponent(caster);
+            if (unitCaster != null) builder.RegisterComponent(unitCaster);
+            else builder.RegisterComponentInHierarchy<UnitCasterSystem>();
 
             if (ghostPreview != null) builder.RegisterComponent(ghostPreview);
+            else builder.RegisterComponentInHierarchy<UnitGhostPreviewComponent>();
 
-            var multiLockOnVis = multiLockOnVisualizer;
-            if (multiLockOnVis == null) multiLockOnVis = FindAnyObjectByType<MultiLockOnVisualizer>();
-            if (multiLockOnVis != null)
-            {
-                builder.RegisterComponent(multiLockOnVis).As<IMultiLockOnVisualizer>();
-            }
+            if (multiLockOnVisualizer != null) builder.RegisterComponent(multiLockOnVisualizer).As<IMultiLockOnVisualizer>();
+            else builder.RegisterComponentInHierarchy<MultiLockOnVisualizer>().As<IMultiLockOnVisualizer>();
 
-            // 단위 마법 조작/락온 로직은 UnitCasterSystem(전략 패턴 Context)으로 일원화됨
+            // Player Magic LockOn Component Register
+            builder.RegisterComponentInHierarchy<MagicLockOnComponent>();
         }
     }
 }

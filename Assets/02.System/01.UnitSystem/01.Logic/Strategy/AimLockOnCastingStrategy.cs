@@ -89,15 +89,6 @@ namespace UnitSystem
             PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
             if (selectedUnitData == null)
             {
-                var catalogService = UnityEngine.Object.FindFirstObjectByType<UnitQuickSlotUIComponent>();
-                if (catalogService != null)
-                {
-                    selectedUnitData = catalogService.CurrentSelectedUnit;
-                }
-            }
-
-            if (selectedUnitData == null)
-            {
                 lastHoveredTarget = null;
                 return;
             }

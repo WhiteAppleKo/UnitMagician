@@ -86,13 +86,6 @@ namespace CameraMovement
                 cinemachineBrain.IgnoreTimeScale = true;
                 return;
             }
-
-            var fallbackBrain = FindFirstObjectByType<CinemachineBrain>();
-            if (fallbackBrain != null)
-            {
-                cinemachineBrain = fallbackBrain;
-                cinemachineBrain.IgnoreTimeScale = true;
-            }
         }
 
         private void LateUpdate()
@@ -138,11 +131,6 @@ namespace CameraMovement
             if (m_locomotionVisualizer != null)
             {
                 playerTransform = m_locomotionVisualizer.Transform;
-            }
-            else
-            {
-                var locVis = FindFirstObjectByType<LocomotionVisualizer>();
-                if (locVis != null) playerTransform = locVis.transform;
             }
 
             if (playerTransform != null && m_cameraFollowService != null)

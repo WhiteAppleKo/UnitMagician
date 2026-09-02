@@ -63,7 +63,32 @@ namespace OptionSystem
         public bool IsOpen => m_isOpen;
 
         [Inject]
-        public void Construct(ICameraFollowService cameraFollowService = null, InputReader inputReader = null)
+        public void Construct(IObjectResolver resolver)
+        {
+            if (resolver != null)
+            {
+                if (resolver.TryResolve<ICameraFollowService>(out var camService))
+                {
+                    m_cameraFollowService = camService;
+                }
+
+                if (resolver.TryResolve<InputReader>(out var reader))
+                {
+                    m_inputReader = reader;
+                }
+            }
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeEvents();
+                if (m_cameraFollowService != null)
+                {
+                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
+                }
+            }
+        }
+
+        public void Initialize(ICameraFollowService cameraFollowService, InputReader inputReader = null)
         {
             UnsubscribeEvents();
             m_cameraFollowService = cameraFollowService;

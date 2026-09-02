@@ -2958,6 +2958,7 @@ MonoBehaviour:
   pureDataTimeSlow: {fileID: 11400000, guid: 049127691fc9f344f87918149156ffd8, type: 2}
   playerStateVisualizer: {fileID: 1565979565}
   timeSlowVisualizer: {fileID: 1565979564}
+  inputReader: {fileID: 1565979560}
 --- !u!4 &973781894
 Transform:
   m_ObjectHideFlags: 0
@@ -4391,52 +4392,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: d5e6aa8954883f149b6e56d5b5e44b0d, type: 3}
   m_PrefabInstance: {fileID: 1878087248}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1535937102
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1535937104}
-  - component: {fileID: 1535937103}
-  m_Layer: 0
-  m_Name: UnitCaster
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1535937103
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1535937102}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b6301dea9845425468bb0f4d2bb55660, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitCasterSystem
-  mainCamera: {fileID: 1988543858}
-  uiDocument: {fileID: 1081942172}
---- !u!4 &1535937104
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1535937102}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.84801, y: 0, z: 1.3554}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1539453769
 GameObject:
   m_ObjectHideFlags: 0
@@ -4604,6 +4559,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75fdbfe155c6d4a4eba656f5277112c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.TimeSlowVisualizer
+  defaultFixedDeltaTime: 0.02
   slowAudioSource: {fileID: 0}
   slowEnterSound: {fileID: 0}
   slowExitSound: {fileID: 0}
@@ -5337,7 +5293,7 @@ MonoBehaviour:
   unlockPopupUI: {fileID: 1179478208}
   unlockTestUI: {fileID: 1179478207}
   vectorGizmoUI: {fileID: 1179478211}
-  unitCaster: {fileID: 1535937103}
+  unitCaster: {fileID: 0}
   ghostPreview: {fileID: 1834538405}
   multiLockOnVisualizer: {fileID: 1834538406}
 --- !u!4 &1834538404
@@ -5491,6 +5447,8 @@ MonoBehaviour:
     TypeName: 
   autoRun: 1
   autoInjectGameObjects: []
+  optionUIComponent: {fileID: 109873059}
+  inputReader: {fileID: 1565979560}
 --- !u!4 &1879562379
 Transform:
   m_ObjectHideFlags: 0
@@ -5540,6 +5498,7 @@ MonoBehaviour:
   topViewVirtualCamera: {fileID: 657334829}
   firstPersonVirtualCamera: {fileID: 782091546}
   shoulderVirtualCamera: {fileID: 639749966}
+  cinemachineBrain: {fileID: 0}
 --- !u!4 &1887385776
 Transform:
   m_ObjectHideFlags: 0
@@ -6732,7 +6691,6 @@ SceneRoots:
   - {fileID: 1306928571}
   - {fileID: 1373336907}
   - {fileID: 1834538404}
-  - {fileID: 1535937104}
   - {fileID: 6137254805979202943}
   - {fileID: 1164381633}
   - {fileID: 1179478206}

@@ -24,47 +24,43 @@ namespace UnitSystem
         private RuntimeDataUnitGroup _currentHoverTarget;
         private readonly Collider[] _scanColliderBuffer = new Collider[32];
 
+        private UnitCasterSystem _unitCasterSystem;
+
         [Inject]
         public void Construct(
             RuntimeDataMultiLockOn multiLockOnData,
             IMultiLockOnVisualizer visualizer = null,
-            ILocomotionVisualizer locomotionVisualizer = null)
+            UnitCasterSystem unitCasterSystem = null)
+        {
+            _multiLockOnData = multiLockOnData;
+            _visualizer = visualizer;
+            _unitCasterSystem = unitCasterSystem;
+        }
+
+        public void Initialize(
+            RuntimeDataMultiLockOn multiLockOnData,
+            IMultiLockOnVisualizer visualizer = null,
+            ILocomotionVisualizer locomotionVisualizer = null,
+            UnitCasterSystem unitCasterSystem = null)
         {
             _multiLockOnData = multiLockOnData;
             _visualizer = visualizer;
             _locomotionVisualizer = locomotionVisualizer;
+            _unitCasterSystem = unitCasterSystem;
         }
 
         private void Awake()
         {
-            EnsureDataBound();
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
-            if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
-        }
-
-        private void EnsureDataBound()
-        {
-            if (_multiLockOnData == null)
-            {
-                var casterSys = UnityEngine.Object.FindFirstObjectByType<UnitCasterSystem>();
-                if (casterSys != null && casterSys.MultiLockOnData != null)
-                {
-                    _multiLockOnData = casterSys.MultiLockOnData;
-                }
-                else
-                {
-                    _multiLockOnData = new RuntimeDataMultiLockOn();
-                }
-            }
+            if (_unitCasterSystem == null) _unitCasterSystem = GetComponentInParent<UnitCasterSystem>();
         }
 
         private void OnEnable()
         {
-            EnsureDataBound();
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
-            if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
+            if (_unitCasterSystem == null) _unitCasterSystem = GetComponentInParent<UnitCasterSystem>();
 
             if (_visualizer != null)
             {
@@ -86,10 +82,10 @@ namespace UnitSystem
             }
 
             // 시간 정지 해제 순간 로직 시스템에 일괄 마법 변환 실행 명령 및 신호 발행
-            var casterSys = UnityEngine.Object.FindFirstObjectByType<UnitCasterSystem>();
-            if (casterSys != null)
+            if (_unitCasterSystem == null) _unitCasterSystem = GetComponentInParent<UnitCasterSystem>();
+            if (_unitCasterSystem != null)
             {
-                casterSys.ExecuteBatchCast();
+                _unitCasterSystem.ExecuteBatchCast();
             }
             else
             {

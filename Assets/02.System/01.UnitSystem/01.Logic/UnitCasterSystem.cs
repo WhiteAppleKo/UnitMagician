@@ -43,44 +43,32 @@ namespace UnitSystem
         private AimLockOnCastingStrategy aimLockOnStrategy;
         private bool isInitialized = false;
 
+        private CharacterSystem.ICharacterStatService playerStatService;
+
         [Inject]
         public void Construct(
-            UnitChangeService changeService,
+            IUnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             RuntimeDataMultiLockOn multiLockOnData,
-            IUnitBatchCastingService batchCastingService = null,
+            IUnitBatchCastingService batchCastingService,
+            IMultiLockOnVisualizer multiLockOnVisualizer = null,
             IObjectResolver resolver = null)
         {
-            this.changeService = changeService;
+            this.changeService = (UnitChangeService)changeService;
             this.quickSlotUI = quickSlotUI;
             this.multiLockOnData = multiLockOnData;
             this.batchCastingService = batchCastingService;
+            this.multiLockOnVisualizer = multiLockOnVisualizer;
 
             if (resolver != null)
             {
-                if (this.batchCastingService == null && resolver.TryResolve<IUnitBatchCastingService>(out var resolvedBatchService))
-                {
-                    this.batchCastingService = resolvedBatchService;
-                }
-
                 if (resolver.TryResolve<ICameraFollowService>(out var camService))
                 {
                     this.cameraFollowService = camService;
                 }
-
                 if (resolver.TryResolve<RuntimeDataTimeSlow>(out var slowData))
                 {
                     this.timeSlowData = slowData;
-                }
-
-                if (resolver.TryResolve<IMultiLockOnVisualizer>(out var multiVis))
-                {
-                    this.multiLockOnVisualizer = multiVis;
-                }
-
-                if (this.playerStatSystem == null && resolver.TryResolve<CharacterStatSystem>(out var statSystem))
-                {
-                    this.playerStatSystem = statSystem;
                 }
             }
 
@@ -108,20 +96,6 @@ namespace UnitSystem
             if (uiDocument == null) uiDocument = GetComponent<UIDocument>();
             if (mainCamera == null) mainCamera = Camera.main;
 
-            if (quickSlotUI == null)
-            {
-                quickSlotUI = FindFirstObjectByType<UnitQuickSlotUIComponent>();
-            }
-
-            if (cameraFollowService == null)
-            {
-                var camVis = FindFirstObjectByType<CameraFollowVisualizer>();
-                if (camVis != null)
-                {
-                    cameraFollowService = camVis.CameraFollowService;
-                }
-            }
-
             if (timeSlowData == null)
             {
                 timeSlowData = new RuntimeDataTimeSlow(null);
@@ -131,13 +105,6 @@ namespace UnitSystem
             {
                 multiLockOnData = new RuntimeDataMultiLockOn();
             }
-
-            if (multiLockOnVisualizer == null)
-            {
-                multiLockOnVisualizer = FindFirstObjectByType<MultiLockOnVisualizer>();
-            }
-
-            EnsurePlayerStatBound();
 
             if (batchCastingService == null && changeService != null)
             {
@@ -178,15 +145,6 @@ namespace UnitSystem
 
         private void BindCameraEvents()
         {
-            if (cameraFollowService == null)
-            {
-                var camVis = FindFirstObjectByType<CameraFollowVisualizer>();
-                if (camVis != null)
-                {
-                    cameraFollowService = camVis.CameraFollowService;
-                }
-            }
-
             if (cameraFollowService != null)
             {
                 cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
@@ -288,23 +246,6 @@ namespace UnitSystem
             ExecuteBatchCast();
         }
 
-        private void EnsurePlayerStatBound()
-        {
-            if (playerStatSystem != null) return;
-
-            var statComp = GetComponentInParent<CharacterStatComponent>() ?? GetComponent<CharacterStatComponent>();
-            if (statComp == null)
-            {
-                var playerObj = GameObject.FindGameObjectWithTag("Player");
-                if (playerObj != null) statComp = playerObj.GetComponent<CharacterStatComponent>();
-            }
-
-            if (statComp != null)
-            {
-                playerStatSystem = statComp.StatSystem;
-            }
-        }
-
         public void ExecuteBatchCast()
         {
             int targetCount = multiLockOnData != null ? multiLockOnData.TargetCount : 0;
@@ -312,11 +253,6 @@ namespace UnitSystem
             {
                 ClearAllLockOns();
                 return;
-            }
-
-            if (quickSlotUI == null)
-            {
-                quickSlotUI = FindFirstObjectByType<UnitQuickSlotUIComponent>();
             }
 
             PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
@@ -340,19 +276,10 @@ namespace UnitSystem
             multiLockOnData.ClearTargets();
             multiLockOnVisualizer?.UpdateLockOnCount(0);
 
-            EnsurePlayerStatBound();
-
-            RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
-
-            if (changeService == null && quickSlotUI != null && quickSlotUI.CatalogService != null)
-            {
-                changeService = new UnitChangeService(quickSlotUI.CatalogService);
-            }
-
-            if (batchCastingService == null && changeService != null)
-            {
-                batchCastingService = new UnitBatchCastingService(changeService);
-            }
+            var statComp = GetComponentInParent<CharacterSystem.CharacterStatComponent>() 
+                        ?? GetComponent<CharacterSystem.CharacterStatComponent>() 
+                        ?? CharacterSystem.CharacterStatComponent.PlayerStat;
+            RuntimeStatData casterStat = statComp?.StatSystem?.RuntimeData ?? playerStatService?.RuntimeData ?? playerStatSystem?.RuntimeData;
 
             GameObject casterObj = gameObject;
 

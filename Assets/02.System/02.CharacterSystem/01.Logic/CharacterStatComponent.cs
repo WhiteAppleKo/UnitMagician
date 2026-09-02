@@ -12,6 +12,8 @@ namespace CharacterSystem
     {
         [SerializeField] private PureStatData pureStatData;
 
+        public static CharacterStatComponent PlayerStat { get; private set; }
+
         public PureStatData PureStatData => pureStatData;
         public CharacterStatSystem StatSystem { get; private set; }
         public ICharacterStatService StatService => StatSystem;
@@ -19,6 +21,18 @@ namespace CharacterSystem
         private void Awake()
         {
             EnsureInitialized();
+            if (!IsEnemy())
+            {
+                PlayerStat = this;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (PlayerStat == this)
+            {
+                PlayerStat = null;
+            }
         }
 
         [Inject]

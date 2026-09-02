@@ -144,8 +144,7 @@ namespace UnitSystem
                                 {
                                     matchingUnitData.SetPureDataUnit(selectedUnitData);
 
-                                    var gizmoUI = ownerObject != null ? ownerObject.GetComponent<UnitVectorGizmoUIComponent>() : null;
-                                    if (gizmoUI == null) gizmoUI = UnityEngine.Object.FindFirstObjectByType<UnitVectorGizmoUIComponent>();
+                                    var gizmoUI = ownerObject != null ? ownerObject.GetComponentInChildren<UnitVectorGizmoUIComponent>(true) : null;
 
                                     if (gizmoUI != null)
                                     {
@@ -154,7 +153,7 @@ namespace UnitSystem
                                     }
                                     else
                                     {
-                                        Debug.LogWarning("[TopViewMouseCastingStrategy] UnitVectorGizmoUIComponent not found in scene.");
+                                        Debug.LogWarning("[TopViewMouseCastingStrategy] UnitVectorGizmoUIComponent not found on owner.");
                                     }
                                 }
                                 else
@@ -164,7 +163,7 @@ namespace UnitSystem
 
                                     if (changeService != null)
                                     {
-                                        var playerStatComp = UnityEngine.Object.FindFirstObjectByType<CharacterSystem.CharacterStatComponent>();
+                                        var playerStatComp = ownerObject != null ? ownerObject.GetComponentInParent<CharacterSystem.CharacterStatComponent>() : null;
                                         var casterStatData = playerStatComp?.StatSystem?.RuntimeData;
                                         changeService.ChangeUnit(targetObj, matchingUnitData, selectedUnitData, newValue, casterStatData, null, ownerObject);
                                     }
@@ -243,16 +242,13 @@ namespace UnitSystem
 
         private bool IsPointerOverUIToolkit(Vector2 mouseScreenPos)
         {
-            var documents = UnityEngine.Object.FindObjectsByType<UIDocument>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-            foreach (var doc in documents)
+            if (uiDocument != null && uiDocument.rootVisualElement != null && uiDocument.rootVisualElement.panel != null)
             {
-                if (doc == null || doc.rootVisualElement == null || doc.rootVisualElement.panel == null) continue;
-
-                var panel = doc.rootVisualElement.panel;
+                var panel = uiDocument.rootVisualElement.panel;
                 Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(mouseScreenPos.x, Screen.height - mouseScreenPos.y));
                 VisualElement picked = panel.Pick(panelPos);
 
-                if (picked != null && picked != doc.rootVisualElement)
+                if (picked != null && picked != uiDocument.rootVisualElement && picked.pickingMode != PickingMode.Ignore)
                 {
                     return true;
                 }

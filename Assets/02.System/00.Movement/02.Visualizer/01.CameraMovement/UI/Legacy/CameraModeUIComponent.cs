@@ -16,7 +16,12 @@ namespace CameraMovement
         private Button m_firstPersonBtn;
 
         [Inject]
-        public void Construct(ICameraFollowService cameraFollowService)
+        public void Construct(ICameraFollowService cameraFollowService = null)
+        {
+            m_cameraFollowService = cameraFollowService;
+        }
+
+        public void Initialize(ICameraFollowService cameraFollowService)
         {
             m_cameraFollowService = cameraFollowService;
         }

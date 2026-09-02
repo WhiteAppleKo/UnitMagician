@@ -323,7 +323,9 @@ namespace UnitSystem
                     return;
                 }
 
-                var playerComp = playerStatComponent ?? FindFirstObjectByType<CharacterSystem.CharacterStatComponent>();
+                var playerComp = playerStatComponent 
+                              ?? GetComponentInParent<CharacterSystem.CharacterStatComponent>() 
+                              ?? CharacterSystem.CharacterStatComponent.PlayerStat;
                 var statData = playerComp?.StatSystem?.RuntimeData;
 
                 var context = new PipeLine.Contexts.UnitMagicContext
