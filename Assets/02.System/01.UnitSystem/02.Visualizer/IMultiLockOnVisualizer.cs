@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace UnitSystem
@@ -10,5 +11,8 @@ namespace UnitSystem
         void SetCrosshairVisible(bool visible);
         void UpdateLockOnCount(int count);
         void PlayBatchCastEffect();
+        IReadOnlyList<Collider> DetectAimTargets(float radius, float maxDistance);
+        IReadOnlyList<Collider> DetectAimTargets(float radius, float maxDistance, LayerMask mask);
     }
 }
+

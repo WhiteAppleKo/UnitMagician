@@ -102,28 +102,28 @@ namespace UnitSystem
                 return;
             }
 
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Ray aimRay = new Ray(cam.transform.position, cam.transform.forward);
-            float castRadius = 0.6f;
-            float maxDistance = 60f;
-
-            RaycastHit[] hits = Physics.SphereCastAll(aimRay, castRadius, maxDistance);
-            if (hits == null || hits.Length == 0)
+            if (visualizer == null)
             {
                 lastHoveredTarget = null;
                 return;
             }
 
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            float castRadius = 0.6f;
+            float maxDistance = 60f;
 
-            foreach (var hit in hits)
+            var detectedColliders = visualizer.DetectAimTargets(castRadius, maxDistance);
+            if (detectedColliders == null || detectedColliders.Count == 0)
             {
-                // 플레이어 본인 제외
-                if (hit.collider.transform.root == cam.transform.root) continue;
+                lastHoveredTarget = null;
+                return;
+            }
 
-                var unitGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
+            for (int i = 0; i < detectedColliders.Count; i++)
+            {
+                var col = detectedColliders[i];
+                if (col == null) continue;
+
+                var unitGroup = col.GetComponentInParent<RuntimeDataUnitGroup>();
 
                 // 1. RuntimeDataUnitGroup이 없는 단순 적/아군 캐릭터는 마법 락온에서 완전히 배제
                 if (unitGroup == null)
@@ -151,7 +151,7 @@ namespace UnitSystem
                     lastHoveredTarget = unitGroup;
                     lockOnCooldownTimer = LOCK_ON_INTERVAL;
 
-                    visualizer?.UpdateLockOnCount(multiLockOnData.TargetCount);
+                    visualizer.UpdateLockOnCount(multiLockOnData.TargetCount);
                 }
                 return;
             }

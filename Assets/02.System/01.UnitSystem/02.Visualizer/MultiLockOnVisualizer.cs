@@ -53,5 +53,36 @@ namespace UnitSystem
         {
             Debug.Log("<color=cyan>[MultiLockOnVisualizer] Batch Cast Effect Triggered!</color>");
         }
+
+        public IReadOnlyList<Collider> DetectAimTargets(float radius, float maxDistance)
+        {
+            return DetectAimTargets(radius, maxDistance, Physics.DefaultRaycastLayers);
+        }
+
+        public IReadOnlyList<Collider> DetectAimTargets(float radius, float maxDistance, LayerMask mask)
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return System.Array.Empty<Collider>();
+
+            Ray aimRay = new Ray(cam.transform.position, cam.transform.forward);
+            RaycastHit[] hits = Physics.SphereCastAll(aimRay, radius, maxDistance, mask);
+            if (hits == null || hits.Length == 0)
+            {
+                return System.Array.Empty<Collider>();
+            }
+
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+            var colliders = new System.Collections.Generic.List<Collider>(hits.Length);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].collider != null)
+                {
+                    colliders.Add(hits[i].collider);
+                }
+            }
+
+            return colliders;
+        }
     }
 }

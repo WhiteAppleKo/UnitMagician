@@ -32,21 +32,19 @@ namespace UnitSystem
             RuntimeDataTimeSlow timeSlowData,
             ICameraFollowService cameraFollowService,
             UnitChangeService changeService,
-            IObjectResolver resolver,
+            IMultiLockOnVisualizer visualizer,
+            UnitQuickSlotUIComponent quickSlotUI = null,
+            CharacterStatSystem playerStatSystem = null,
             IUnitBatchCastingService batchCastingService = null)
         {
             this.multiLockOnData = multiLockOnData ?? throw new ArgumentNullException(nameof(multiLockOnData));
             this.timeSlowData = timeSlowData ?? throw new ArgumentNullException(nameof(timeSlowData));
             this.cameraFollowService = cameraFollowService;
             this.changeService = changeService;
-            this.batchCastingService = batchCastingService ?? (resolver != null && resolver.TryResolve<IUnitBatchCastingService>(out var resolvedBatchService) ? resolvedBatchService : new UnitBatchCastingService(changeService));
-
-            if (resolver != null)
-            {
-                resolver.TryResolve(out this.quickSlotUI);
-                resolver.TryResolve(out this.visualizer);
-                resolver.TryResolve(out this.playerStatSystem);
-            }
+            this.visualizer = visualizer;
+            this.quickSlotUI = quickSlotUI;
+            this.playerStatSystem = playerStatSystem;
+            this.batchCastingService = batchCastingService ?? (changeService != null ? new UnitBatchCastingService(changeService) : null);
 
             this.timeSlowData.OnSlowStateChanged += HandleSlowStateChanged;
             if (this.cameraFollowService != null)
@@ -113,28 +111,28 @@ namespace UnitSystem
                 return;
             }
 
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Ray aimRay = new Ray(cam.transform.position, cam.transform.forward);
-            float castRadius = 0.6f;
-            float maxDistance = 60f;
-
-            RaycastHit[] hits = Physics.SphereCastAll(aimRay, castRadius, maxDistance);
-            if (hits == null || hits.Length == 0)
+            if (visualizer == null)
             {
                 lastHoveredTarget = null;
                 return;
             }
 
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            float castRadius = 0.6f;
+            float maxDistance = 60f;
 
-            foreach (var hit in hits)
+            var detectedColliders = visualizer.DetectAimTargets(castRadius, maxDistance);
+            if (detectedColliders == null || detectedColliders.Count == 0)
             {
-                // 플레이어 본인 제외
-                if (hit.collider.transform.root == cam.transform.root) continue;
+                lastHoveredTarget = null;
+                return;
+            }
 
-                var unitGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
+            for (int i = 0; i < detectedColliders.Count; i++)
+            {
+                var col = detectedColliders[i];
+                if (col == null) continue;
+
+                var unitGroup = col.GetComponentInParent<RuntimeDataUnitGroup>();
 
                 // 1. RuntimeDataUnitGroup이 없는 단순 적/아군 캐릭터는 마법 락온에서 완전히 배제
                 if (unitGroup == null)
@@ -162,7 +160,7 @@ namespace UnitSystem
                     lastHoveredTarget = unitGroup;
                     lockOnCooldownTimer = LOCK_ON_INTERVAL;
 
-                    visualizer?.UpdateLockOnCount(multiLockOnData.TargetCount);
+                    visualizer.UpdateLockOnCount(multiLockOnData.TargetCount);
                 }
                 return;
             }
