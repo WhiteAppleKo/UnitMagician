@@ -35,9 +35,9 @@ namespace UnitSystem
             }
 
             // 마나 코스트 계산 수식: Cost = BaseCost * |CurrentValue - NewValue|
-            int baseCost = newUnitData.BaseCost;
+            int baseCost = newUnitData.BaseCost > 0 ? newUnitData.BaseCost : 10;
             float valueDiff = Mathf.Abs(targetRuntimeData.CurrentValue - newValue);
-            int calculatedCost = Mathf.RoundToInt(baseCost * valueDiff);
+            int calculatedCost = Mathf.Max(Mathf.RoundToInt(baseCost * valueDiff), baseCost);
 
             var context = new PipeLine.Contexts.UnitMagicContext
             {

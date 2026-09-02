@@ -28,6 +28,15 @@ namespace UnitSystem
         private IMultiLockOnVisualizer multiLockOnVisualizer;
         private CharacterStatSystem playerStatSystem;
 
+        public RuntimeDataMultiLockOn MultiLockOnData
+        {
+            get
+            {
+                if (multiLockOnData == null) multiLockOnData = new RuntimeDataMultiLockOn();
+                return multiLockOnData;
+            }
+        }
+
         private IUnitCastingStrategy currentStrategy;
         private TopViewMouseCastingStrategy topViewStrategy;
         private AimLockOnCastingStrategy aimLockOnStrategy;
@@ -61,7 +70,7 @@ namespace UnitSystem
                     this.multiLockOnVisualizer = multiVis;
                 }
 
-                if (resolver.TryResolve<CharacterStatSystem>(out var statSystem))
+                if (this.playerStatSystem == null && resolver.TryResolve<CharacterStatSystem>(out var statSystem))
                 {
                     this.playerStatSystem = statSystem;
                 }
@@ -120,14 +129,7 @@ namespace UnitSystem
                 multiLockOnVisualizer = FindFirstObjectByType<MultiLockOnVisualizer>();
             }
 
-            if (playerStatSystem == null)
-            {
-                var playerStatComp = FindFirstObjectByType<CharacterStatComponent>();
-                if (playerStatComp != null)
-                {
-                    playerStatSystem = playerStatComp.StatSystem;
-                }
-            }
+            EnsurePlayerStatBound();
 
             topViewStrategy = new TopViewMouseCastingStrategy(
                 mainCamera,
@@ -268,6 +270,28 @@ namespace UnitSystem
 
         private void HandleBatchCastRequested()
         {
+            ExecuteBatchCast();
+        }
+
+        private void EnsurePlayerStatBound()
+        {
+            if (playerStatSystem != null) return;
+
+            var statComp = GetComponentInParent<CharacterStatComponent>() ?? GetComponent<CharacterStatComponent>();
+            if (statComp == null)
+            {
+                var playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null) statComp = playerObj.GetComponent<CharacterStatComponent>();
+            }
+
+            if (statComp != null)
+            {
+                playerStatSystem = statComp.StatSystem;
+            }
+        }
+
+        public void ExecuteBatchCast()
+        {
             int targetCount = multiLockOnData != null ? multiLockOnData.TargetCount : 0;
             if (targetCount == 0)
             {
@@ -301,14 +325,7 @@ namespace UnitSystem
             multiLockOnData.ClearTargets();
             multiLockOnVisualizer?.UpdateLockOnCount(0);
 
-            if (playerStatSystem == null)
-            {
-                var playerStatComp = FindFirstObjectByType<CharacterStatComponent>();
-                if (playerStatComp != null)
-                {
-                    playerStatSystem = playerStatComp.StatSystem;
-                }
-            }
+            EnsurePlayerStatBound();
 
             RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
 
@@ -324,7 +341,8 @@ namespace UnitSystem
                 {
                     float newValue = CalculateNewValueForUnit(matchingUnitData, selectedUnitData);
                     float diff = Mathf.Abs(matchingUnitData.CurrentValue - newValue);
-                    totalCost += Mathf.RoundToInt(selectedUnitData.BaseCost * diff);
+                    int baseCost = selectedUnitData.BaseCost > 0 ? selectedUnitData.BaseCost : 10;
+                    totalCost += Mathf.Max(Mathf.RoundToInt(baseCost * diff), baseCost);
                 }
             }
 

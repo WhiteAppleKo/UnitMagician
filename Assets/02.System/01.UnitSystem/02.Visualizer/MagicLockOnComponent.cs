@@ -37,14 +37,31 @@ namespace UnitSystem
 
         private void Awake()
         {
-            if (_multiLockOnData == null) _multiLockOnData = new RuntimeDataMultiLockOn();
+            EnsureDataBound();
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
         }
 
+        private void EnsureDataBound()
+        {
+            if (_multiLockOnData == null)
+            {
+                var casterSys = UnityEngine.Object.FindFirstObjectByType<UnitCasterSystem>();
+                if (casterSys != null && casterSys.MultiLockOnData != null)
+                {
+                    _multiLockOnData = casterSys.MultiLockOnData;
+                }
+                else
+                {
+                    _multiLockOnData = new RuntimeDataMultiLockOn();
+                }
+            }
+        }
+
         private void OnEnable()
         {
+            EnsureDataBound();
             if (_visualizer == null) _visualizer = GetComponentInParent<IMultiLockOnVisualizer>();
             if (_visualizer == null) _visualizer = UnityEngine.Object.FindFirstObjectByType<MultiLockOnVisualizer>();
             if (_locomotionVisualizer == null) _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
@@ -68,8 +85,16 @@ namespace UnitSystem
                 _currentHoverTarget = null;
             }
 
-            // 시간 정지 해제 순간 누적된 대상들에게 일괄 마법 변환 신호 발행
-            _multiLockOnData?.RequestBatchCast();
+            // 시간 정지 해제 순간 로직 시스템에 일괄 마법 변환 실행 명령 및 신호 발행
+            var casterSys = UnityEngine.Object.FindFirstObjectByType<UnitCasterSystem>();
+            if (casterSys != null)
+            {
+                casterSys.ExecuteBatchCast();
+            }
+            else
+            {
+                _multiLockOnData?.RequestBatchCast();
+            }
 
             if (_visualizer != null)
             {
