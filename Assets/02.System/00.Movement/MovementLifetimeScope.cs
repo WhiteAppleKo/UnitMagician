@@ -53,13 +53,21 @@ namespace PlayerMovement
             // 3. Runtime Data 등록
             builder.Register<RuntimeDataLocomotion>(Lifetime.Singleton);
 
-            // 4. Camera Service 등록 (ILateTickable)
+            // 4. Mouse Position Provider 및 Camera Strategies 등록
+            builder.Register<IMouseWorldPositionProvider, MouseWorldPositionProvider>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, FirstPersonCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, ThirdPersonShoulderCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, TopViewMouseFocusStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, HybridFocusCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, PlayerOnlyCameraStrategy>(Lifetime.Singleton);
+
+            // 5. Camera Service 등록 (ILateTickable)
             builder.RegisterEntryPoint<CameraFollowService>(Lifetime.Singleton)
                 .AsSelf()
                 .As<ICameraFollowService>()
                 .As<ILateTickable>();
 
-            // 5. Visualizer 등록
+            // 6. Visualizer 등록
             LocomotionVisualizer locVis = locomotionVisualizer;
             if (locVis == null && locomotionConfig != null) locVis = locomotionConfig.Visualizer;
             if (locVis == null) locVis = FindAnyObjectByType<LocomotionVisualizer>();
@@ -73,7 +81,9 @@ namespace PlayerMovement
             if (camVis == null) camVis = FindAnyObjectByType<CameraFollowVisualizer>();
             if (camVis != null)
             {
-                builder.RegisterComponent(camVis);
+                builder.RegisterComponent(camVis)
+                    .AsSelf()
+                    .As<ICameraFollowVisualizer>();
             }
 
             CameraOptionUIController optUI = cameraOptionUI;

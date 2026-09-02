@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
@@ -9,7 +10,8 @@ namespace CameraMovement
     public class CameraFollowService : ICameraFollowService, ILateTickable
     {
         private readonly PureDataCameraSetting m_cameraSetting;
-        private readonly MouseWorldPositionProvider m_mousePositionProvider;
+        private readonly IMouseWorldPositionProvider m_mousePositionProvider;
+        private readonly Dictionary<CameraMode, ICameraModeCalculationStrategy> m_strategies;
 
         private Transform m_targetTransform;
         private Vector3 m_currentTargetPosition;
@@ -21,11 +23,17 @@ namespace CameraMovement
         private float m_zoomVelocity;
         private CameraMode m_currentMode = CameraMode.ThirdPersonShoulder;
 
+        private const float WHEEL_SCROLL_THRESHOLD = 0.01f;
+
         public Vector3 CurrentTargetPosition => m_currentTargetPosition;
         public Vector2 CurrentLookAngles => m_currentLookAngles;
         public float CurrentZoomSize => m_currentZoomRatio;
         public CameraMode CurrentMode => m_currentMode;
         public PureDataCameraSetting Setting => m_cameraSetting;
+
+        // 호환성 편의 프로퍼티
+        public Vector3 TargetPosition => m_currentTargetPosition;
+        public Vector2 LookAngles => m_currentLookAngles;
 
         public event Action<Vector3> OnTargetPositionChanged;
         public event Action<Vector2> OnLookAnglesChanged;
@@ -33,10 +41,29 @@ namespace CameraMovement
         public event Action<CameraMode> OnCameraModeChanged;
 
         [Inject]
-        public CameraFollowService(PureDataCameraSetting cameraSetting)
+        public CameraFollowService(
+            PureDataCameraSetting cameraSetting,
+            IMouseWorldPositionProvider mousePositionProvider = null,
+            IReadOnlyList<ICameraModeCalculationStrategy> strategies = null)
         {
             m_cameraSetting = cameraSetting;
-            m_mousePositionProvider = new MouseWorldPositionProvider();
+            m_mousePositionProvider = mousePositionProvider ?? new MouseWorldPositionProvider();
+
+            m_strategies = new Dictionary<CameraMode, ICameraModeCalculationStrategy>();
+            if (strategies != null)
+            {
+                for (int i = 0; i < strategies.Count; i++)
+                {
+                    var strat = strategies[i];
+                    if (strat != null)
+                    {
+                        m_strategies[strat.Mode] = strat;
+                    }
+                }
+            }
+
+            // 누락된 기본 전략 fallback 등록
+            EnsureDefaultStrategies();
 
             if (cameraSetting != null)
             {
@@ -45,6 +72,20 @@ namespace CameraMovement
                 m_targetZoomRatio = defaultZoomRatio;
                 m_currentZoomRatio = defaultZoomRatio;
             }
+        }
+
+        private void EnsureDefaultStrategies()
+        {
+            if (!m_strategies.ContainsKey(CameraMode.FirstPerson))
+                m_strategies[CameraMode.FirstPerson] = new FirstPersonCameraStrategy();
+            if (!m_strategies.ContainsKey(CameraMode.ThirdPersonShoulder))
+                m_strategies[CameraMode.ThirdPersonShoulder] = new ThirdPersonShoulderCameraStrategy();
+            if (!m_strategies.ContainsKey(CameraMode.MouseFocus))
+                m_strategies[CameraMode.MouseFocus] = new TopViewMouseFocusStrategy(m_mousePositionProvider);
+            if (!m_strategies.ContainsKey(CameraMode.HybridFocus))
+                m_strategies[CameraMode.HybridFocus] = new HybridFocusCameraStrategy(m_mousePositionProvider);
+            if (!m_strategies.ContainsKey(CameraMode.PlayerOnly))
+                m_strategies[CameraMode.PlayerOnly] = new PlayerOnlyCameraStrategy();
         }
 
         public void SetTarget(Transform target)
@@ -72,6 +113,8 @@ namespace CameraMovement
             OnCameraModeChanged?.Invoke(m_currentMode);
         }
 
+        public void SwitchCameraMode(CameraMode mode) => SetCameraMode(mode);
+
         public void LateTick()
         {
             if (m_targetTransform == null || m_cameraSetting == null) return;
@@ -81,8 +124,6 @@ namespace CameraMovement
             UpdateCameraOffset(mouseDelta, wheelDelta);
         }
 
-        private const float WHEEL_SCROLL_THRESHOLD = 0.01f;
-
         public void UpdateCameraOffset(Vector2 mouseInput, float wheelDelta)
         {
             if (m_targetTransform == null || m_cameraSetting == null) return;
@@ -91,48 +132,21 @@ namespace CameraMovement
             float zoomSpeed = m_cameraSetting.ZoomSpeed;
             Vector3 basePos = m_targetTransform.position + Vector3.up * 1.4f;
 
-            Vector3 targetPivotPos;
-
-            switch (m_currentMode)
+            if (!m_strategies.TryGetValue(m_currentMode, out var strategy) || strategy == null)
             {
-                case CameraMode.FirstPerson:
-                case CameraMode.ThirdPersonShoulder:
-                    float sensitivity = m_cameraSetting.MouseSensitivity;
-                    float invertMultiplier = m_cameraSetting.InvertY ? 1f : -1f;
-
-                    m_currentLookAngles.y += mouseInput.x * sensitivity * 0.1f;
-                    m_currentLookAngles.x += mouseInput.y * sensitivity * 0.1f * invertMultiplier;
-
-                    Vector2 limits = m_cameraSetting.VerticalAngleLimits;
-                    m_currentLookAngles.x = Mathf.Clamp(m_currentLookAngles.x, limits.x, limits.y);
-
-                    OnLookAnglesChanged?.Invoke(m_currentLookAngles);
-                    targetPivotPos = basePos;
-                    break;
-
-                case CameraMode.MouseFocus:
-                    Camera mouseCam = Camera.main;
-                    Vector3 mouseFocusWorldPos = m_mousePositionProvider.GetMouseWorldPosition(mouseCam);
-                    if (mouseFocusWorldPos == Vector3.zero) mouseFocusWorldPos = basePos;
-
-                    Vector3 rawOffset = mouseFocusWorldPos - basePos;
-                    targetPivotPos = basePos + Vector3.ClampMagnitude(rawOffset, m_cameraSetting.MaxMouseFocusDistance);
-                    break;
-
-                case CameraMode.HybridFocus:
-                    Camera hybridCam = Camera.main;
-                    Vector3 hybridWorldPos = m_mousePositionProvider.GetMouseWorldPosition(hybridCam);
-                    if (hybridWorldPos == Vector3.zero) hybridWorldPos = basePos;
-
-                    float effectiveMouseWeight = m_currentZoomRatio * m_cameraSetting.MouseWeight;
-                    targetPivotPos = Vector3.Lerp(basePos, hybridWorldPos, effectiveMouseWeight);
-                    break;
-
-                case CameraMode.PlayerOnly:
-                default:
-                    targetPivotPos = basePos;
-                    break;
+                strategy = m_strategies[CameraMode.PlayerOnly];
             }
+
+            // 1. 시선 각도 연산
+            Vector2 previousAngles = m_currentLookAngles;
+            m_currentLookAngles = strategy.CalculateLookAngles(m_currentLookAngles, mouseInput, m_cameraSetting);
+            if (m_currentLookAngles != previousAngles)
+            {
+                OnLookAnglesChanged?.Invoke(m_currentLookAngles);
+            }
+
+            // 2. 타깃 피벗 위치 연산
+            Vector3 targetPivotPos = strategy.CalculateTargetPivot(basePos, mouseInput, m_currentZoomRatio, m_cameraSetting);
 
             m_currentTargetPosition = Vector3.SmoothDamp(
                 m_currentTargetPosition,

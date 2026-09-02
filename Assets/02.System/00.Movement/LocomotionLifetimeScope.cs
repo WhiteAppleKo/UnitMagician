@@ -40,13 +40,21 @@ namespace Movement.RefactoredLocomotion
             // 2. Runtime Data 등록
             builder.Register<RuntimeDataLocomotion>(Lifetime.Singleton);
 
-            // 3. Camera Service 등록 (ILateTickable 프레임 루프 자동 구동)
+            // 3. Mouse Position Provider 및 Camera Strategies 등록
+            builder.Register<IMouseWorldPositionProvider, MouseWorldPositionProvider>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, FirstPersonCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, ThirdPersonShoulderCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, TopViewMouseFocusStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, HybridFocusCameraStrategy>(Lifetime.Singleton);
+            builder.Register<ICameraModeCalculationStrategy, PlayerOnlyCameraStrategy>(Lifetime.Singleton);
+
+            // 4. Camera Service 등록 (ILateTickable 프레임 루프 자동 구동)
             builder.RegisterEntryPoint<CameraFollowService>(Lifetime.Singleton)
                 .AsSelf()
                 .As<ICameraFollowService>()
                 .As<ILateTickable>();
 
-            // 4. Visualizer 등록
+            // 5. Visualizer 등록
             if (config.Visualizer != null)
             {
                 builder.RegisterComponent(config.Visualizer).As<ILocomotionVisualizer>();
@@ -72,14 +80,18 @@ namespace Movement.RefactoredLocomotion
 
             if (config.CameraVisualizer != null)
             {
-                builder.RegisterComponent(config.CameraVisualizer);
+                builder.RegisterComponent(config.CameraVisualizer)
+                    .AsSelf()
+                    .As<ICameraFollowVisualizer>();
             }
             else
             {
                 var cameraVisualizer = FindAnyObjectByType<CameraFollowVisualizer>();
                 if (cameraVisualizer != null)
                 {
-                    builder.RegisterComponent(cameraVisualizer);
+                    builder.RegisterComponent(cameraVisualizer)
+                        .AsSelf()
+                        .As<ICameraFollowVisualizer>();
                 }
             }
 

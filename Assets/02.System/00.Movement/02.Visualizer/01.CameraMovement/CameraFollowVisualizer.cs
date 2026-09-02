@@ -5,7 +5,7 @@ using Movement.RefactoredLocomotion;
 
 namespace CameraMovement
 {
-    public class CameraFollowVisualizer : MonoBehaviour
+    public class CameraFollowVisualizer : MonoBehaviour, ICameraFollowVisualizer
     {
         [Header("Pivot & Targets")]
         [SerializeField] private Transform pivotTarget;
@@ -21,15 +21,24 @@ namespace CameraMovement
         [Tooltip("3인칭 숄더뷰 가상 카메라")]
         [SerializeField] private CinemachineCamera shoulderVirtualCamera;
 
+        [Header("Cinemachine Brain (Optional)")]
+        [SerializeField] private CinemachineBrain cinemachineBrain;
+
         private ICameraFollowService m_cameraFollowService;
         public ICameraFollowService CameraFollowService => m_cameraFollowService;
+        public Transform PivotTarget => pivotTarget;
+        public Transform PlayerTransform => playerTransform;
+        public CinemachineCamera TopViewVirtualCamera => topViewVirtualCamera;
+        public CinemachineCamera FirstPersonVirtualCamera => firstPersonVirtualCamera;
+        public CinemachineCamera ShoulderVirtualCamera => shoulderVirtualCamera;
+
         private ILocomotionVisualizer m_locomotionVisualizer;
         private PureDataCameraSetting m_cameraSetting;
 
         [Inject]
         public void Construct(
             ICameraFollowService cameraFollowService,
-            IObjectResolver resolver)
+            IObjectResolver resolver = null)
         {
             m_cameraFollowService = cameraFollowService;
 
@@ -38,6 +47,11 @@ namespace CameraMovement
                 if (resolver.TryResolve<ILocomotionVisualizer>(out var locomotionVis))
                 {
                     m_locomotionVisualizer = locomotionVis;
+                }
+
+                if (resolver.TryResolve<CinemachineBrain>(out var brain))
+                {
+                    cinemachineBrain = brain;
                 }
             }
 
@@ -59,18 +73,25 @@ namespace CameraMovement
 
         private void ApplyIgnoreTimeScaleToBrain()
         {
+            if (cinemachineBrain != null)
+            {
+                cinemachineBrain.IgnoreTimeScale = true;
+                return;
+            }
+
             Camera mainCam = Camera.main;
             if (mainCam != null && mainCam.TryGetComponent<CinemachineBrain>(out var brain))
             {
-                brain.IgnoreTimeScale = true;
+                cinemachineBrain = brain;
+                cinemachineBrain.IgnoreTimeScale = true;
+                return;
             }
-            else
+
+            var fallbackBrain = FindFirstObjectByType<CinemachineBrain>();
+            if (fallbackBrain != null)
             {
-                var anyBrain = FindAnyObjectByType<CinemachineBrain>();
-                if (anyBrain != null)
-                {
-                    anyBrain.IgnoreTimeScale = true;
-                }
+                cinemachineBrain = fallbackBrain;
+                cinemachineBrain.IgnoreTimeScale = true;
             }
         }
 
@@ -120,7 +141,7 @@ namespace CameraMovement
             }
             else
             {
-                var locVis = FindAnyObjectByType<LocomotionVisualizer>();
+                var locVis = FindFirstObjectByType<LocomotionVisualizer>();
                 if (locVis != null) playerTransform = locVis.transform;
             }
 
