@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using VContainer;
 using VContainer.Unity;
 
@@ -14,7 +14,10 @@ namespace CharacterSystem
         private readonly RuntimeDataTimeSlow runtimeTimeSlow;
         private readonly IPlayerStateVisualizer visualizer;
 
-        private float castingTimer;
+        private readonly Dictionary<PlayerStateType, IPlayerState> states;
+        private IPlayerState currentState;
+
+        public IPlayerState CurrentState => currentState;
 
         [Inject]
         public PlayerStateLogicSystem(
@@ -30,7 +33,20 @@ namespace CharacterSystem
             this.runtimeTimeSlow = runtimeTimeSlow ?? throw new ArgumentNullException(nameof(runtimeTimeSlow));
             this.visualizer = visualizer;
 
+            states = new Dictionary<PlayerStateType, IPlayerState>
+            {
+                { PlayerStateType.Normal, new PlayerNormalState(this, this.runtimeTimeSlow) },
+                { PlayerStateType.Casting, new PlayerCastingState(this, this.runtimeState, this.runtimeTimeSlow, this.visualizer) },
+                { PlayerStateType.TimeSlow, new PlayerTimeSlowState(this, this.runtimeTimeSlow) }
+            };
+
             this.runtimeState.OnStateChanged += HandleStateChanged;
+
+            if (states.TryGetValue(this.runtimeState.CurrentState, out var initialState))
+            {
+                currentState = initialState;
+                currentState.Enter();
+            }
         }
 
         public void Dispose()
@@ -39,6 +55,8 @@ namespace CharacterSystem
             {
                 runtimeState.OnStateChanged -= HandleStateChanged;
             }
+            currentState?.Exit();
+            currentState = null;
         }
 
         private void HandleStateChanged(PlayerStateType previousState, PlayerStateType newState)
@@ -48,42 +66,25 @@ namespace CharacterSystem
 
         public void Tick()
         {
-            UpdateCastingState();
-            UpdateSlowState();
-            HandleInput();
+            currentState?.Tick(Time.unscaledDeltaTime);
         }
 
-        private void UpdateCastingState()
+        public void SwitchState(PlayerStateType newStateType)
         {
-            if (runtimeState.CurrentState == PlayerStateType.Casting)
+            if (states.TryGetValue(newStateType, out var newState))
             {
-                castingTimer -= Time.unscaledDeltaTime;
-                if (castingTimer <= 0f)
-                {
-                    visualizer?.PlayCastingMotion(false);
-                    runtimeState.ChangeState(PlayerStateType.Normal);
-                }
+                SwitchState(newState);
             }
         }
 
-        private void UpdateSlowState()
+        public void SwitchState(IPlayerState newState)
         {
-            if (runtimeTimeSlow.IsSlowActive)
-            {
-                if (runtimeState.CurrentState != PlayerStateType.TimeSlow && runtimeState.CurrentState != PlayerStateType.Casting)
-                {
-                    runtimeState.ChangeState(PlayerStateType.TimeSlow);
-                }
-            }
-            else if (runtimeState.CurrentState == PlayerStateType.TimeSlow)
-            {
-                runtimeState.ChangeState(PlayerStateType.Normal);
-            }
-        }
+            if (newState == null || currentState == newState) return;
 
-        private void HandleInput()
-        {
-            // 마우스 좌/우클릭 시전 처리는 UnitCasterSystem 전략 패턴(TopViewMouseCastingStrategy / AimLockOnCastingStrategy)으로 일원화됨
+            currentState?.Exit();
+            currentState = newState;
+            runtimeState.ChangeState(newState.StateType);
+            currentState.Enter();
         }
 
         public bool TryCastCurrentMagic()
@@ -113,12 +114,7 @@ namespace CharacterSystem
             bool fired = magicSlotSystem.FireCurrentMagic();
             if (fired)
             {
-                runtimeState.ChangeState(PlayerStateType.Casting);
-                float duration = runtimeState.PureData != null ? runtimeState.PureData.CastingDuration : 0.5f;
-                castingTimer = duration;
-
-                visualizer?.PlayCastingMotion(true);
-                visualizer?.TriggerCastEffect();
+                SwitchState(PlayerStateType.Casting);
                 return true;
             }
 
