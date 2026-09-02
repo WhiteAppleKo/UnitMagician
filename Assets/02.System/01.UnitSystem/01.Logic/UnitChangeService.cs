@@ -5,7 +5,7 @@ using InteractionSystem.Logic;
 
 namespace UnitSystem
 {
-    public class UnitChangeService
+    public class UnitChangeService : IUnitChangeService
     {
         private readonly IUnitCatalogService catalogService;
 

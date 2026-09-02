@@ -27,7 +27,7 @@ namespace UnitSystem
             // Data & Service Register
             builder.RegisterInstance<IReadOnlyList<PureDataUnit>>(initialUnits);
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
-            builder.Register<UnitChangeService>(Lifetime.Singleton);
+            builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
 
