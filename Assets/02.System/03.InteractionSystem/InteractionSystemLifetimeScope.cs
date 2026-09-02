@@ -18,7 +18,7 @@ namespace InteractionSystem
             if (damagePipeLine != null) builder.RegisterInstance(damagePipeLine);
             if (unitMagicPipeLine != null) builder.RegisterInstance(unitMagicPipeLine);
 
-            builder.Register<Logic.InteractionSystem>(Lifetime.Singleton).As<IInteractionService>();
+            builder.Register<Logic.InteractionSystem>(Lifetime.Scoped).As<IInteractionService>().AsSelf();
         }
     }
 }

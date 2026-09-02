@@ -36,6 +36,11 @@ namespace InteractionSystem.Logic
             this.interactionService = interactionService;
         }
 
+        public void Initialize(IInteractionService interactionService)
+        {
+            this.interactionService = interactionService;
+        }
+
         private void Start()
         {
             IgnoreOwnerCollisions();
@@ -108,7 +113,10 @@ namespace InteractionSystem.Logic
 
         private async UniTaskVoid ProcessDamageAndDestroyAsync(GameObject victim)
         {
-            EnsureInteractionService();
+            if (interactionService == null)
+            {
+                Debug.LogWarning($"[CollisionDamageTrigger] IInteractionService is not injected/initialized on {gameObject.name}!");
+            }
 
             var context = new DamageContext
             {
@@ -123,10 +131,6 @@ namespace InteractionSystem.Logic
             if (interactionService != null)
             {
                 await interactionService.ProcessDamageAsync(context);
-            }
-            else
-            {
-                Debug.LogWarning("[CollisionDamageTrigger] IInteractionService not found in scene!");
             }
 
             // 데미지 적용 완료 후 오브젝트 소멸
@@ -148,18 +152,6 @@ namespace InteractionSystem.Logic
             }
 
             return false;
-        }
-
-        private void EnsureInteractionService()
-        {
-            if (interactionService == null)
-            {
-                var scope = FindFirstObjectByType<InteractionSystemLifetimeScope>();
-                if (scope != null && scope.Container != null)
-                {
-                    interactionService = scope.Container.Resolve<IInteractionService>();
-                }
-            }
         }
     }
 }

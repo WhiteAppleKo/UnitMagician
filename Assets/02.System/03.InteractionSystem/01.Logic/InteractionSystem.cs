@@ -49,9 +49,10 @@ namespace InteractionSystem.Logic
             // 피격 스탯 차감 적용 및 디버그 출력
             if (!context.IsEvaded && context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
-                statComponent.StatSystem?.TakeDamage(context.FinalDamage);
-                int currentHp = statComponent.StatSystem?.RuntimeData?.HP?.CurrentValue ?? 0;
-                int maxHp = statComponent.StatSystem?.RuntimeData?.HP?.MaxValue ?? 0;
+                var statService = statComponent.StatService ?? (ICharacterStatService)statComponent.StatSystem;
+                statService?.TakeDamage(context.FinalDamage);
+                int currentHp = statService?.RuntimeData?.HP?.CurrentValue ?? 0;
+                int maxHp = statService?.RuntimeData?.HP?.MaxValue ?? 0;
                 Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {context.Attacker?.name} -> Victim: {context.Victim.name} | Raw: {context.RawDamage} | Final: {context.FinalDamage} | Crit: {context.IsCritical} | HP: {currentHp}/{maxHp}");
             }
             else if (context.IsEvaded)
@@ -74,9 +75,10 @@ namespace InteractionSystem.Logic
 
             if (context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
-                statComponent.StatSystem?.Heal(context.RawDamage);
-                int currentHp = statComponent.StatSystem?.RuntimeData?.HP?.CurrentValue ?? 0;
-                int maxHp = statComponent.StatSystem?.RuntimeData?.HP?.MaxValue ?? 0;
+                var statService = statComponent.StatService ?? (ICharacterStatService)statComponent.StatSystem;
+                statService?.Heal(context.RawDamage);
+                int currentHp = statService?.RuntimeData?.HP?.CurrentValue ?? 0;
+                int maxHp = statService?.RuntimeData?.HP?.MaxValue ?? 0;
                 Debug.Log($"<color=green>[InteractionSystem.Heal]</color> Victim: {context.Victim.name} Healed +{context.RawDamage} | HP: {currentHp}/{maxHp}");
             }
 
@@ -98,7 +100,8 @@ namespace InteractionSystem.Logic
             {
                 if (context.Caster != null && context.Caster.TryGetComponent<CharacterStatComponent>(out var casterStat))
                 {
-                    casterStat.StatSystem?.UseMP(context.RequiredMana);
+                    var statService = casterStat.StatService ?? (ICharacterStatService)casterStat.StatSystem;
+                    statService?.UseMP(context.RequiredMana);
                 }
                 context.IsSuccess = true;
             }
