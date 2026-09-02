@@ -26,26 +26,26 @@ public class CharacterLifetimeScope : LifetimeScope
 
             if (characterStatComponent.StatSystem != null)
             {
-                builder.RegisterInstance(characterStatComponent.StatSystem);
+                builder.RegisterInstance(characterStatComponent.StatSystem).As<ICharacterStatService>().AsSelf();
             }
             else if (characterStatComponent.PureStatData != null)
             {
                 var statSystem = new CharacterStatSystem(characterStatComponent.PureStatData);
                 characterStatComponent.Initialize(statSystem);
-                builder.RegisterInstance(statSystem);
+                builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
             }
             else
             {
                 var statSystem = new CharacterStatSystem(ScriptableObject.CreateInstance<PureStatData>());
                 characterStatComponent.Initialize(statSystem);
-                builder.RegisterInstance(statSystem);
+                builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
             }
         }
         else
         {
             var defaultStat = ScriptableObject.CreateInstance<PureStatData>();
             var statSystem = new CharacterStatSystem(defaultStat);
-            builder.RegisterInstance(statSystem);
+            builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
         }
 
         builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton);

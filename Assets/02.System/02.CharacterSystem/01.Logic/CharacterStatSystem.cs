@@ -2,7 +2,7 @@ using System;
 
 namespace CharacterSystem
 {
-    public class CharacterStatSystem
+    public class CharacterStatSystem : ICharacterStatService
     {
         private readonly RuntimeStatData runtimeData;
 

@@ -14,6 +14,7 @@ namespace CharacterSystem
 
         public PureStatData PureStatData => pureStatData;
         public CharacterStatSystem StatSystem { get; private set; }
+        public ICharacterStatService StatService => StatSystem;
 
         private void Awake()
         {
