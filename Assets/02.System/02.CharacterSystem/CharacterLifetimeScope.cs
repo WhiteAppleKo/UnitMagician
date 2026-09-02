@@ -51,7 +51,7 @@ public class CharacterLifetimeScope : LifetimeScope
             builder.RegisterInstance(statSystem).As<ICharacterStatService>().AsSelf();
         }
 
-        builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton);
+        builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton).As<IUnitMagicSlotService>().AsSelf();
 
         // 2. Pure Data 등록
         PureDataPlayerState statePureData = pureDataPlayerState != null ? pureDataPlayerState : ScriptableObject.CreateInstance<PureDataPlayerState>();

@@ -9,8 +9,8 @@ namespace CharacterSystem
     public class PlayerStateLogicSystem : ITickable, IDisposable
     {
         private readonly RuntimeDataPlayerState runtimeState;
-        private readonly CharacterStatSystem statSystem;
-        private readonly UnitMagicSlotSystem magicSlotSystem;
+        private readonly ICharacterStatService statSystem;
+        private readonly IUnitMagicSlotService magicSlotSystem;
         private readonly RuntimeDataTimeSlow runtimeTimeSlow;
         private readonly IPlayerStateVisualizer visualizer;
 
@@ -22,8 +22,8 @@ namespace CharacterSystem
         [Inject]
         public PlayerStateLogicSystem(
             RuntimeDataPlayerState runtimeState,
-            CharacterStatSystem statSystem,
-            UnitMagicSlotSystem magicSlotSystem,
+            ICharacterStatService statSystem,
+            IUnitMagicSlotService magicSlotSystem,
             RuntimeDataTimeSlow runtimeTimeSlow,
             IPlayerStateVisualizer visualizer = null)
         {

@@ -4,9 +4,12 @@ using UnitSystem;
 
 namespace CharacterSystem
 {
-    public class UnitMagicSlotSystem
+    /// <summary>
+    /// 마법 슬롯 관리 및 현재 선택된 마법 발동 로직을 담당하는 시스템입니다.
+    /// </summary>
+    public class UnitMagicSlotSystem : IUnitMagicSlotService
     {
-        private readonly CharacterStatSystem statSystem;
+        private readonly ICharacterStatService statSystem;
         private readonly List<PureDataUnit> magicSlots = new List<PureDataUnit>();
         private int currentSlotIndex = 0;
 
@@ -16,7 +19,7 @@ namespace CharacterSystem
         public event Action<PureDataUnit> OnMagicChanged;
         public event Action<bool, string> OnFireResult;
 
-        public UnitMagicSlotSystem(CharacterStatSystem statSystem, IEnumerable<PureDataUnit> initialMagics = null)
+        public UnitMagicSlotSystem(ICharacterStatService statSystem, IEnumerable<PureDataUnit> initialMagics = null)
         {
             this.statSystem = statSystem ?? throw new ArgumentNullException(nameof(statSystem));
             if (initialMagics != null)

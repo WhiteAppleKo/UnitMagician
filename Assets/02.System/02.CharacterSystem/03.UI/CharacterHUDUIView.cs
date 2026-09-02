@@ -19,8 +19,8 @@ namespace CharacterSystem
         private VisualElement currentMagicIcon;
         private Label currentMagicName;
 
-        private CharacterStatSystem statSystem;
-        private UnitMagicSlotSystem magicSlotSystem;
+        private ICharacterStatService statSystem;
+        private IUnitMagicSlotService magicSlotSystem;
         private RuntimeDataTimeSlow timeSlowData;
 
         private void Awake()
@@ -33,7 +33,7 @@ namespace CharacterSystem
 
         private void OnEnable()
         {
-            if (statSystem != null || timeSlowData != null)
+            if (statSystem != null || timeSlowData != null || magicSlotSystem != null)
             {
                 BindElements();
                 RefreshAll();
@@ -42,7 +42,7 @@ namespace CharacterSystem
 
         private void Start()
         {
-            if (statSystem != null || timeSlowData != null)
+            if (statSystem != null || timeSlowData != null || magicSlotSystem != null)
             {
                 BindElements();
                 RefreshAll();
@@ -51,16 +51,16 @@ namespace CharacterSystem
 
         [Inject]
         public void Construct(
-            CharacterStatSystem statSystem,
-            UnitMagicSlotSystem magicSlotSystem,
+            ICharacterStatService statSystem,
+            IUnitMagicSlotService magicSlotSystem,
             RuntimeDataTimeSlow timeSlowData = null)
         {
             Initialize(statSystem, magicSlotSystem, timeSlowData);
         }
 
         public void Initialize(
-            CharacterStatSystem statSystem,
-            UnitMagicSlotSystem magicSlotSystem,
+            ICharacterStatService statSystem,
+            IUnitMagicSlotService magicSlotSystem,
             RuntimeDataTimeSlow timeSlowData = null)
         {
             this.statSystem = statSystem;
@@ -93,6 +93,8 @@ namespace CharacterSystem
 
         private void SubscribeEvents()
         {
+            UnsubscribeEvents();
+
             if (statSystem?.RuntimeData != null)
             {
                 statSystem.RuntimeData.HP.OnValueChanged += UpdateHPUI;
@@ -157,7 +159,7 @@ namespace CharacterSystem
         {
             if (hpBar != null)
             {
-                float ratio = max > 0 ? (float)current / max : 0f;
+                float ratio = max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
                 hpBar.style.width = Length.Percent(ratio * 100f);
             }
 
@@ -171,7 +173,7 @@ namespace CharacterSystem
         {
             if (mpBar != null)
             {
-                float ratio = max > 0 ? (float)current / max : 0f;
+                float ratio = max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
                 mpBar.style.width = Length.Percent(ratio * 100f);
             }
 
@@ -185,7 +187,7 @@ namespace CharacterSystem
         {
             if (focusBar != null)
             {
-                float ratio = max > 0 ? (float)current / max : 0f;
+                float ratio = max > 0 ? Mathf.Clamp01((float)current / max) : 0f;
                 focusBar.style.width = Length.Percent(ratio * 100f);
             }
 
@@ -200,7 +202,7 @@ namespace CharacterSystem
             if (magicData == null)
             {
                 if (currentMagicName != null) currentMagicName.text = "None";
-                if (currentMagicIcon != null) currentMagicIcon.style.backgroundImage = null;
+                if (currentMagicIcon != null) currentMagicIcon.style.backgroundImage = StyleKeyword.Null;
                 return;
             }
 
@@ -209,9 +211,11 @@ namespace CharacterSystem
                 currentMagicName.text = magicData.UnitName;
             }
 
-            if (currentMagicIcon != null && magicData.Icon != null)
+            if (currentMagicIcon != null)
             {
-                currentMagicIcon.style.backgroundImage = new StyleBackground(magicData.Icon);
+                currentMagicIcon.style.backgroundImage = magicData.Icon != null
+                    ? new StyleBackground(magicData.Icon)
+                    : StyleKeyword.Null;
             }
         }
     }
