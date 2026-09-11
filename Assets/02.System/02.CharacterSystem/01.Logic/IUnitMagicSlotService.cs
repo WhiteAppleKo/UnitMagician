@@ -11,9 +11,11 @@ namespace CharacterSystem
     {
         PureDataUnit CurrentMagic { get; }
         IReadOnlyList<PureDataUnit> MagicSlots { get; }
+        int CurrentSlotIndex { get; }
         event Action<PureDataUnit> OnMagicChanged;
         event Action<bool, string> OnFireResult;
         void SelectSlot(int index);
+        void CycleSlot(int direction);
         void AddMagic(PureDataUnit magic);
         bool FireCurrentMagic();
     }

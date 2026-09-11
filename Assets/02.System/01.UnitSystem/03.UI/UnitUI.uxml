@@ -1,10 +1,11 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElementsSchema.xsd" editor-extension-mode="False">
     <ui:VisualElement name="Root" picking-mode="Ignore" style="flex-grow: 1; justify-content: space-between; padding: 20px;">
-        <!-- QuickSlot UI Container -->
-        <ui:VisualElement name="QuickSlotContainer" picking-mode="Ignore" style="flex-direction: row; align-items: center; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px;">
-            <ui:VisualElement name="HighlightOutline" picking-mode="Ignore" style="position: absolute; width: 64px; height: 64px; border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 4px; display: none;" />
-            <ui:VisualElement name="SelectedUnitIcon" picking-mode="Ignore" style="width: 60px; height: 60px; margin-right: 10px;" />
-            <ui:Label name="ManaCostText" picking-mode="Ignore" text="Cost: 0" style="color: rgb(255, 255, 255); font-size: 18px; -unity-font-style: bold;" />
+        <!-- Dark Souls 3 Style Bottom-Left Single QuickSlot UI Container -->
+        <ui:VisualElement name="QuickSlotContainer" picking-mode="Ignore" style="position: absolute; bottom: 30px; left: 30px; width: 100px; height: 100px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 14px; align-items: center; justify-content: center; padding: 6px;">
+            <ui:VisualElement name="HighlightOutline" picking-mode="Ignore" style="position: absolute; width: 92px; height: 92px; border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 10px; display: none;" />
+            <ui:VisualElement name="SelectedUnitIcon" picking-mode="Ignore" style="width: 64px; height: 64px; margin-bottom: 2px;" />
+            <ui:Label name="ManaCostText" picking-mode="Ignore" text="Cost: 0" style="color: rgb(240, 240, 240); font-size: 13px; -unity-font-style: bold; background-color: rgba(0, 0, 0, 0.6); padding-left: 6px; padding-right: 6px; border-radius: 4px;" />
+            <ui:Label name="WheelGuideText" picking-mode="Ignore" text="[Wheel]" style="position: absolute; top: -18px; color: rgba(212, 175, 55, 0.75); font-size: 11px; -unity-font-style: bold;" />
         </ui:VisualElement>
 
         <!-- Test Unlock Buttons Container (Top Right Corner) -->

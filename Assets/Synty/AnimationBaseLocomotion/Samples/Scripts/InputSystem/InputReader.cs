@@ -39,6 +39,7 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
 
         public Action onTimeSlowToggled;
         public Action onOptionToggled;
+        public Action<float> onMouseWheelScrolled;
 
         /// <inheritdoc cref="OnEnable" />
         private void OnEnable()
@@ -70,6 +71,15 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
                 if (Keyboard.current.escapeKey.wasPressedThisFrame)
                 {
                     onOptionToggled?.Invoke();
+                }
+            }
+
+            if (Mouse.current != null)
+            {
+                float scrollY = Mouse.current.scroll.ReadValue().y;
+                if (Mathf.Abs(scrollY) > 0.01f)
+                {
+                    onMouseWheelScrolled?.Invoke(scrollY);
                 }
             }
         }

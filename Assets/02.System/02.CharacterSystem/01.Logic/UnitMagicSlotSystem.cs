@@ -14,6 +14,7 @@ namespace CharacterSystem
         private int currentSlotIndex = 0;
 
         public IReadOnlyList<PureDataUnit> MagicSlots => magicSlots;
+        public int CurrentSlotIndex => currentSlotIndex;
         public PureDataUnit CurrentMagic => (magicSlots.Count > 0 && currentSlotIndex >= 0 && currentSlotIndex < magicSlots.Count) ? magicSlots[currentSlotIndex] : null;
 
         public event Action<PureDataUnit> OnMagicChanged;
@@ -33,6 +34,14 @@ namespace CharacterSystem
             if (index < 0 || index >= magicSlots.Count) return;
             currentSlotIndex = index;
             OnMagicChanged?.Invoke(CurrentMagic);
+        }
+
+        public void CycleSlot(int direction)
+        {
+            if (magicSlots.Count <= 1) return;
+            int newIndex = (currentSlotIndex + direction) % magicSlots.Count;
+            if (newIndex < 0) newIndex += magicSlots.Count;
+            SelectSlot(newIndex);
         }
 
         public void AddMagic(PureDataUnit magic)

@@ -88,12 +88,16 @@ namespace CharacterSystem
 
             if (runtimeData.IsSlowActive)
             {
-                float drainRate = pureData != null ? pureData.FocusDrainPerSecond : 20f;
-                runtimeData.DrainFocus(drainRate * unscaledDelta);
-
-                if (runtimeData.FocusGauge.CurrentValue <= runtimeData.FocusGauge.MinValue)
+                // 시간 무제한 정지 전술 모드: 초당 게이지 자연 감소 제거
+                float drainRate = pureData != null ? pureData.FocusDrainPerSecond : 0f;
+                if (drainRate > 0f)
                 {
-                    DeactivateSlow();
+                    runtimeData.DrainFocus(drainRate * unscaledDelta);
+
+                    if (runtimeData.FocusGauge.CurrentValue <= runtimeData.FocusGauge.MinValue)
+                    {
+                        DeactivateSlow();
+                    }
                 }
             }
             else

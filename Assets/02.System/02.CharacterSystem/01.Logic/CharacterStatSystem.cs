@@ -7,6 +7,7 @@ namespace CharacterSystem
         private readonly RuntimeStatData runtimeData;
 
         public RuntimeStatData RuntimeData => runtimeData;
+        public int CurrentMP => runtimeData != null ? runtimeData.MP.CurrentValue : 0;
 
         public CharacterStatSystem(PureStatData pureData)
         {

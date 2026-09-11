@@ -6,6 +6,7 @@ namespace CharacterSystem
     public interface ICharacterStatService
     {
         RuntimeStatData RuntimeData { get; }
+        int CurrentMP { get; }
         void Heal(int amount);
         void TakeDamage(int amount);
         void RecoverMP(int amount);

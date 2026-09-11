@@ -32,7 +32,7 @@ namespace CharacterSystem
 
         public bool CanActivateSlow()
         {
-            int minRequired = pureData != null ? pureData.MinFocusToActivate : 5;
+            int minRequired = pureData != null ? pureData.MinFocusToActivate : 0;
             return focusGauge.CurrentValue >= minRequired;
         }
 

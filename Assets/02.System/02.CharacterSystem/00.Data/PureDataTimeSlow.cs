@@ -14,10 +14,11 @@ namespace CharacterSystem
         [Header("Focus Gauge Settings")]
         [SerializeField] private int maxFocus = 100;
         [SerializeField] private int minFocus = 0;
-        [SerializeField] private float focusDrainPerSecond = 20f;
+        [Tooltip("초당 게이지 감소량 (0이면 무제한 정지)")]
+        [SerializeField] private float focusDrainPerSecond = 0f;
         [SerializeField] private float focusRecoverPerSecond = 15f;
         [SerializeField] private float recoverDelaySeconds = 0.5f;
-        [SerializeField] private int minFocusToActivate = 5;
+        [SerializeField] private int minFocusToActivate = 0;
 
         public float SlowTimeScale => slowTimeScale;
         public float DefaultFixedDeltaTime => defaultFixedDeltaTime;

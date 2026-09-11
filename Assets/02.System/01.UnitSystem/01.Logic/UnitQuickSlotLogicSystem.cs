@@ -28,13 +28,17 @@ namespace UnitSystem
             Key.Numpad7, Key.Numpad8, Key.Numpad9
         };
 
+        private readonly Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
+
         [Inject]
         public UnitQuickSlotLogicSystem(
             RuntimeDataUnitQuickSlot runtimeData,
-            IUnitCatalogService catalogService)
+            IUnitCatalogService catalogService,
+            Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null)
         {
             this.runtimeData = runtimeData;
             this.catalogService = catalogService;
+            this.inputReader = inputReader;
         }
 
         public void Initialize()
@@ -54,6 +58,11 @@ namespace UnitSystem
                     }
                 }
             }
+
+            if (inputReader != null)
+            {
+                inputReader.onMouseWheelScrolled += HandleMouseWheelScrolled;
+            }
         }
 
         public void Dispose()
@@ -62,6 +71,18 @@ namespace UnitSystem
             {
                 catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
             }
+
+            if (inputReader != null)
+            {
+                inputReader.onMouseWheelScrolled -= HandleMouseWheelScrolled;
+            }
+        }
+
+        private void HandleMouseWheelScrolled(float scrollDelta)
+        {
+            // 휠 위로: 다음(1), 휠 아래로: 이전(-1)
+            int direction = scrollDelta > 0f ? 1 : -1;
+            CycleSlot(direction);
         }
 
         private void HandleUnitUnlocked(PureDataUnit unlockedUnit)
@@ -78,22 +99,53 @@ namespace UnitSystem
         public void Tick()
         {
             var keyboard = Keyboard.current;
-            if (keyboard == null || catalogService == null) return;
+            if (catalogService == null) return;
 
             var unlockedUnits = catalogService.GetUnlockedUnits();
             if (unlockedUnits == null || unlockedUnits.Count == 0) return;
 
-            for (int i = 0; i < unlockedUnits.Count && i < quickSlotKeys.Length; i++)
+            // 숫자키 슬롯 선택
+            if (keyboard != null)
             {
-                bool isDigitPressed = keyboard[quickSlotKeys[i]].wasPressedThisFrame;
-                bool isNumpadPressed = i < quickSlotNumpadKeys.Length && keyboard[quickSlotNumpadKeys[i]].wasPressedThisFrame;
-
-                if (isDigitPressed || isNumpadPressed)
+                for (int i = 0; i < unlockedUnits.Count && i < quickSlotKeys.Length; i++)
                 {
-                    SelectSlot(i, unlockedUnits[i]);
-                    break;
+                    bool isDigitPressed = keyboard[quickSlotKeys[i]].wasPressedThisFrame;
+                    bool isNumpadPressed = i < quickSlotNumpadKeys.Length && keyboard[quickSlotNumpadKeys[i]].wasPressedThisFrame;
+
+                    if (isDigitPressed || isNumpadPressed)
+                    {
+                        SelectSlot(i, unlockedUnits[i]);
+                        break;
+                    }
                 }
             }
+
+            // InputReader가 없는 경우의 마우스 휠 Fallback 처리
+            if (inputReader == null && Mouse.current != null)
+            {
+                float scroll = Mouse.current.scroll.ReadValue().y;
+                if (Mathf.Abs(scroll) > 0.01f)
+                {
+                    int direction = scroll > 0f ? 1 : -1;
+                    CycleSlot(direction);
+                }
+            }
+        }
+
+        public void CycleSlot(int direction)
+        {
+            if (catalogService == null) return;
+
+            var unlockedUnits = catalogService.GetUnlockedUnits();
+            if (unlockedUnits == null || unlockedUnits.Count <= 1) return;
+
+            int currentIndex = runtimeData.SelectedSlotIndex;
+            if (currentIndex < 0) currentIndex = 0;
+
+            int nextIndex = (currentIndex + direction) % unlockedUnits.Count;
+            if (nextIndex < 0) nextIndex += unlockedUnits.Count;
+
+            SelectSlot(nextIndex, unlockedUnits[nextIndex]);
         }
 
         public bool SelectSlot(int slotIndex, PureDataUnit unitData)
