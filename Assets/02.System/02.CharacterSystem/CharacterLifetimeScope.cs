@@ -50,6 +50,11 @@ public class CharacterLifetimeScope : LifetimeScope
         builder.Register<RuntimeDataPlayerState>(Lifetime.Singleton);
         builder.Register<RuntimeDataTimeSlow>(Lifetime.Singleton);
 
+        // 3-1. Target Stencil Service 등록 (시간 정지 필터 서비스 연동)
+        builder.Register<TimeSlowFilterSystem.TargetStencilService>(Lifetime.Singleton)
+            .As<TimeSlowFilterSystem.ITargetStencilService>()
+            .As<System.IDisposable>();
+
         // 4. Visualizer 등록
         if (playerStateVisualizer != null) builder.RegisterComponent(playerStateVisualizer).As<IPlayerStateVisualizer>();
         else builder.RegisterComponentInHierarchy<PlayerStateVisualizer>().As<IPlayerStateVisualizer>();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Synty.AnimationBaseLocomotion.Samples;
+using TimeSlowFilterSystem;
 
 namespace UnitSystem
 {
@@ -36,6 +37,16 @@ namespace UnitSystem
             {
                 InitUnits();
             }
+        }
+
+        private void OnEnable()
+        {
+            TargetStencilService.RegisterTargetStatic(this);
+        }
+
+        private void OnDisable()
+        {
+            TargetStencilService.UnregisterTargetStatic(this);
         }
 
         public void InitUnits()

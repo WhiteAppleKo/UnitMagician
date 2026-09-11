@@ -1,37 +1,59 @@
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
+using TimeSlowFilterSystem;
 
-namespace TimeSlowFilterSystem
+public class TimeSlowFilterLifetimeScope : LifetimeScope
 {
-    public class TimeSlowFilterLifetimeScope : LifetimeScope
+    [Header("Data References")]
+    [SerializeField] private PureDataTimeSlowFilter pureDataTimeSlowFilter;
+    [SerializeField] private PureDataStencilMask pureDataStencilMask;
+
+    [Header("Visualizer (Optional)")]
+    [SerializeField] private TimeSlowFilterVisualizer filterVisualizer;
+
+    [Header("Additional Target Renderers (Optional)")]
+    [SerializeField] private Renderer[] additionalTargetRenderers;
+
+    protected override void Configure(IContainerBuilder builder)
     {
-        [Header("Data (Optional)")]
-        [SerializeField] private PureDataTimeSlowFilter pureDataTimeSlowFilter;
+        // 1. PureData 등록
+        PureDataTimeSlowFilter timeSlowData = pureDataTimeSlowFilter != null
+            ? pureDataTimeSlowFilter
+            : ScriptableObject.CreateInstance<PureDataTimeSlowFilter>();
+        builder.RegisterInstance(timeSlowData);
 
-        [Header("Visualizer (Optional)")]
-        [SerializeField] private TimeSlowFilterVisualizer timeSlowFilterVisualizer;
+        PureDataStencilMask stencilData = pureDataStencilMask != null
+            ? pureDataStencilMask
+            : ScriptableObject.CreateInstance<PureDataStencilMask>();
+        builder.RegisterInstance(stencilData);
 
-        protected override void Configure(IContainerBuilder builder)
+        // 2. Visualizer 등록
+        if (filterVisualizer != null)
         {
-            // 1. Pure Data 등록
-            PureDataTimeSlowFilter pureData = pureDataTimeSlowFilter != null
-                ? pureDataTimeSlowFilter
-                : ScriptableObject.CreateInstance<PureDataTimeSlowFilter>();
-            builder.RegisterInstance(pureData);
+            builder.RegisterComponent(filterVisualizer).As<ITimeSlowFilterVisualizer>();
+        }
+        else
+        {
+            builder.RegisterComponentInHierarchy<TimeSlowFilterVisualizer>().As<ITimeSlowFilterVisualizer>();
+        }
 
-            // 2. Visualizer 등록 (인터페이스 바인딩)
-            if (timeSlowFilterVisualizer != null)
-            {
-                builder.RegisterComponent(timeSlowFilterVisualizer).As<ITimeSlowFilterVisualizer>();
-            }
-            else
-            {
-                builder.RegisterComponentInHierarchy<TimeSlowFilterVisualizer>().As<ITimeSlowFilterVisualizer>();
-            }
+        // 3. Target Stencil Service 등록
+        builder.Register<TargetStencilService>(Lifetime.Singleton)
+            .As<ITargetStencilService>()
+            .As<System.IDisposable>();
 
-            // 3. Logic System 등록
-            builder.RegisterEntryPoint<TimeSlowFilterLogicSystem>(Lifetime.Scoped);
+        // 4. Logic System 등록
+        builder.RegisterEntryPoint<TimeSlowFilterLogicSystem>(Lifetime.Singleton);
+
+        // 5. 추가 타깃 렌더러가 설정된 경우 빌드 후 등록 콜백
+        if (additionalTargetRenderers != null && additionalTargetRenderers.Length > 0)
+        {
+            builder.RegisterBuildCallback(container =>
+            {
+                var stencilService = container.Resolve<ITargetStencilService>();
+                stencilService.RegisterRenderers(additionalTargetRenderers);
+            });
         }
     }
 }

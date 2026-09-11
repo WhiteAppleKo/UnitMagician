@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_GrayscaleExcludeTarget
-  m_Shader: {fileID: 4800000, guid: a3f82d41b5904d9ea12b48e36780c101, type: 3}
+  m_Name: M_TargetStencilMask
+  m_Shader: {fileID: 4800000, guid: be5481c133349b04c8b63a34ea2be32f, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -23,12 +23,9 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs: []
-    m_Ints: []
-    m_Floats:
-    - _Contrast: 1.35
-    - _DesaturateAmount: 0
-    - _FilmGrainAmount: 0.035
-    - _VignetteAmount: 0.35
+    m_Ints:
+    - _StencilRef: 1
+    m_Floats: []
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

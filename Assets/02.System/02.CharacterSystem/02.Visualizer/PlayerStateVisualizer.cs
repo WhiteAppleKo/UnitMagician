@@ -1,4 +1,5 @@
 using UnityEngine;
+using TimeSlowFilterSystem;
 
 namespace CharacterSystem
 {
@@ -24,6 +25,16 @@ namespace CharacterSystem
             {
                 stateAudioSource = GetComponentInChildren<AudioSource>();
             }
+        }
+
+        private void OnEnable()
+        {
+            TargetStencilService.RegisterTargetStatic(this);
+        }
+
+        private void OnDisable()
+        {
+            TargetStencilService.UnregisterTargetStatic(this);
         }
 
         public void OnStateChanged(PlayerStateType previousState, PlayerStateType newState)

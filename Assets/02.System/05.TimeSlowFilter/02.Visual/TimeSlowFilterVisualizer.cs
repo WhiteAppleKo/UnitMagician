@@ -74,7 +74,9 @@ namespace TimeSlowFilterSystem
         public void SetFilterIntensity(float intensity)
         {
             currentIntensity = Mathf.Clamp01(intensity);
-            float contrast = pureData != null ? pureData.Contrast : 1.15f;
+            float contrast = pureData != null ? pureData.Contrast : 1.35f;
+            float grain = pureData != null ? pureData.FilmGrainAmount : 0.035f;
+            float vignette = pureData != null ? pureData.VignetteAmount : 0.35f;
 
             if (shaderPropId == 0)
             {
@@ -83,11 +85,23 @@ namespace TimeSlowFilterSystem
 
             Shader.SetGlobalFloat(shaderPropId, currentIntensity);
             Shader.SetGlobalFloat(contrastPropId, contrast);
+            Shader.SetGlobalFloat("_FilmGrainAmount", grain);
+            Shader.SetGlobalFloat("_VignetteAmount", vignette);
+
+            if (filterMaterial != null)
+            {
+                filterMaterial.SetFloat(shaderPropId, currentIntensity);
+                filterMaterial.SetFloat(contrastPropId, contrast);
+                filterMaterial.SetFloat("_FilmGrainAmount", grain);
+                filterMaterial.SetFloat("_VignetteAmount", vignette);
+            }
 
             if (runtimeMaterial != null)
             {
                 runtimeMaterial.SetFloat(shaderPropId, currentIntensity);
                 runtimeMaterial.SetFloat(contrastPropId, contrast);
+                runtimeMaterial.SetFloat("_FilmGrainAmount", grain);
+                runtimeMaterial.SetFloat("_VignetteAmount", vignette);
             }
         }
 
