@@ -105,7 +105,21 @@ namespace TacticalCommandSystem
 
         public void SetHoverTarget(GameObject target)
         {
+            if (currentHoverObject == target) return;
+
+            if (currentHoverObject != null)
+            {
+                var prevGroup = currentHoverObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+                if (prevGroup != null) prevGroup.Highlight(false, false);
+            }
+
             currentHoverObject = target;
+
+            if (currentHoverObject != null)
+            {
+                var newGroup = currentHoverObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+                if (newGroup != null) newGroup.Highlight(true, false);
+            }
         }
 
         public void AddTargetIndicator(TacticalCommandEntry entry)
@@ -136,12 +150,22 @@ namespace TacticalCommandSystem
 
             activeIndicators[entry] = indicatorObj;
 
+            // 프로젝트 표준 락온 하이라이트 활성화
+            var unitGroup = entry.TargetObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+            if (unitGroup != null) unitGroup.Highlight(true, true);
+
             PlaySound(enqueueSound);
         }
 
         public void RemoveTargetIndicator(TacticalCommandEntry entry)
         {
             if (entry == null) return;
+
+            if (entry.TargetObject != null)
+            {
+                var unitGroup = entry.TargetObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+                if (unitGroup != null) unitGroup.Highlight(false, false);
+            }
 
             if (activeIndicators.TryGetValue(entry, out var indicatorObj))
             {
@@ -211,15 +235,26 @@ namespace TacticalCommandSystem
                 lineRenderer.positionCount = 0;
             }
 
+            if (currentHoverObject != null)
+            {
+                var prevGroup = currentHoverObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+                if (prevGroup != null) prevGroup.Highlight(false, false);
+                currentHoverObject = null;
+            }
+
             foreach (var kvp in activeIndicators)
             {
+                if (kvp.Key?.TargetObject != null)
+                {
+                    var group = kvp.Key.TargetObject.GetComponentInParent<UnitSystem.RuntimeDataUnitGroup>();
+                    if (group != null) group.Highlight(false, false);
+                }
                 if (kvp.Value != null)
                 {
                     Destroy(kvp.Value);
                 }
             }
             activeIndicators.Clear();
-            currentHoverObject = null;
         }
 
         private void PlaySound(AudioClip clip)

@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Contrast: 1.35
+    - _Contrast: 1.15
     - _DesaturateAmount: 0
     - _FilmGrainAmount: 0.035
     - _VignetteAmount: 0.35

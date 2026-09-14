@@ -19,6 +19,7 @@ namespace UnitSystem
         private UnitQuickSlotUIComponent quickSlotUI;
         private GameObject ownerObject;
         private IUnitBatchCastingService batchCastingService;
+        private CharacterSystem.RuntimeDataTimeSlow timeSlowData;
 
         private VisualElement targetInfoContainer;
         private Label targetNameText;
@@ -30,7 +31,8 @@ namespace UnitSystem
             UnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             GameObject ownerObject,
-            IUnitBatchCastingService batchCastingService = null)
+            IUnitBatchCastingService batchCastingService = null,
+            CharacterSystem.RuntimeDataTimeSlow timeSlowData = null)
         {
             this.mainCamera = mainCamera;
             this.uiDocument = uiDocument;
@@ -38,6 +40,7 @@ namespace UnitSystem
             this.quickSlotUI = quickSlotUI;
             this.ownerObject = ownerObject;
             this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(changeService);
+            this.timeSlowData = timeSlowData;
 
             InitializeUI();
         }
@@ -81,6 +84,13 @@ namespace UnitSystem
 
             if (mainCamera == null) mainCamera = Camera.main;
             if (mainCamera == null) return;
+
+            // 시간 정지 중에는 실시간 즉시 시전을 완전 차단 (전술 명령 시스템에 마우스 입력 전담 양보)
+            if (timeSlowData != null && timeSlowData.IsSlowActive)
+            {
+                HideTargetHoverUI();
+                return;
+            }
 
             Vector2 mousePos = mouse.position.ReadValue();
 

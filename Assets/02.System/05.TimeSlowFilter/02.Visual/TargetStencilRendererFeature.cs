@@ -70,8 +70,8 @@ namespace TimeSlowFilterSystem
             if (renderingData.cameraData.cameraType == CameraType.Preview)
                 return;
 
-            // 시간 정지 상태 직접 감지 (서비스 연동 또는 TimeScale 축소)
-            bool isSlow = (s_CurrentService != null && s_CurrentService.IsActive) || Time.timeScale < 0.99f;
+            // 시간 정지 상태 감지 (순수 데이터 서비스 플래그 연동)
+            bool isSlow = s_CurrentService != null && s_CurrentService.IsActive;
             float targetIntensity = isSlow ? 1.0f : 0.0f;
             float transitionSpeed = 1.0f / 0.3f;
 

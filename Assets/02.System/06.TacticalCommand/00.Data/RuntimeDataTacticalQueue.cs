@@ -75,6 +75,19 @@ namespace TacticalCommandSystem
             OnExecutingStateChanged?.Invoke(IsExecuting);
         }
 
+        public bool ContainsTarget(GameObject targetObject)
+        {
+            if (targetObject == null) return false;
+            for (int i = 0; i < commandQueue.Count; i++)
+            {
+                if (commandQueue[i].TargetObject == targetObject)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public bool CanEnqueue(PureDataUnit magicData, int currentAvailableMana)
         {
             if (magicData == null) return false;
@@ -89,6 +102,10 @@ namespace TacticalCommandSystem
             newEntry = null;
 
             if (targetObject == null || magicData == null) return false;
+            
+            // 동일 대상 중복 등록 완전 차단
+            if (ContainsTarget(targetObject)) return false;
+
             if (!CanEnqueue(magicData, currentAvailableMana)) return false;
 
             int nextOrder = commandQueue.Count + 1;

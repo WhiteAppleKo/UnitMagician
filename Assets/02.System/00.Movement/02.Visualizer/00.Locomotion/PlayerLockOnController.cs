@@ -24,14 +24,23 @@ namespace Movement.Visualizer
         private MagicLockOnComponent _magicLockOn;
         private ILockOnComponent _currentActiveLockOn;
         private TimeSlowVisualizer _timeSlowVisualizer;
+        private CameraMovement.ICameraFollowService _cameraFollowService;
 
         [Inject]
         public void Construct(IObjectResolver resolver = null)
         {
-            if (resolver != null && resolver.TryResolve<TimeSlowVisualizer>(out var timeSlowVis))
+            if (resolver != null)
             {
-                Initialize(timeSlowVis);
+                if (resolver.TryResolve<TimeSlowVisualizer>(out var timeSlowVis))
+                {
+                    Initialize(timeSlowVis);
+                }
+                if (resolver.TryResolve<CameraMovement.ICameraFollowService>(out var camService))
+                {
+                    _cameraFollowService = camService;
+                }
             }
+            EnsureDependencies();
         }
 
         public void Initialize(TimeSlowVisualizer timeSlowVisualizer)
@@ -46,6 +55,33 @@ namespace Movement.Visualizer
             if (_timeSlowVisualizer != null && isActiveAndEnabled)
             {
                 _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
+            }
+        }
+
+        private void EnsureDependencies()
+        {
+            if (_timeSlowVisualizer == null)
+            {
+                _timeSlowVisualizer = GetComponentInParent<TimeSlowVisualizer>();
+                if (_timeSlowVisualizer == null)
+                {
+                    _timeSlowVisualizer = UnityEngine.Object.FindAnyObjectByType<TimeSlowVisualizer>();
+                }
+
+                if (_timeSlowVisualizer != null)
+                {
+                    _timeSlowVisualizer.OnSlowStateChanged -= HandleSlowStateChanged;
+                    _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
+                }
+            }
+
+            if (_cameraFollowService == null)
+            {
+                var camVis = UnityEngine.Object.FindAnyObjectByType<CameraMovement.CameraFollowVisualizer>();
+                if (camVis != null)
+                {
+                    _cameraFollowService = camVis.CameraFollowService;
+                }
             }
         }
 
@@ -80,10 +116,7 @@ namespace Movement.Visualizer
                 _magicLockOn = magicLockOnObject.GetComponent<MagicLockOnComponent>();
             }
 
-            if (_timeSlowVisualizer == null)
-            {
-                _timeSlowVisualizer = GetComponentInParent<TimeSlowVisualizer>();
-            }
+            EnsureDependencies();
 
             // 기본 상태: 일반 락온 ON, 마법 락온 OFF
             SetSlowMode(false);
@@ -91,16 +124,13 @@ namespace Movement.Visualizer
 
         private void Start()
         {
+            EnsureDependencies();
             SetSlowMode(false);
         }
 
         private void OnEnable()
         {
-            if (_timeSlowVisualizer != null)
-            {
-                _timeSlowVisualizer.OnSlowStateChanged -= HandleSlowStateChanged;
-                _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
-            }
+            EnsureDependencies();
         }
 
         private void OnDisable()
@@ -118,18 +148,26 @@ namespace Movement.Visualizer
 
         public void SetSlowMode(bool isSlowActive)
         {
-            // FPS 무기 교체처럼 자식 오브젝트 SetActive 전환 및 현재 활성 락온 레퍼런스 단 1회 교체
-            if (normalLockOnObject != null)
-            {
-                normalLockOnObject.SetActive(!isSlowActive);
-            }
+            EnsureDependencies();
 
-            if (magicLockOnObject != null)
+            if (isSlowActive)
             {
-                magicLockOnObject.SetActive(isSlowActive);
-            }
+                Common.InputSystem.InputContextManager.Instance?.PushContext(Common.InputSystem.InputContextManager.Instance.TacticalContext);
+                _cameraFollowService?.SetRequireRightClickToRotate(true);
 
-            _currentActiveLockOn = isSlowActive ? (ILockOnComponent)_magicLockOn : _normalCombatLockOn;
+                if (magicLockOnObject != null) magicLockOnObject.SetActive(true);
+                if (normalLockOnObject != null) normalLockOnObject.SetActive(false);
+                _currentActiveLockOn = _magicLockOn;
+            }
+            else
+            {
+                Common.InputSystem.InputContextManager.Instance?.PopContext(Common.InputSystem.InputContextManager.Instance.TacticalContext);
+                _cameraFollowService?.SetRequireRightClickToRotate(false);
+
+                if (magicLockOnObject != null) magicLockOnObject.SetActive(false);
+                if (normalLockOnObject != null) normalLockOnObject.SetActive(true);
+                _currentActiveLockOn = _normalCombatLockOn;
+            }
         }
 
         public void ToggleLockOn()

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnitSystem;
 using Movement.Visualizer;
 using Movement.RefactoredLocomotion;
 using VContainer;
+using Common.InputSystem;
 
 namespace UnitSystem
 {
@@ -25,6 +27,12 @@ namespace UnitSystem
         private readonly Collider[] _scanColliderBuffer = new Collider[32];
 
         private UnitCasterSystem _unitCasterSystem;
+        private Camera _mainCamera;
+
+        private Vector2 _rightClickDownPos;
+        private bool _isRightClickDown;
+        private float _maxRightDragDist;
+        private const float DRAG_CANCEL_THRESHOLD = 5f;
 
         [Inject]
         public void Construct(
@@ -70,10 +78,15 @@ namespace UnitSystem
 
             _multiLockOnData?.ClearTargets();
             _currentHoverTarget = null;
+            _isRightClickDown = false;
+            _maxRightDragDist = 0f;
         }
 
         private void OnDisable()
         {
+            _isRightClickDown = false;
+            _maxRightDragDist = 0f;
+
             // 예비 타겟 마커 끄기
             if (_currentHoverTarget != null && (_multiLockOnData == null || !_multiLockOnData.Contains(_currentHoverTarget)))
             {
@@ -81,8 +94,10 @@ namespace UnitSystem
                 _currentHoverTarget = null;
             }
 
-            // 시간 정지 해제 순간 로직 시스템에 일괄 마법 변환 실행 명령 및 신호 발행
+            // 시간 정지 해제 순간 UnitCasterSystem.ExecuteBatchCast() 호출하여 예약된 마법 일괄 실행
             if (_unitCasterSystem == null) _unitCasterSystem = GetComponentInParent<UnitCasterSystem>();
+            if (_unitCasterSystem == null) _unitCasterSystem = UnityEngine.Object.FindAnyObjectByType<UnitCasterSystem>();
+
             if (_unitCasterSystem != null)
             {
                 _unitCasterSystem.ExecuteBatchCast();
@@ -100,93 +115,138 @@ namespace UnitSystem
 
         private void Update()
         {
-            if (_locomotionVisualizer == null)
+            // UI 메뉴 등 다른 컨텍스트 활성화 시 마법 락온 조작 완전 차단
+            var currentContext = InputContextManager.Instance?.CurrentContext;
+            if (currentContext != null && currentContext.ContextType != InputContextType.Tactical)
             {
-                _locomotionVisualizer = GetComponentInParent<ILocomotionVisualizer>();
-                if (_locomotionVisualizer == null) return;
+                return;
             }
 
-            // 일반 락온과 100% 동일한 25m 구체 탐색
-            int hitCount = Physics.OverlapSphereNonAlloc(_locomotionVisualizer.Position, scanRadius, _scanColliderBuffer);
+            var mouse = Mouse.current;
+            if (mouse == null) return;
 
-            RuntimeDataUnitGroup newBestTarget = null;
-            float bestScore = float.MinValue;
-
-            Vector3 camPos = _locomotionVisualizer.GetCameraPosition();
-            Vector3 camForward = _locomotionVisualizer.GetCameraForward();
-
-            for (int i = 0; i < hitCount; i++)
+            if (_mainCamera == null)
             {
-                var col = _scanColliderBuffer[i];
-                if (col == null) continue;
+                _mainCamera = Camera.main;
+                if (_mainCamera == null) return;
+            }
 
-                if (_locomotionVisualizer.Transform != null && col.transform.root == _locomotionVisualizer.Transform.root) continue;
+            // 1. 마우스 커서 기반 레이캐스트 탐색
+            Vector2 mousePos = mouse.position.ReadValue();
+            Ray ray = _mainCamera.ScreenPointToRay(mousePos);
 
-                // 오직 마법 대상(RuntimeDataUnitGroup && IsTargetable)만 검사
-                var unitGroup = col.GetComponentInParent<RuntimeDataUnitGroup>();
-                if (unitGroup == null || !unitGroup.IsTargetable) continue;
+            RaycastHit[] hits = Physics.SphereCastAll(ray, 0.4f, scanRadius);
+            RuntimeDataUnitGroup newHoverTarget = null;
 
-                // 이미 확정 락온된 대상이 아니고, 이전 호버 대상과 다르면 일단 꺼둠
-                if (_multiLockOnData == null || !_multiLockOnData.Contains(unitGroup))
+            if (hits != null && hits.Length > 0)
+            {
+                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                for (int i = 0; i < hits.Length; i++)
                 {
-                    if (unitGroup != _currentHoverTarget)
-                    {
-                        unitGroup.Highlight(false, false);
-                    }
-                }
+                    var hit = hits[i];
+                    if (hit.collider == null) continue;
 
-                Vector3 targetPos = unitGroup.transform.position + Vector3.up * 1.0f;
-                Vector3 toTargetFromCam = targetPos - camPos;
-                float distFromCam = toTargetFromCam.magnitude;
-                if (distFromCam < 0.1f) continue;
-
-                Vector3 dirFromCam = toTargetFromCam / distFromCam;
-                float dot = Vector3.Dot(camForward, dirFromCam);
-
-                // 카메라 전방 내적 0.25 이상
-                if (dot < 0.25f) continue;
-
-                float distFromPlayer = Vector3.Distance(_locomotionVisualizer.Position, unitGroup.transform.position);
-
-                // 가중치 점수 계산 (시야각 + 거리)
-                float angleScore = dot * 60f;
-                float distanceScore = (1f / Mathf.Max(distFromPlayer, 1.0f)) * 40f;
-                float totalScore = angleScore + distanceScore;
-
-                // 벽 차폐 검사
-                if (Physics.Linecast(camPos, targetPos, out RaycastHit hit))
-                {
-                    if (hit.collider.transform.root != unitGroup.transform.root && !hit.collider.isTrigger)
+                    if (_locomotionVisualizer != null && _locomotionVisualizer.Transform != null && hit.collider.transform.root == _locomotionVisualizer.Transform.root)
                     {
                         continue;
                     }
-                }
 
-                if (totalScore > bestScore)
-                {
-                    bestScore = totalScore;
-                    newBestTarget = unitGroup;
+                    var unitGroup = hit.collider.GetComponentInParent<RuntimeDataUnitGroup>();
+                    if (unitGroup != null && unitGroup.IsTargetable)
+                    {
+                        newHoverTarget = unitGroup;
+                        break;
+                    }
                 }
             }
 
-            // 이전 예비 대상이 바뀌었으면 이전 대상 끄기
-            if (_currentHoverTarget != null && _currentHoverTarget != newBestTarget)
+            // 호버 하이라이트 갱신
+            if (_currentHoverTarget != newHoverTarget)
             {
-                if (_multiLockOnData == null || !_multiLockOnData.Contains(_currentHoverTarget))
+                if (_currentHoverTarget != null && (_multiLockOnData == null || !_multiLockOnData.Contains(_currentHoverTarget)))
                 {
                     _currentHoverTarget.Highlight(false, false);
                 }
-            }
 
-            _currentHoverTarget = newBestTarget;
+                _currentHoverTarget = newHoverTarget;
 
-            // 새로운 최적 대상에게 예비 락온 표시(노란색) 켜기
-            if (_currentHoverTarget != null)
-            {
-                if (_multiLockOnData == null || !_multiLockOnData.Contains(_currentHoverTarget))
+                if (_currentHoverTarget != null && (_multiLockOnData == null || !_multiLockOnData.Contains(_currentHoverTarget)))
                 {
                     _currentHoverTarget.Highlight(true, false);
                 }
+            }
+
+            // 2. 마우스 좌클릭 마법 타깃 지정
+            if (mouse.leftButton.wasPressedThisFrame && _currentHoverTarget != null)
+            {
+                if (_multiLockOnData != null && !_multiLockOnData.Contains(_currentHoverTarget))
+                {
+                    _multiLockOnData.AddTarget(_currentHoverTarget);
+                    _currentHoverTarget.Highlight(true, true);
+                    _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
+                }
+            }
+
+            // 3. 마우스 우클릭 드래그 vs 탭 취소 구분
+            ProcessRightClickCancel(mouse);
+        }
+
+        private void ProcessRightClickCancel(Mouse mouse)
+        {
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                _isRightClickDown = true;
+                _rightClickDownPos = mouse.position.ReadValue();
+                _maxRightDragDist = 0f;
+            }
+
+            if (_isRightClickDown && mouse.rightButton.isPressed)
+            {
+                Vector2 curPos = mouse.position.ReadValue();
+                float dist = Vector2.Distance(curPos, _rightClickDownPos);
+                if (dist > _maxRightDragDist)
+                {
+                    _maxRightDragDist = dist;
+                }
+            }
+
+            if (mouse.rightButton.wasReleasedThisFrame && _isRightClickDown)
+            {
+                Vector2 releasePos = mouse.position.ReadValue();
+                float finalDist = Vector2.Distance(releasePos, _rightClickDownPos);
+
+                // 드래그 없이 제자리(5픽셀 미만)에서 뗐을 때: 최근 락온 대상 1개 취소
+                if (finalDist < DRAG_CANCEL_THRESHOLD && _maxRightDragDist < DRAG_CANCEL_THRESHOLD)
+                {
+                    CancelLastLockOnTarget();
+                }
+
+                _isRightClickDown = false;
+                _maxRightDragDist = 0f;
+            }
+        }
+
+        private void CancelLastLockOnTarget()
+        {
+            if (_multiLockOnData != null && _multiLockOnData.TargetCount > 0)
+            {
+                var targets = _multiLockOnData.LockedTargets;
+                var lastTarget = targets[targets.Count - 1];
+                _multiLockOnData.RemoveTarget(lastTarget);
+
+                if (lastTarget != null)
+                {
+                    if (lastTarget == _currentHoverTarget)
+                    {
+                        lastTarget.Highlight(true, false);
+                    }
+                    else
+                    {
+                        lastTarget.Highlight(false, false);
+                    }
+                }
+
+                _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
             }
         }
 

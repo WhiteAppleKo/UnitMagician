@@ -14,21 +14,8 @@ namespace UnitSystem
         private readonly RuntimeDataUnitQuickSlot runtimeData;
         private readonly IUnitCatalogService catalogService;
 
-        private readonly Key[] quickSlotKeys =
-        {
-            Key.Digit1, Key.Digit2, Key.Digit3,
-            Key.Digit4, Key.Digit5, Key.Digit6,
-            Key.Digit7, Key.Digit8, Key.Digit9
-        };
-
-        private readonly Key[] quickSlotNumpadKeys =
-        {
-            Key.Numpad1, Key.Numpad2, Key.Numpad3,
-            Key.Numpad4, Key.Numpad5, Key.Numpad6,
-            Key.Numpad7, Key.Numpad8, Key.Numpad9
-        };
-
         private readonly Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
+        private InputAction[] quickSlotActions;
 
         [Inject]
         public UnitQuickSlotLogicSystem(
@@ -43,6 +30,8 @@ namespace UnitSystem
 
         public void Initialize()
         {
+            SetupInputActions();
+
             if (catalogService != null)
             {
                 catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
@@ -67,6 +56,8 @@ namespace UnitSystem
 
         public void Dispose()
         {
+            DisposeInputActions();
+
             if (catalogService != null)
             {
                 catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
@@ -76,6 +67,47 @@ namespace UnitSystem
             {
                 inputReader.onMouseWheelScrolled -= HandleMouseWheelScrolled;
             }
+        }
+
+        private void SetupInputActions()
+        {
+            quickSlotActions = new InputAction[9];
+            for (int i = 0; i < 9; i++)
+            {
+                int slotIndex = i;
+                int digit = i + 1;
+                var action = new InputAction($"QuickSlot_{digit}", InputActionType.Button);
+                action.AddBinding($"<Keyboard>/{digit}");
+                action.AddBinding($"<Keyboard>/numpad{digit}");
+                action.performed += _ => OnQuickSlotKeyPressed(slotIndex);
+                action.Enable();
+                quickSlotActions[i] = action;
+            }
+        }
+
+        private void DisposeInputActions()
+        {
+            if (quickSlotActions != null)
+            {
+                for (int i = 0; i < quickSlotActions.Length; i++)
+                {
+                    if (quickSlotActions[i] != null)
+                    {
+                        quickSlotActions[i].Disable();
+                        quickSlotActions[i].Dispose();
+                    }
+                }
+                quickSlotActions = null;
+            }
+        }
+
+        private void OnQuickSlotKeyPressed(int slotIndex)
+        {
+            if (catalogService == null) return;
+            var unlockedUnits = catalogService.GetUnlockedUnits();
+            if (unlockedUnits == null || slotIndex >= unlockedUnits.Count) return;
+
+            SelectSlot(slotIndex, unlockedUnits[slotIndex]);
         }
 
         private void HandleMouseWheelScrolled(float scrollDelta)
@@ -98,29 +130,7 @@ namespace UnitSystem
 
         public void Tick()
         {
-            var keyboard = Keyboard.current;
-            if (catalogService == null) return;
-
-            var unlockedUnits = catalogService.GetUnlockedUnits();
-            if (unlockedUnits == null || unlockedUnits.Count == 0) return;
-
-            // 숫자키 슬롯 선택
-            if (keyboard != null)
-            {
-                for (int i = 0; i < unlockedUnits.Count && i < quickSlotKeys.Length; i++)
-                {
-                    bool isDigitPressed = keyboard[quickSlotKeys[i]].wasPressedThisFrame;
-                    bool isNumpadPressed = i < quickSlotNumpadKeys.Length && keyboard[quickSlotNumpadKeys[i]].wasPressedThisFrame;
-
-                    if (isDigitPressed || isNumpadPressed)
-                    {
-                        SelectSlot(i, unlockedUnits[i]);
-                        break;
-                    }
-                }
-            }
-
-            // InputReader가 없는 경우의 마우스 휠 Fallback 처리
+            // 숫자키 슬롯 선택은 InputAction 이벤트 콜백으로 처리되므로 루프 폴링 제거됨
             if (inputReader == null && Mouse.current != null)
             {
                 float scroll = Mouse.current.scroll.ReadValue().y;

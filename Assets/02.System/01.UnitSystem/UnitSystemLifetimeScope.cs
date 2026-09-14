@@ -63,6 +63,9 @@ namespace UnitSystem
 
             // Player Magic LockOn Component Register
             builder.RegisterComponentInHierarchy<MagicLockOnComponent>();
+
+            // InputReader 등록
+            builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
         }
     }
 }

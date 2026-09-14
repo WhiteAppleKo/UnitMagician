@@ -28,6 +28,10 @@ namespace CameraMovement
 
         public Vector2 CalculateLookAngles(Vector2 currentAngles, Vector2 mouseInput, PureDataCameraSetting setting)
         {
+            if (setting == null) return currentAngles;
+
+            float sensitivity = setting.MouseSensitivity;
+            currentAngles.y += mouseInput.x * sensitivity * 0.1f;
             return currentAngles;
         }
     }

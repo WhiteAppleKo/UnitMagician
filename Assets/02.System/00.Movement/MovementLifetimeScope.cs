@@ -73,9 +73,11 @@ namespace PlayerMovement
             if (cameraOptionUI != null) builder.RegisterComponent(cameraOptionUI);
             else builder.RegisterComponentInHierarchy<CameraOptionUIController>();
 
-            // 6. Input Reader 등록
+            // 6. Input Reader 및 Input Context Manager 등록
             if (inputReader != null) builder.RegisterComponent(inputReader);
             else builder.RegisterComponentInHierarchy<InputReader>();
+
+            builder.RegisterComponentInHierarchy<Common.InputSystem.InputContextManager>();
 
             // 7. Locomotion Logic System 등록
             builder.RegisterEntryPoint<LocomotionLogicSystem>(Lifetime.Singleton);

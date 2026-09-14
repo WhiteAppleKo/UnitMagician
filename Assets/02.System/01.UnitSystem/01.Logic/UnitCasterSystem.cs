@@ -38,6 +38,9 @@ namespace UnitSystem
             }
         }
 
+        public UnitChangeService ChangeService => changeService;
+        public IUnitBatchCastingService BatchCastingService => batchCastingService;
+
         private IUnitCastingStrategy currentStrategy;
         private TopViewMouseCastingStrategy topViewStrategy;
         private AimLockOnCastingStrategy aimLockOnStrategy;
@@ -117,7 +120,8 @@ namespace UnitSystem
                 changeService,
                 quickSlotUI,
                 gameObject,
-                batchCastingService
+                batchCastingService,
+                timeSlowData
             );
 
             aimLockOnStrategy = new AimLockOnCastingStrategy(

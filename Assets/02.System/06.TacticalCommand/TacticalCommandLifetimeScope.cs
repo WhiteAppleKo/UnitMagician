@@ -18,6 +18,15 @@ namespace TacticalCommandSystem
         [SerializeField] private TacticalCommandVisualizer visualizer;
         [SerializeField] private TacticalCommandUIView uiView;
 
+        protected override void Awake()
+        {
+            if (parentReference.Type == null && string.IsNullOrEmpty(parentReference.TypeName))
+            {
+                parentReference = ParentReference.Create<CharacterLifetimeScope>();
+            }
+            base.Awake();
+        }
+
         protected override void Configure(IContainerBuilder builder)
         {
             // 1. [D] Pure Data 바인딩
@@ -49,10 +58,9 @@ namespace TacticalCommandSystem
                 builder.RegisterComponentInHierarchy<TacticalCommandUIView>();
             }
 
-            // 5. 외부 의존성 Hierarchy 자동 바인딩 (InputReader, Stat, QuickSlot UI)
+            // 5. 외부 의존성 Hierarchy 자동 바인딩 (InputReader, Stat)
             builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
             builder.RegisterComponentInHierarchy<CharacterSystem.CharacterStatComponent>();
-            builder.RegisterComponentInHierarchy<UnitSystem.UnitQuickSlotUIComponent>();
 
             // 6. [L] Logic System 생명주기 등록
             builder.RegisterEntryPoint<TacticalCommandLogicSystem>(Lifetime.Scoped);

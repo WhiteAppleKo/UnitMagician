@@ -262,6 +262,7 @@ namespace CameraMovement
                 case CameraMode.PlayerOnly:
                 case CameraMode.MouseFocus:
                 default:
+                    pivotTarget.rotation = Quaternion.Euler(pivotTarget.rotation.eulerAngles.x, lookAngles.y, 0f);
                     break;
             }
         }

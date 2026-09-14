@@ -19,6 +19,7 @@ namespace CameraMovement
         void SetTarget(Transform target);
         void SetCameraMode(CameraMode mode);
         void UpdateCameraOffset(Vector2 mouseInput, float wheelDelta);
+        void SetRequireRightClickToRotate(bool require);
     }
 }
 

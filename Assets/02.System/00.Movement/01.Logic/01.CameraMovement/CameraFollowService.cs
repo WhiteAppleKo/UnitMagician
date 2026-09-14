@@ -4,14 +4,18 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
 using VContainer.Unity;
+using Synty.AnimationBaseLocomotion.Samples.InputSystem;
+using Common.InputSystem;
 
 namespace CameraMovement
 {
-    public class CameraFollowService : ICameraFollowService, ILateTickable
+    public class CameraFollowService : ICameraFollowService, ILateTickable, IDisposable
     {
         private readonly PureDataCameraSetting m_cameraSetting;
         private readonly IMouseWorldPositionProvider m_mousePositionProvider;
         private readonly Dictionary<CameraMode, ICameraModeCalculationStrategy> m_strategies;
+        private readonly InputReader m_inputReader;
+        private float m_accumulatedWheelDelta;
 
         private Transform m_targetTransform;
         private Vector3 m_currentTargetPosition;
@@ -22,6 +26,7 @@ namespace CameraMovement
         private float m_currentZoomRatio = 0.5f;
         private float m_zoomVelocity;
         private CameraMode m_currentMode = CameraMode.ThirdPersonShoulder;
+        private bool m_requireRightClickToRotate = false;
 
         private const float WHEEL_SCROLL_THRESHOLD = 0.01f;
 
@@ -44,10 +49,16 @@ namespace CameraMovement
         public CameraFollowService(
             PureDataCameraSetting cameraSetting,
             IMouseWorldPositionProvider mousePositionProvider = null,
-            IReadOnlyList<ICameraModeCalculationStrategy> strategies = null)
+            IReadOnlyList<ICameraModeCalculationStrategy> strategies = null,
+            InputReader inputReader = null)
         {
             m_cameraSetting = cameraSetting;
             m_mousePositionProvider = mousePositionProvider ?? new MouseWorldPositionProvider();
+            m_inputReader = inputReader;
+            if (m_inputReader != null)
+            {
+                m_inputReader.onMouseWheelScrolled += HandleMouseWheelScrolled;
+            }
 
             m_strategies = new Dictionary<CameraMode, ICameraModeCalculationStrategy>();
             if (strategies != null)
@@ -115,12 +126,63 @@ namespace CameraMovement
 
         public void SwitchCameraMode(CameraMode mode) => SetCameraMode(mode);
 
+        public void SetRequireRightClickToRotate(bool require)
+        {
+            m_requireRightClickToRotate = require;
+        }
+
+        public void Dispose()
+        {
+            if (m_inputReader != null)
+            {
+                m_inputReader.onMouseWheelScrolled -= HandleMouseWheelScrolled;
+            }
+        }
+
+        private void HandleMouseWheelScrolled(float scrollY)
+        {
+            m_accumulatedWheelDelta += scrollY;
+        }
+
         public void LateTick()
         {
             if (m_targetTransform == null || m_cameraSetting == null) return;
 
-            Vector2 mouseDelta = Mouse.current != null ? Mouse.current.delta.ReadValue() : Vector2.zero;
-            float wheelDelta = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
+            // UI 메뉴 활성화 중에는 마우스 시점 회전 및 줌 조작 완전 차단
+            var currentContext = InputContextManager.Instance?.CurrentContext;
+            if (currentContext != null && currentContext.ContextType == InputContextType.UI)
+            {
+                m_accumulatedWheelDelta = 0f;
+                UpdateCameraOffset(Vector2.zero, 0f);
+                return;
+            }
+
+            var reader = m_inputReader ?? UnityEngine.Object.FindAnyObjectByType<InputReader>();
+            Vector2 mouseDelta = Vector2.zero;
+
+            if (reader != null)
+            {
+                if (!m_requireRightClickToRotate || (Mouse.current != null && Mouse.current.rightButton.isPressed))
+                {
+                    mouseDelta = reader._mouseDelta;
+                }
+            }
+            else if (Mouse.current != null)
+            {
+                if (!m_requireRightClickToRotate || Mouse.current.rightButton.isPressed)
+                {
+                    mouseDelta = Mouse.current.delta.ReadValue();
+                }
+            }
+
+            float wheelDelta = m_accumulatedWheelDelta;
+            m_accumulatedWheelDelta = 0f;
+
+            if (Mathf.Abs(wheelDelta) <= WHEEL_SCROLL_THRESHOLD && Mouse.current != null)
+            {
+                wheelDelta = Mouse.current.scroll.ReadValue().y;
+            }
+
             UpdateCameraOffset(mouseDelta, wheelDelta);
         }
 
@@ -147,6 +209,13 @@ namespace CameraMovement
 
             // 2. 타깃 피벗 위치 연산
             Vector3 targetPivotPos = strategy.CalculateTargetPivot(basePos, mouseInput, m_currentZoomRatio, m_cameraSetting);
+            if (m_requireRightClickToRotate && (m_currentMode == CameraMode.MouseFocus || m_currentMode == CameraMode.HybridFocus))
+            {
+                if (Mouse.current == null || !Mouse.current.rightButton.isPressed)
+                {
+                    targetPivotPos = basePos;
+                }
+            }
 
             m_currentTargetPosition = Vector3.SmoothDamp(
                 m_currentTargetPosition,

@@ -9,6 +9,7 @@ namespace TimeSlowFilterSystem
     public class TargetStencilService : ITargetStencilService, IDisposable
     {
         private static TargetStencilService s_CurrentInstance;
+        public static TargetStencilService CurrentInstance => s_CurrentInstance;
         private static readonly HashSet<Renderer> s_PendingRegistrations = new();
 
         private readonly HashSet<Renderer> targetRenderers = new();
@@ -35,7 +36,48 @@ namespace TimeSlowFilterSystem
         public event Action<bool> OnActiveStateChanged;
 
         [Inject]
-        public TargetStencilService(RuntimeDataTimeSlow runtimeDataTimeSlow = null, ITimeSlowVisualizer timeSlowVisualizer = null)
+        public TargetStencilService(IObjectResolver resolver = null)
+        {
+            if (resolver != null)
+            {
+                if (resolver.TryResolve<RuntimeDataTimeSlow>(out var slowData))
+                {
+                    this.runtimeDataTimeSlow = slowData;
+                }
+                if (resolver.TryResolve<ITimeSlowVisualizer>(out var vis))
+                {
+                    this.timeSlowVisualizer = vis;
+                }
+            }
+
+            s_CurrentInstance = this;
+            TargetStencilRendererFeature.BindService(this);
+
+            if (this.runtimeDataTimeSlow != null)
+            {
+                this.runtimeDataTimeSlow.OnSlowStateChanged += SetActive;
+                SetActive(this.runtimeDataTimeSlow.IsSlowActive);
+            }
+            else if (this.timeSlowVisualizer != null)
+            {
+                this.timeSlowVisualizer.OnSlowStateChanged += SetActive;
+            }
+
+            if (s_PendingRegistrations.Count > 0)
+            {
+                foreach (var renderer in s_PendingRegistrations)
+                {
+                    if (renderer != null)
+                    {
+                        targetRenderers.Add(renderer);
+                    }
+                }
+                s_PendingRegistrations.Clear();
+                OnTargetsChanged?.Invoke();
+            }
+        }
+
+        public TargetStencilService(RuntimeDataTimeSlow runtimeDataTimeSlow, ITimeSlowVisualizer timeSlowVisualizer = null)
         {
             this.runtimeDataTimeSlow = runtimeDataTimeSlow;
             this.timeSlowVisualizer = timeSlowVisualizer;

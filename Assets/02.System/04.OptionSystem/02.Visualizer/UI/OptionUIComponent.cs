@@ -5,6 +5,7 @@ using VContainer;
 using CameraMovement;
 using UI.Data;
 using Synty.AnimationBaseLocomotion.Samples.InputSystem;
+using Common.InputSystem;
 
 namespace OptionSystem
 {
@@ -59,6 +60,7 @@ namespace OptionSystem
 
         private OptionTabType m_currentTab = OptionTabType.General;
         private bool m_isOpen = false;
+        private float m_cachedTimeScale = 1f;
 
         public bool IsOpen => m_isOpen;
 
@@ -326,12 +328,6 @@ namespace OptionSystem
         private void SetCameraMode(CameraMode mode)
         {
             m_cameraFollowService?.SetCameraMode(mode);
-
-            if (m_isOpen)
-            {
-                UnityEngine.Cursor.lockState = CursorLockMode.None;
-                UnityEngine.Cursor.visible = true;
-            }
         }
 
         public void SelectTab(OptionTabType tabType)
@@ -417,13 +413,13 @@ namespace OptionSystem
 
             SelectTab(OptionTabType.General);
 
+            m_cachedTimeScale = Time.timeScale;
             if (sceneContext == OptionSceneContext.InGame)
             {
                 Time.timeScale = 0f;
             }
 
-            UnityEngine.Cursor.lockState = CursorLockMode.None;
-            UnityEngine.Cursor.visible = true;
+            InputContextManager.Instance?.PushContext(InputContextManager.Instance.UIContext);
         }
 
         public void CloseOption()
@@ -434,18 +430,9 @@ namespace OptionSystem
                 m_optionPanel.style.display = DisplayStyle.None;
             }
 
-            Time.timeScale = 1f;
+            Time.timeScale = m_cachedTimeScale;
 
-            if (m_cameraFollowService != null && m_cameraFollowService.CurrentMode == CameraMode.FirstPerson)
-            {
-                UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-                UnityEngine.Cursor.visible = false;
-            }
-            else
-            {
-                UnityEngine.Cursor.lockState = CursorLockMode.None;
-                UnityEngine.Cursor.visible = true;
-            }
+            InputContextManager.Instance?.PopContext(InputContextManager.Instance.UIContext);
         }
 
         private void OnQuitClicked()
