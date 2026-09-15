@@ -25,21 +25,20 @@ namespace Movement.Visualizer
         private ILockOnComponent _currentActiveLockOn;
         private TimeSlowVisualizer _timeSlowVisualizer;
         private CameraMovement.ICameraFollowService _cameraFollowService;
+        private Common.InputSystem.IInputContextManager _inputContextManager;
 
         [Inject]
-        public void Construct(IObjectResolver resolver = null)
+        public void Construct(
+            TimeSlowVisualizer timeSlowVisualizer = null,
+            CameraMovement.ICameraFollowService cameraFollowService = null,
+            Common.InputSystem.IInputContextManager inputContextManager = null)
         {
-            if (resolver != null)
+            if (timeSlowVisualizer != null)
             {
-                if (resolver.TryResolve<TimeSlowVisualizer>(out var timeSlowVis))
-                {
-                    Initialize(timeSlowVis);
-                }
-                if (resolver.TryResolve<CameraMovement.ICameraFollowService>(out var camService))
-                {
-                    _cameraFollowService = camService;
-                }
+                Initialize(timeSlowVisualizer);
             }
+            _cameraFollowService = cameraFollowService;
+            _inputContextManager = inputContextManager;
             EnsureDependencies();
         }
 
@@ -152,7 +151,7 @@ namespace Movement.Visualizer
 
             if (isSlowActive)
             {
-                Common.InputSystem.InputContextManager.Instance?.PushContext(Common.InputSystem.InputContextManager.Instance.TacticalContext);
+                _inputContextManager?.PushContext(_inputContextManager.TacticalContext);
                 _cameraFollowService?.SetRequireRightClickToRotate(true);
 
                 if (magicLockOnObject != null) magicLockOnObject.SetActive(true);
@@ -161,7 +160,7 @@ namespace Movement.Visualizer
             }
             else
             {
-                Common.InputSystem.InputContextManager.Instance?.PopContext(Common.InputSystem.InputContextManager.Instance.TacticalContext);
+                _inputContextManager?.PopContext(_inputContextManager.TacticalContext);
                 _cameraFollowService?.SetRequireRightClickToRotate(false);
 
                 if (magicLockOnObject != null) magicLockOnObject.SetActive(false);

@@ -27,6 +27,7 @@ namespace UnitSystem
         private readonly Collider[] _scanColliderBuffer = new Collider[32];
 
         private UnitCasterSystem _unitCasterSystem;
+        private IInputContextManager _inputContextManager;
         private Camera _mainCamera;
 
         private Vector2 _rightClickDownPos;
@@ -38,11 +39,13 @@ namespace UnitSystem
         public void Construct(
             RuntimeDataMultiLockOn multiLockOnData,
             IMultiLockOnVisualizer visualizer = null,
-            UnitCasterSystem unitCasterSystem = null)
+            UnitCasterSystem unitCasterSystem = null,
+            IInputContextManager inputContextManager = null)
         {
             _multiLockOnData = multiLockOnData;
             _visualizer = visualizer;
             _unitCasterSystem = unitCasterSystem;
+            _inputContextManager = inputContextManager;
         }
 
         public void Initialize(
@@ -116,7 +119,7 @@ namespace UnitSystem
         private void Update()
         {
             // UI 메뉴 등 다른 컨텍스트 활성화 시 마법 락온 조작 완전 차단
-            var currentContext = InputContextManager.Instance?.CurrentContext;
+            var currentContext = _inputContextManager?.CurrentContext;
             if (currentContext != null && currentContext.ContextType != InputContextType.Tactical)
             {
                 return;

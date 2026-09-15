@@ -106,6 +106,7 @@ namespace InteractionSystem.Logic
             }
 
             hitHistory[victim] = Time.time;
+            PruneExpiredHitHistory();
 
             // 5. 비동기 데미지 연산 및 완료 후 소멸 처리
             ProcessDamageAndDestroyAsync(victim).Forget();
@@ -137,6 +138,28 @@ namespace InteractionSystem.Logic
             if (destroyOnImpact)
             {
                 Destroy(gameObject);
+            }
+        }
+
+        /// <summary>
+        /// 파괴된 피격 대상이나 쿨타임이 지난 항목이 hitHistory에 무한히 누적되는 것을 방지합니다.
+        /// </summary>
+        private readonly List<GameObject> expiredHitCache = new();
+
+        private void PruneExpiredHitHistory()
+        {
+            expiredHitCache.Clear();
+            foreach (var entry in hitHistory)
+            {
+                if (entry.Key == null || Time.time - entry.Value >= hitCooldown)
+                {
+                    expiredHitCache.Add(entry.Key);
+                }
+            }
+
+            foreach (var key in expiredHitCache)
+            {
+                hitHistory.Remove(key);
             }
         }
 

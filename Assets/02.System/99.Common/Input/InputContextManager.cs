@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Common.InputSystem
 {
-    public class InputContextManager : MonoBehaviour
+    public class InputContextManager : MonoBehaviour, IInputContextManager
     {
         private static InputContextManager s_instance;
         public static InputContextManager Instance

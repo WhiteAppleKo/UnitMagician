@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CharacterSystem
 {
     [Serializable]
-    public class ClampValueInt
+    public class ClampValueInt : IReadOnlyClampValueInt
     {
         [SerializeField] private int minValue;
         [SerializeField] private int maxValue;

@@ -11,8 +11,8 @@ namespace CharacterSystem
         private float moveSpeed;
         private FactionType currentFaction;
 
-        public ClampValueInt HP => hp;
-        public ClampValueInt MP => mp;
+        public IReadOnlyClampValueInt HP => hp;
+        public IReadOnlyClampValueInt MP => mp;
         public float MoveSpeed
         {
             get => moveSpeed;
@@ -80,6 +80,13 @@ namespace CharacterSystem
                 OnDeath?.Invoke();
             }
         }
+
+        /// <summary>
+        /// HP/MP 상태 변경 전용 메서드입니다. 외부에서는 ICharacterStatService(Heal/TakeDamage/RecoverMP)를 통해서만 호출해야 합니다.
+        /// </summary>
+        public void IncreaseHP(int amount) => hp.Increase(amount);
+        public void ReduceHP(int amount) => hp.Reduce(amount);
+        public void IncreaseMP(int amount) => mp.Increase(amount);
 
         public bool TryConsumeMP(int amount)
         {

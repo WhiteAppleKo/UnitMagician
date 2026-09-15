@@ -9,6 +9,12 @@ public class OptionLifetimeScope : LifetimeScope
     [SerializeField] private OptionUIComponent optionUIComponent;
     [SerializeField] private InputReader inputReader;
 
+    protected override void Awake()
+    {
+        parentReference = ParentReference.Create<Movement.RefactoredLocomotion.LocomotionLifetimeScope>();
+        base.Awake();
+    }
+
     protected override void Configure(IContainerBuilder builder)
     {
         // 1. OptionUIComponent 등록

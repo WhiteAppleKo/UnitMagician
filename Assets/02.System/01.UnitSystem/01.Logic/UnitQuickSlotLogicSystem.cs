@@ -15,17 +15,20 @@ namespace UnitSystem
         private readonly IUnitCatalogService catalogService;
 
         private readonly Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
+        private readonly Common.InputSystem.IInputContextManager contextManager;
         private InputAction[] quickSlotActions;
 
         [Inject]
         public UnitQuickSlotLogicSystem(
             RuntimeDataUnitQuickSlot runtimeData,
             IUnitCatalogService catalogService,
-            Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null)
+            Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null,
+            Common.InputSystem.IInputContextManager contextManager = null)
         {
             this.runtimeData = runtimeData;
             this.catalogService = catalogService;
             this.inputReader = inputReader;
+            this.contextManager = contextManager;
         }
 
         public void Initialize()
@@ -112,6 +115,13 @@ namespace UnitSystem
 
         private void HandleMouseWheelScrolled(float scrollDelta)
         {
+            // 전술(시간 정지) 컨텍스트에서만 휠로 퀵슬롯 순환 (그 외에는 카메라 줌이 휠을 사용)
+            var currentContext = contextManager?.CurrentContext;
+            if (currentContext != null && currentContext.ContextType != Common.InputSystem.InputContextType.Tactical)
+            {
+                return;
+            }
+
             // 휠 위로: 다음(1), 휠 아래로: 이전(-1)
             int direction = scrollDelta > 0f ? 1 : -1;
             CycleSlot(direction);

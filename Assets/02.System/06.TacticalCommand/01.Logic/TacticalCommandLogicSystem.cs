@@ -17,15 +17,19 @@ namespace TacticalCommandSystem
     public class TacticalCommandLogicSystem : IInitializable, ITickable, IDisposable
     {
         private readonly RuntimeDataTacticalQueue queueData;
-        private RuntimeDataTimeSlow timeSlowData;
-        private ICharacterStatService statService;
-        private UnitQuickSlotUIComponent quickSlotUI;
-        private UnitCasterSystem unitCaster;
-        private readonly IUnitMagicSlotService magicSlotService;
         private readonly ITacticalCommandVisualizer visualizer;
-        private ITargetStencilService stencilService;
+        private readonly RuntimeDataTimeSlow timeSlowData;
+        private readonly ICharacterStatService statService;
+        private readonly IUnitMagicSlotService magicSlotService;
+        private readonly ITargetStencilService stencilService;
         private readonly Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
-        private CameraMovement.ICameraFollowService cameraFollowService;
+        private readonly CameraMovement.ICameraFollowService cameraFollowService;
+        private readonly UnitSystem.IUnitChangeService changeService;
+        private readonly UnitSystem.IUnitBatchCastingService batchService;
+        private readonly Common.InputSystem.IInputContextManager contextManager;
+        private readonly UnitSystem.RuntimeDataUnitQuickSlot quickSlotData;
+
+        private IInputContextManager ContextManager => contextManager;
 
         private Camera mainCamera;
         private GameObject currentHoverTarget;
@@ -44,7 +48,12 @@ namespace TacticalCommandSystem
             ICharacterStatService statService = null,
             IUnitMagicSlotService magicSlotService = null,
             ITargetStencilService stencilService = null,
-            Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null)
+            Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null,
+            CameraMovement.ICameraFollowService cameraFollowService = null,
+            UnitSystem.IUnitChangeService changeService = null,
+            UnitSystem.IUnitBatchCastingService batchService = null,
+            Common.InputSystem.IInputContextManager contextManager = null,
+            UnitSystem.RuntimeDataUnitQuickSlot quickSlotData = null)
         {
             this.queueData = queueData ?? throw new ArgumentNullException(nameof(queueData));
             this.visualizer = visualizer ?? throw new ArgumentNullException(nameof(visualizer));
@@ -53,18 +62,15 @@ namespace TacticalCommandSystem
             this.magicSlotService = magicSlotService;
             this.stencilService = stencilService;
             this.inputReader = inputReader;
+            this.cameraFollowService = cameraFollowService;
+            this.changeService = changeService;
+            this.batchService = batchService;
+            this.contextManager = contextManager;
+            this.quickSlotData = quickSlotData;
         }
 
         private CameraMovement.ICameraFollowService GetCameraFollowService()
         {
-            if (cameraFollowService == null)
-            {
-                var camVis = UnityEngine.Object.FindAnyObjectByType<CameraMovement.CameraFollowVisualizer>();
-                if (camVis != null)
-                {
-                    cameraFollowService = camVis.CameraFollowService;
-                }
-            }
             return cameraFollowService;
         }
 
@@ -74,18 +80,6 @@ namespace TacticalCommandSystem
             {
                 timeSlowData.OnSlowStateChanged += HandleTimeSlowChanged;
             }
-
-            if (quickSlotUI == null)
-            {
-                quickSlotUI = UnityEngine.Object.FindAnyObjectByType<UnitQuickSlotUIComponent>();
-            }
-
-            if (unitCaster == null)
-            {
-                unitCaster = UnityEngine.Object.FindAnyObjectByType<UnitCasterSystem>();
-            }
-
-            GetCameraFollowService();
         }
 
         public void Dispose()
@@ -95,7 +89,11 @@ namespace TacticalCommandSystem
                 timeSlowData.OnSlowStateChanged -= HandleTimeSlowChanged;
             }
 
-            InputContextManager.Instance?.PopContext(InputContextManager.Instance.TacticalContext);
+            var manager = ContextManager;
+            if (manager != null)
+            {
+                manager.PopContext(manager.TacticalContext);
+            }
             GetCameraFollowService()?.SetRequireRightClickToRotate(false);
             visualizer?.ClearAllVisuals();
             queueData?.Clear();
@@ -103,13 +101,16 @@ namespace TacticalCommandSystem
 
         private void SetTacticalContext(bool isTactical)
         {
+            var manager = ContextManager;
+            if (manager == null) return;
+
             if (isTactical)
             {
-                InputContextManager.Instance?.PushContext(InputContextManager.Instance.TacticalContext);
+                manager.PushContext(manager.TacticalContext);
             }
             else
             {
-                InputContextManager.Instance?.PopContext(InputContextManager.Instance.TacticalContext);
+                manager.PopContext(manager.TacticalContext);
             }
         }
 
@@ -198,7 +199,7 @@ namespace TacticalCommandSystem
         private void ProcessTacticalTargeting()
         {
             // UI 메뉴 등이 열려 있는 경우 입력 누수 방지
-            var currentContext = InputContextManager.Instance?.CurrentContext;
+            var currentContext = ContextManager?.CurrentContext;
             if (currentContext != null && currentContext.ContextType != InputContextType.Tactical)
             {
                 return;
@@ -384,14 +385,6 @@ namespace TacticalCommandSystem
 
             Debug.Log($"<color=yellow>[TacticalCommand] Executing #{entry.OrderIndex}:</color> {entry.MagicData?.UnitName} -> {entry.TargetObject?.name}");
 
-            if (unitCaster == null)
-            {
-                unitCaster = UnityEngine.Object.FindAnyObjectByType<UnitCasterSystem>();
-            }
-
-            var changeService = unitCaster != null ? unitCaster.ChangeService : null;
-            var batchService = unitCaster != null ? unitCaster.BatchCastingService : null;
-
             if (changeService != null && entry.TargetObject != null && entry.MagicData != null)
             {
                 var unitGroup = entry.TargetObject.GetComponentInParent<RuntimeDataUnitGroup>();
@@ -419,7 +412,7 @@ namespace TacticalCommandSystem
                 Debug.LogWarning($"[TacticalCommand] Execution skipped: changeService is null ({changeService == null}) or entry invalid.");
             }
 
-            // 연쇄 격발 피격/시각 연출
+            // 예약 마법 순차 적용 연출
             visualizer.PlayCommandExecutionEffect(entry);
         }
 
@@ -438,14 +431,9 @@ namespace TacticalCommandSystem
 
         private PureDataUnit GetCurrentSelectedMagic()
         {
-            if (quickSlotUI == null)
+            if (quickSlotData != null && quickSlotData.SelectedUnit != null)
             {
-                quickSlotUI = UnityEngine.Object.FindAnyObjectByType<UnitQuickSlotUIComponent>();
-            }
-
-            if (quickSlotUI != null && quickSlotUI.CurrentSelectedUnit != null)
-            {
-                return quickSlotUI.CurrentSelectedUnit;
+                return quickSlotData.SelectedUnit;
             }
 
             if (magicSlotService != null && magicSlotService.CurrentMagic != null)

@@ -12,6 +12,12 @@ namespace Movement.RefactoredLocomotion
     {
         [SerializeField] private LocomotionConfig config;
 
+        protected override void Awake()
+        {
+            parentReference = ParentReference.Create<CharacterLifetimeScope>();
+            base.Awake();
+        }
+
         protected override void Configure(IContainerBuilder builder)
         {
             if (config == null)

@@ -20,10 +20,7 @@ namespace TacticalCommandSystem
 
         protected override void Awake()
         {
-            if (parentReference.Type == null && string.IsNullOrEmpty(parentReference.TypeName))
-            {
-                parentReference = ParentReference.Create<CharacterLifetimeScope>();
-            }
+            parentReference = ParentReference.Create<UnitSystem.UnitSystemLifetimeScope>();
             base.Awake();
         }
 

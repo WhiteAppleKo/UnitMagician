@@ -20,7 +20,7 @@ namespace UnitSystem
         [SerializeField] private Camera mainCamera;
         [SerializeField] private UIDocument uiDocument;
 
-        private UnitChangeService changeService;
+        private IUnitChangeService changeService;
         private IUnitBatchCastingService batchCastingService;
         private UnitQuickSlotUIComponent quickSlotUI;
         private RuntimeDataMultiLockOn multiLockOnData;
@@ -29,16 +29,9 @@ namespace UnitSystem
         private IMultiLockOnVisualizer multiLockOnVisualizer;
         private CharacterStatSystem playerStatSystem;
 
-        public RuntimeDataMultiLockOn MultiLockOnData
-        {
-            get
-            {
-                if (multiLockOnData == null) multiLockOnData = new RuntimeDataMultiLockOn();
-                return multiLockOnData;
-            }
-        }
+        public RuntimeDataMultiLockOn MultiLockOnData => multiLockOnData;
 
-        public UnitChangeService ChangeService => changeService;
+        public IUnitChangeService ChangeService => changeService;
         public IUnitBatchCastingService BatchCastingService => batchCastingService;
 
         private IUnitCastingStrategy currentStrategy;
@@ -55,25 +48,16 @@ namespace UnitSystem
             RuntimeDataMultiLockOn multiLockOnData,
             IUnitBatchCastingService batchCastingService,
             IMultiLockOnVisualizer multiLockOnVisualizer = null,
-            IObjectResolver resolver = null)
+            CameraMovement.ICameraFollowService cameraFollowService = null,
+            CharacterSystem.RuntimeDataTimeSlow timeSlowData = null)
         {
-            this.changeService = (UnitChangeService)changeService;
+            this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
             this.multiLockOnData = multiLockOnData;
             this.batchCastingService = batchCastingService;
             this.multiLockOnVisualizer = multiLockOnVisualizer;
-
-            if (resolver != null)
-            {
-                if (resolver.TryResolve<ICameraFollowService>(out var camService))
-                {
-                    this.cameraFollowService = camService;
-                }
-                if (resolver.TryResolve<RuntimeDataTimeSlow>(out var slowData))
-                {
-                    this.timeSlowData = slowData;
-                }
-            }
+            this.cameraFollowService = cameraFollowService;
+            this.timeSlowData = timeSlowData;
 
             EnsureStrategiesInitialized();
             BindMultiLockOnEvents();

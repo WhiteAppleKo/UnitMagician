@@ -15,7 +15,7 @@ namespace UnitSystem
     {
         private Camera mainCamera;
         private UIDocument uiDocument;
-        private UnitChangeService changeService;
+        private IUnitChangeService changeService;
         private UnitQuickSlotUIComponent quickSlotUI;
         private GameObject ownerObject;
         private IUnitBatchCastingService batchCastingService;
@@ -28,7 +28,7 @@ namespace UnitSystem
         public TopViewMouseCastingStrategy(
             Camera mainCamera,
             UIDocument uiDocument,
-            UnitChangeService changeService,
+            IUnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             GameObject ownerObject,
             IUnitBatchCastingService batchCastingService = null,

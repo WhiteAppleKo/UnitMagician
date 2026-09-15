@@ -23,9 +23,9 @@ namespace UnitSystem
     /// </summary>
     public class UnitBatchCastingService : IUnitBatchCastingService
     {
-        private readonly UnitChangeService changeService;
+        private readonly IUnitChangeService changeService;
 
-        public UnitBatchCastingService(UnitChangeService changeService)
+        public UnitBatchCastingService(IUnitChangeService changeService)
         {
             this.changeService = changeService;
         }

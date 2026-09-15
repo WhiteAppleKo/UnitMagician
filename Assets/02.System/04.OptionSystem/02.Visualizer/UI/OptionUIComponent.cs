@@ -28,7 +28,6 @@ namespace OptionSystem
         [SerializeField] private UIDocument uiDocument;
         [SerializeField] private OptionSceneContext sceneContext = OptionSceneContext.InGame;
         [SerializeField] private PureColorData colorData;
-
         private ICameraFollowService m_cameraFollowService;
         private InputReader m_inputReader;
         private VisualElement m_optionPanel;
@@ -60,25 +59,27 @@ namespace OptionSystem
 
         private OptionTabType m_currentTab = OptionTabType.General;
         private bool m_isOpen = false;
-        private float m_cachedTimeScale = 1f;
+
+        // OptionUIComponent(및 파생 클래스)가 씬에 둘 이상 존재해 동시에 InputReader.onOptionToggled를
+        // 구독하는 경우에도, Time.timeScale은 전역 자원이므로 인스턴스별 캐시가 아니라
+        // 정적 참조 카운트로 관리해 마지막으로 닫힌 시점에만 원래 값으로 복원한다.
+        private static int s_pauseRefCount = 0;
+        private static float s_cachedTimeScale = 1f;
+
+        private IInputContextManager m_inputContextManager;
+        private IInputContextManager ContextManager => m_inputContextManager;
 
         public bool IsOpen => m_isOpen;
 
         [Inject]
-        public void Construct(IObjectResolver resolver)
+        public void Construct(
+            ICameraFollowService cameraFollowService = null,
+            InputReader inputReader = null,
+            Common.InputSystem.IInputContextManager contextManager = null)
         {
-            if (resolver != null)
-            {
-                if (resolver.TryResolve<ICameraFollowService>(out var camService))
-                {
-                    m_cameraFollowService = camService;
-                }
-
-                if (resolver.TryResolve<InputReader>(out var reader))
-                {
-                    m_inputReader = reader;
-                }
-            }
+            m_cameraFollowService = cameraFollowService;
+            m_inputReader = inputReader;
+            m_inputContextManager = contextManager;
 
             if (isActiveAndEnabled)
             {
@@ -405,6 +406,7 @@ namespace OptionSystem
 
         public void OpenOption()
         {
+            bool wasOpen = m_isOpen;
             m_isOpen = true;
             if (m_optionPanel != null)
             {
@@ -413,26 +415,45 @@ namespace OptionSystem
 
             SelectTab(OptionTabType.General);
 
-            m_cachedTimeScale = Time.timeScale;
+            if (!wasOpen)
+            {
+                if (s_pauseRefCount == 0)
+                {
+                    s_cachedTimeScale = Time.timeScale;
+                }
+                s_pauseRefCount++;
+            }
+
             if (sceneContext == OptionSceneContext.InGame)
             {
                 Time.timeScale = 0f;
             }
 
-            InputContextManager.Instance?.PushContext(InputContextManager.Instance.UIContext);
+            var manager = ContextManager;
+            manager?.PushContext(manager.UIContext);
         }
 
         public void CloseOption()
         {
+            bool wasOpen = m_isOpen;
             m_isOpen = false;
             if (m_optionPanel != null)
             {
                 m_optionPanel.style.display = DisplayStyle.None;
             }
 
-            Time.timeScale = m_cachedTimeScale;
+            if (wasOpen)
+            {
+                s_pauseRefCount = Mathf.Max(0, s_pauseRefCount - 1);
+            }
 
-            InputContextManager.Instance?.PopContext(InputContextManager.Instance.UIContext);
+            if (s_pauseRefCount == 0)
+            {
+                Time.timeScale = s_cachedTimeScale;
+            }
+
+            var manager = ContextManager;
+            manager?.PopContext(manager.UIContext);
         }
 
         private void OnQuitClicked()

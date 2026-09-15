@@ -30,8 +30,6 @@ namespace InteractionSystem.Logic
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            await UniTask.Yield();
-
             // 파이프라인 연산 실행
             if (damagePipeLine != null)
             {
@@ -67,11 +65,9 @@ namespace InteractionSystem.Logic
             OnDamageProcessed?.Invoke(context);
         }
 
-        public async UniTask ProcessHealAsync(DamageContext context)
+        public UniTask ProcessHealAsync(DamageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
-
-            await UniTask.Yield();
 
             if (context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
@@ -83,6 +79,7 @@ namespace InteractionSystem.Logic
             }
 
             OnHealProcessed?.Invoke(context);
+            return UniTask.CompletedTask;
         }
 
         public async UniTask ProcessUnitMagicAsync(UnitMagicContext context)

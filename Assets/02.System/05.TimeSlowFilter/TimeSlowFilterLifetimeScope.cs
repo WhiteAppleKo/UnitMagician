@@ -15,6 +15,12 @@ public class TimeSlowFilterLifetimeScope : LifetimeScope
     [Header("Additional Target Renderers (Optional)")]
     [SerializeField] private Renderer[] additionalTargetRenderers;
 
+    protected override void Awake()
+    {
+        parentReference = ParentReference.Create<CharacterLifetimeScope>();
+        base.Awake();
+    }
+
     protected override void Configure(IContainerBuilder builder)
     {
         // 1. PureData 등록
@@ -38,10 +44,9 @@ public class TimeSlowFilterLifetimeScope : LifetimeScope
             builder.RegisterComponentInHierarchy<TimeSlowFilterVisualizer>().As<ITimeSlowFilterVisualizer>();
         }
 
-        // 3. Target Stencil Service 등록
-        builder.Register<TargetStencilService>(Lifetime.Singleton)
-            .As<ITargetStencilService>()
-            .As<System.IDisposable>();
+        // 3. Target Stencil Service는 CharacterLifetimeScope(공통 부모 스코프)에서 단일 등록되어
+        // 상위 스코프 체인을 통해 주입된다. TacticalCommandSystem(UnitSystem 하위)과 동일 인스턴스를
+        // 공유해야 하므로 이 스코프에서 별도로 재등록하지 않는다.
 
         // 4. Logic System 등록
         builder.RegisterEntryPoint<TimeSlowFilterLogicSystem>(Lifetime.Singleton);

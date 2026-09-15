@@ -22,6 +22,12 @@ namespace UnitSystem
         [SerializeField] private UnitGhostPreviewComponent ghostPreview;
         [SerializeField] private MultiLockOnVisualizer multiLockOnVisualizer;
 
+        protected override void Awake()
+        {
+            parentReference = ParentReference.Create<Movement.RefactoredLocomotion.LocomotionLifetimeScope>();
+            base.Awake();
+        }
+
         protected override void Configure(IContainerBuilder builder)
         {
             // Data & Service Register

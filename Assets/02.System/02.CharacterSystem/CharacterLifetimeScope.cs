@@ -19,6 +19,7 @@ public class CharacterLifetimeScope : LifetimeScope
 
     [Header("Input (Optional)")]
     [SerializeField] private Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
+    [SerializeField] private Common.InputSystem.InputContextManager inputContextManager;
 
     protected override void Configure(IContainerBuilder builder)
     {
@@ -65,6 +66,17 @@ public class CharacterLifetimeScope : LifetimeScope
         // 4-1. InputReader 등록
         if (inputReader != null) builder.RegisterComponent(inputReader);
         else builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
+
+        // 4-2. InputContextManager 등록 (IInputContextManager 인터페이스 바인딩)
+        if (inputContextManager != null)
+        {
+            builder.RegisterComponent(inputContextManager).As<Common.InputSystem.IInputContextManager>();
+        }
+        else
+        {
+            var ctxMgr = FindAnyObjectByType<Common.InputSystem.InputContextManager>() ?? Common.InputSystem.InputContextManager.Instance;
+            builder.RegisterComponent(ctxMgr).As<Common.InputSystem.IInputContextManager>();
+        }
 
         // 5. Logic Systems 등록
         builder.RegisterEntryPoint<PlayerStateLogicSystem>(Lifetime.Singleton);

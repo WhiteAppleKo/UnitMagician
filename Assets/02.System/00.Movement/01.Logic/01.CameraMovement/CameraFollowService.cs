@@ -36,25 +36,25 @@ namespace CameraMovement
         public CameraMode CurrentMode => m_currentMode;
         public PureDataCameraSetting Setting => m_cameraSetting;
 
-        // 호환성 편의 프로퍼티
-        public Vector3 TargetPosition => m_currentTargetPosition;
-        public Vector2 LookAngles => m_currentLookAngles;
-
         public event Action<Vector3> OnTargetPositionChanged;
         public event Action<Vector2> OnLookAnglesChanged;
         public event Action<float> OnZoomSizeChanged;
         public event Action<CameraMode> OnCameraModeChanged;
+
+        private readonly IInputContextManager m_inputContextManager;
 
         [Inject]
         public CameraFollowService(
             PureDataCameraSetting cameraSetting,
             IMouseWorldPositionProvider mousePositionProvider = null,
             IReadOnlyList<ICameraModeCalculationStrategy> strategies = null,
-            InputReader inputReader = null)
+            InputReader inputReader = null,
+            IInputContextManager contextManager = null)
         {
             m_cameraSetting = cameraSetting;
             m_mousePositionProvider = mousePositionProvider ?? new MouseWorldPositionProvider();
             m_inputReader = inputReader;
+            m_inputContextManager = contextManager;
             if (m_inputReader != null)
             {
                 m_inputReader.onMouseWheelScrolled += HandleMouseWheelScrolled;
@@ -149,7 +149,7 @@ namespace CameraMovement
             if (m_targetTransform == null || m_cameraSetting == null) return;
 
             // UI 메뉴 활성화 중에는 마우스 시점 회전 및 줌 조작 완전 차단
-            var currentContext = InputContextManager.Instance?.CurrentContext;
+            var currentContext = m_inputContextManager?.CurrentContext;
             if (currentContext != null && currentContext.ContextType == InputContextType.UI)
             {
                 m_accumulatedWheelDelta = 0f;
@@ -181,6 +181,12 @@ namespace CameraMovement
             if (Mathf.Abs(wheelDelta) <= WHEEL_SCROLL_THRESHOLD && Mouse.current != null)
             {
                 wheelDelta = Mouse.current.scroll.ReadValue().y;
+            }
+
+            // 전술(시간 정지) 컨텍스트에서는 휠 입력이 퀵슬롯 순환 전용으로 사용되므로 카메라 줌에 반영하지 않음
+            if (currentContext != null && currentContext.ContextType == InputContextType.Tactical)
+            {
+                wheelDelta = 0f;
             }
 
             UpdateCameraOffset(mouseDelta, wheelDelta);

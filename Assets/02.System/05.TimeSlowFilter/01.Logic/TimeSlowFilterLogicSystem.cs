@@ -18,30 +18,8 @@ namespace TimeSlowFilterSystem
             PureDataTimeSlowFilter pureData,
             ITimeSlowFilterVisualizer filterVisualizer,
             ITargetStencilService targetStencilService = null,
-            IObjectResolver resolver = null)
-        {
-            this.pureData = pureData ?? throw new ArgumentNullException(nameof(pureData));
-            this.filterVisualizer = filterVisualizer ?? throw new ArgumentNullException(nameof(filterVisualizer));
-            this.targetStencilService = targetStencilService;
-            if (resolver != null)
-            {
-                if (resolver.TryResolve<ITimeSlowVisualizer>(out var timeVis))
-                {
-                    this.timeSlowVisualizer = timeVis;
-                }
-                if (resolver.TryResolve<RuntimeDataTimeSlow>(out var slowData))
-                {
-                    this.runtimeDataTimeSlow = slowData;
-                }
-            }
-        }
-
-        public TimeSlowFilterLogicSystem(
-            PureDataTimeSlowFilter pureData,
-            ITimeSlowFilterVisualizer filterVisualizer,
-            ITargetStencilService targetStencilService,
-            ITimeSlowVisualizer timeSlowVisualizer,
-            RuntimeDataTimeSlow runtimeDataTimeSlow)
+            ITimeSlowVisualizer timeSlowVisualizer = null,
+            RuntimeDataTimeSlow runtimeDataTimeSlow = null)
         {
             this.pureData = pureData ?? throw new ArgumentNullException(nameof(pureData));
             this.filterVisualizer = filterVisualizer ?? throw new ArgumentNullException(nameof(filterVisualizer));

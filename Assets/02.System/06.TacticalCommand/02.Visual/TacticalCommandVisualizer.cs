@@ -216,7 +216,7 @@ namespace TacticalCommandSystem
             else
             {
                 // Fallback: 간이 플래시 연출을 위한 파티클 또는 디버그
-                Debug.Log($"<color=yellow>[TacticalCommandVisualizer] 연쇄 타격 시각 이펙트 발동 -> {entry.TargetObject.name}</color>");
+                Debug.Log($"<color=yellow>[TacticalCommandVisualizer] 마법 순차 적용 연출 발동 -> {entry.TargetObject.name}</color>");
             }
 
             PlaySound(executeSound);

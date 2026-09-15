@@ -38,23 +38,17 @@ namespace CameraMovement
         [Inject]
         public void Construct(
             ICameraFollowService cameraFollowService,
-            IObjectResolver resolver = null)
+            ILocomotionVisualizer locomotionVisualizer = null)
         {
             m_cameraFollowService = cameraFollowService;
 
-            if (resolver != null)
+            if (locomotionVisualizer != null)
             {
-                if (resolver.TryResolve<ILocomotionVisualizer>(out var locomotionVis))
-                {
-                    m_locomotionVisualizer = locomotionVis;
-                }
-
-                if (resolver.TryResolve<CinemachineBrain>(out var brain))
-                {
-                    cinemachineBrain = brain;
-                }
+                m_locomotionVisualizer = locomotionVisualizer;
             }
 
+            // CinemachineBrain은 VContainer에 등록되지 않는 씬 로컬 리소스이므로 DI 대상에서 제외.
+            // 인스펙터 직렬화(cinemachineBrain) 또는 Awake()의 Camera.main 탐색으로 확보한다.
             m_cameraSetting = cameraFollowService?.Setting;
         }
 

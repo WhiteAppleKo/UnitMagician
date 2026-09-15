@@ -13,7 +13,7 @@ namespace UnitSystem
     {
         private readonly RuntimeDataMultiLockOn multiLockOnData;
         private readonly RuntimeDataTimeSlow timeSlowData;
-        private readonly UnitChangeService changeService;
+        private readonly IUnitChangeService changeService;
         private readonly UnitQuickSlotUIComponent quickSlotUI;
         private readonly IMultiLockOnVisualizer visualizer;
         private readonly CharacterStatSystem playerStatSystem;
@@ -27,7 +27,7 @@ namespace UnitSystem
         public AimLockOnCastingStrategy(
             RuntimeDataMultiLockOn multiLockOnData,
             RuntimeDataTimeSlow timeSlowData,
-            UnitChangeService changeService,
+            IUnitChangeService changeService,
             UnitQuickSlotUIComponent quickSlotUI,
             IMultiLockOnVisualizer visualizer,
             CharacterStatSystem playerStatSystem,
