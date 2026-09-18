@@ -23,7 +23,7 @@ namespace PipeLine.Visualizers
 
         public void ShowEvadeText(DamageContext context)
         {
-            if (context == null || !context.IsEvaded) return;
+            if (!context.IsEvaded) return;
 
             Debug.Log($"<color=yellow>[EvadeTextEffect]</color> EVADE text effect on {context.Victim?.name}");
         }

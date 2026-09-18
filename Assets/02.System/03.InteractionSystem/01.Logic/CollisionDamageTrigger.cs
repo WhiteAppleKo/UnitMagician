@@ -15,6 +15,7 @@ namespace InteractionSystem.Logic
     {
         [Header("Damage Settings")]
         [SerializeField] private int baseDamage = 10;
+        [SerializeField] private float accuracyRate = 1f;
         [SerializeField] private float critRate = 0.2f;
         [SerializeField] private float critMultiplier = 1.5f;
 
@@ -119,14 +120,17 @@ namespace InteractionSystem.Logic
                 Debug.LogWarning($"[CollisionDamageTrigger] IInteractionService is not injected/initialized on {gameObject.name}!");
             }
 
+            // IsCritical/IsEvaded는 이제 CombatPipelineManager 경유로 실행되는 CriticalStep/EvasionStep이 실제로 판정하므로
+            // 여기서 미리 굴리지 않습니다. (AttackerAccRate/VictimEvaRate에 대응하는 실제 회피/명중 스탯 시스템은 아직 없어서
+            // VictimEvaRate는 0으로 유지 - 기본적으로는 항상 명중하도록 accuracyRate를 1(100%)로 둡니다.)
             var context = new DamageContext
             {
                 Attacker = owner != null ? owner : gameObject,
                 Victim = victim,
                 RawDamage = baseDamage,
+                AttackerAccRate = accuracyRate,
                 CritRate = critRate,
-                CritMultiplier = critMultiplier,
-                IsCritical = Random.value < critRate
+                CritMultiplier = critMultiplier
             };
 
             if (interactionService != null)

@@ -1,14 +1,17 @@
 using UnityEngine;
 using VContainer;
 using Synty.AnimationBaseLocomotion.Samples;
+using PipeLine.Combat;
 
 namespace CharacterSystem
 {
     /// <summary>
     /// GameObject 상에서 CharacterStatSystem 인스턴스 참조 및 PureStatData 직렬화를 홀딩하며,
     /// SampleObjectLockOn을 상속하여 적대 진영(Enemy) 대상에 대해서만 락온 하이라이트 마커를 활성화합니다.
+    /// 또한 IDamageable을 구현/위임하여, 피격 파이프라인(ApplyDamageStep)이 구체적인 스탯 시스템 구현을 몰라도
+    /// GetComponent&lt;IDamageable&gt;()만으로 데미지를 적용할 수 있게 합니다.
     /// </summary>
-    public class CharacterStatComponent : SampleObjectLockOn
+    public class CharacterStatComponent : SampleObjectLockOn, IDamageable
     {
         [SerializeField] private PureStatData pureStatData;
 
@@ -44,6 +47,15 @@ namespace CharacterSystem
         public void Initialize(CharacterStatSystem statSystem)
         {
             StatSystem = statSystem;
+        }
+
+        /// <summary>
+        /// IDamageable 구현: 피격 파이프라인(ApplyDamageStep)이 산출한 최종 데미지를 StatService.TakeDamage로 위임합니다.
+        /// </summary>
+        public void ApplyDamage(int amount)
+        {
+            EnsureInitialized();
+            StatService?.TakeDamage(amount);
         }
 
         private void EnsureInitialized()

@@ -1,74 +1,83 @@
 using Cysharp.Threading.Tasks;
 using System;
 using UnityEngine;
+using PipeLine.Combat;
 using PipeLine.Contexts;
-using PipeLine.CharacterDamage;
 using PipeLine.UnitMagic;
 using CharacterSystem;
 
 namespace InteractionSystem.Logic
 {
     /// <summary>
-    /// 상호작용 신호 수신 후 CharacterDamagePipeLine 및 UnitMagicPipeLine 파이프라인 연산을 실행하고 스탯을 최종 적용하는 로직 시스템입니다.
+    /// 상호작용 신호 수신 후 CombatPipelineManager(공격/피격 파이프라인 분리 + 캐싱)와 UnitMagicPipeLine 파이프라인
+    /// 연산을 실행하고 스탯을 최종 적용하는 로직 시스템입니다.
     /// </summary>
     public class InteractionSystem : IInteractionService
     {
-        private readonly CharacterDamagePipeLine damagePipeLine;
+        // 버프/무기 시스템이 아직 없어서 공격자/피격자 둘 다 우선 기본 플래그를 사용합니다.
+        // 실제 버프/장비에 따른 플래그 배선(FlagRefCounter/CombatFlagState 연동)은 이번 작업 범위 밖의 후속 작업입니다.
+        private const AttackStepFlags DefaultAttackFlags = AttackStepFlags.Critical;
+        private const HitStepFlags DefaultHitFlags = HitStepFlags.Evasion | HitStepFlags.Defense;
+
+        private readonly ICombatPipelineManager combatPipelineManager;
         private readonly UnitMagicPipeLine unitMagicPipeLine;
 
         public event Action<DamageContext> OnDamageProcessed;
         public event Action<DamageContext> OnHealProcessed;
         public event Action<UnitMagicContext> OnUnitMagicProcessed;
 
-        public InteractionSystem(CharacterDamagePipeLine damagePipeLine = null, UnitMagicPipeLine unitMagicPipeLine = null)
+        public InteractionSystem(ICombatPipelineManager combatPipelineManager = null, UnitMagicPipeLine unitMagicPipeLine = null)
         {
-            this.damagePipeLine = damagePipeLine;
+            this.combatPipelineManager = combatPipelineManager;
             this.unitMagicPipeLine = unitMagicPipeLine;
         }
 
         public async UniTask ProcessDamageAsync(DamageContext context)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            DamageContext result = context;
 
-            // 파이프라인 연산 실행
-            if (damagePipeLine != null)
+            if (combatPipelineManager != null)
             {
-                await damagePipeLine.Run(context);
+                // 공격 파이프라인 -> HitRegistered 설정 -> 피격 파이프라인 -> ApplyDamageStep(고정, 항상 실행) 순으로 실행.
+                // HP 차감은 ApplyDamageStep이 victim의 IDamageable을 통해 이미 직접 처리하므로 여기서 중복 적용하지 않습니다.
+                result = await combatPipelineManager.RunFullPipeline(result, DefaultAttackFlags, DefaultHitFlags);
             }
             else
             {
-                // 파이프라인 미지정 시 기본 연산
-                if (!context.IsEvaded)
+                // 파이프라인 미지정 시 기본 연산 + 직접 데미지 적용 (안전망)
+                if (!result.IsEvaded)
                 {
-                    context.FinalDamage = Mathf.Max(1, context.RawDamage - context.Defense);
+                    result.FinalDamage = Mathf.Max(1, result.RawDamage - result.Defense);
+                }
+
+                if (!result.IsEvaded && result.Victim != null && result.Victim.TryGetComponent<IDamageable>(out var fallbackDamageable))
+                {
+                    fallbackDamageable.ApplyDamage(result.FinalDamage);
                 }
             }
 
-            // 피격 스탯 차감 적용 및 디버그 출력
-            if (!context.IsEvaded && context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
+            // 피격 스탯 조회 및 디버그 출력 (HP 차감 자체는 위에서 이미 완료됨)
+            if (!result.IsEvaded && result.Victim != null && result.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
                 var statService = statComponent.StatService ?? (ICharacterStatService)statComponent.StatSystem;
-                statService?.TakeDamage(context.FinalDamage);
                 int currentHp = statService?.RuntimeData?.HP?.CurrentValue ?? 0;
                 int maxHp = statService?.RuntimeData?.HP?.MaxValue ?? 0;
-                Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {context.Attacker?.name} -> Victim: {context.Victim.name} | Raw: {context.RawDamage} | Final: {context.FinalDamage} | Crit: {context.IsCritical} | HP: {currentHp}/{maxHp}");
+                Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {result.Attacker?.name} -> Victim: {result.Victim.name} | Raw: {result.RawDamage} | Final: {result.FinalDamage} | Crit: {result.IsCritical} | HP: {currentHp}/{maxHp}");
             }
-            else if (context.IsEvaded)
+            else if (result.IsEvaded)
             {
-                Debug.Log($"<color=yellow>[InteractionSystem.Damage]</color> Victim: {context.Victim?.name} EVADED attack from {context.Attacker?.name}");
+                Debug.Log($"<color=yellow>[InteractionSystem.Damage]</color> Victim: {result.Victim?.name} EVADED attack from {result.Attacker?.name}");
             }
-            else if (context.Victim != null)
+            else if (result.Victim != null)
             {
-                Debug.LogWarning($"<color=orange>[InteractionSystem.Damage]</color> Victim: {context.Victim.name} does NOT have CharacterStatComponent!");
+                Debug.LogWarning($"<color=orange>[InteractionSystem.Damage]</color> Victim: {result.Victim.name} does NOT have CharacterStatComponent!");
             }
 
-            OnDamageProcessed?.Invoke(context);
+            OnDamageProcessed?.Invoke(result);
         }
 
         public UniTask ProcessHealAsync(DamageContext context)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-
             if (context.Victim != null && context.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
                 var statService = statComponent.StatService ?? (ICharacterStatService)statComponent.StatSystem;

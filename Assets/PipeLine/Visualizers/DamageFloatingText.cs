@@ -21,8 +21,6 @@ namespace PipeLine.Visualizers
 
         public void ShowDamageText(DamageContext context)
         {
-            if (context == null) return;
-
             string critText = context.IsCritical ? " [CRITICAL!]" : "";
             Debug.Log($"<color=red>[DamageFloatingText]</color> Floating Text on {context.Victim?.name}: -{context.FinalDamage}{critText}");
         }
