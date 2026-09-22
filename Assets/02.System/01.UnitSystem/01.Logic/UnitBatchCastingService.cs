@@ -44,6 +44,8 @@ namespace UnitSystem
                     return originalVal;
                 case UnitType.Vector:
                     return -targetUnit.CurrentValue;
+                case UnitType.Temperature:
+                    return spellUnit.TemperatureTarget;
                 default:
                     return targetUnit.CurrentValue;
             }

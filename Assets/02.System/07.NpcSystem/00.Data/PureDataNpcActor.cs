@@ -3,7 +3,7 @@ using UnityEngine;
 namespace NpcSystem
 {
     /// <summary>
-    /// NpcCombatActorComponent의 불변 설정값(투사체/이동/공격 파라미터)을 보관하는 PureData입니다.
+    /// NpcCombatActorLogicSystem/NpcCombatActorVisualizer의 불변 설정값(투사체/이동/공격 파라미터)을 보관하는 PureData입니다.
     /// </summary>
     [CreateAssetMenu(fileName = "PureDataNpcActor_", menuName = "NpcSystem/PureDataNpcActor")]
     public class PureDataNpcActor : ScriptableObject

@@ -67,6 +67,10 @@ namespace UnitSystem
             {
                 CreateAndAddRuntimeUnit(UnitType.Vector, 1.0f);
             }
+            if (HasUnit(UnitType.Temperature))
+            {
+                CreateAndAddRuntimeUnit(UnitType.Temperature, 0f); // 0 = 중립 온도
+            }
         }
 
         private void CreateAndAddRuntimeUnit(UnitType type, float value)

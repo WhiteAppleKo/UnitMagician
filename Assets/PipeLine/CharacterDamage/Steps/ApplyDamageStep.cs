@@ -34,6 +34,14 @@ namespace PipeLine.CharacterDamage.Steps
                 return UniTask.FromResult(context);
             }
 
+            // 회피가 아닌 다른 게이트 스텝(예: AttributeGateStep)이 Aborted를 세운 경우 - 회피와 달리
+            // 어떤 연출도 재생하지 않고 조용히 종료한다(투사체 자체의 물리 튕김은 파이프라인과 무관하게 이미 일어남).
+            if (context.Aborted)
+            {
+                Debug.Log($"[ApplyDamageStep] Aborted (non-evasion gate) - no damage applied to victim: {context.Victim?.name}");
+                return UniTask.FromResult(context);
+            }
+
             // DefenseStep 등 이전 스텝을 거치지 않은 단독 실행 시 초기 RawDamage 수치 그대로 FinalDamage에 반영
             if (context.FinalDamage <= 0 && context.RawDamage > 0)
             {

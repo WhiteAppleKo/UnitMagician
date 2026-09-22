@@ -38,9 +38,17 @@ namespace InteractionSystem.Logic
 
             if (combatPipelineManager != null)
             {
+                // victim이 IHitStepFlagsProvider를 구현하면(예: 돌문 - AttributeGate만 필요) 그 값을 사용하고,
+                // 구현하지 않으면(기존 캐릭터) 회귀 없이 기본값(Evasion|Defense)을 그대로 사용합니다.
+                HitStepFlags hitFlags = DefaultHitFlags;
+                if (result.Victim != null && result.Victim.TryGetComponent<IHitStepFlagsProvider>(out var hitFlagsProvider))
+                {
+                    hitFlags = hitFlagsProvider.CurrentHitFlags;
+                }
+
                 // 공격 파이프라인 -> HitRegistered 설정 -> 피격 파이프라인 -> ApplyDamageStep(고정, 항상 실행) 순으로 실행.
                 // HP 차감은 ApplyDamageStep이 victim의 IDamageable을 통해 이미 직접 처리하므로 여기서 중복 적용하지 않습니다.
-                result = await combatPipelineManager.RunFullPipeline(result, DefaultAttackFlags, DefaultHitFlags);
+                result = await combatPipelineManager.RunFullPipeline(result, DefaultAttackFlags, hitFlags);
             }
             else
             {
@@ -57,16 +65,22 @@ namespace InteractionSystem.Logic
             }
 
             // 피격 스탯 조회 및 디버그 출력 (HP 차감 자체는 위에서 이미 완료됨)
-            if (!result.IsEvaded && result.Victim != null && result.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
+            if (result.IsEvaded)
+            {
+                Debug.Log($"<color=yellow>[InteractionSystem.Damage]</color> Victim: {result.Victim?.name} EVADED attack from {result.Attacker?.name}");
+            }
+            else if (result.Aborted)
+            {
+                // 회피가 아닌 게이트 실패(예: 돌문의 AttributeGate) - 대상이 CharacterStatComponent가 없는 것은
+                // 버그가 아니라 의도된 설계(비-캐릭터 오브젝트)이므로 경고 대신 정보 로그만 남깁니다.
+                Debug.Log($"<color=cyan>[InteractionSystem.Damage]</color> Victim: {result.Victim?.name} gate BLOCKED attack from {result.Attacker?.name} (no damage applied)");
+            }
+            else if (result.Victim != null && result.Victim.TryGetComponent<CharacterStatComponent>(out var statComponent))
             {
                 var statService = statComponent.StatService ?? (ICharacterStatService)statComponent.StatSystem;
                 int currentHp = statService?.RuntimeData?.HP?.CurrentValue ?? 0;
                 int maxHp = statService?.RuntimeData?.HP?.MaxValue ?? 0;
                 Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {result.Attacker?.name} -> Victim: {result.Victim.name} | Raw: {result.RawDamage} | Final: {result.FinalDamage} | Crit: {result.IsCritical} | HP: {currentHp}/{maxHp}");
-            }
-            else if (result.IsEvaded)
-            {
-                Debug.Log($"<color=yellow>[InteractionSystem.Damage]</color> Victim: {result.Victim?.name} EVADED attack from {result.Attacker?.name}");
             }
             else if (result.Victim != null)
             {

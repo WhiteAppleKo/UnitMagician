@@ -18,8 +18,13 @@ namespace PipeLine.Combat
         Evasion = 1 << 0,
         Defense = 1 << 1,
 
+        /// <summary>
+        /// 캐릭터가 아닌 오브젝트(예: 돌문)를 위한 속성(온도) 게이트 스텝. AttributeGateStep이 이 플래그를 사용합니다.
+        /// 04번(파괴 가능 환경 오브젝트) 시스템에서 최초로 채워짐.
+        /// </summary>
+        AttributeGate = 1 << 2,
+
         // 향후 확장 예시(비트 자리만 예약):
-        // StatusResist = 1 << 2,
         // SizeGate     = 1 << 3,
     }
 }

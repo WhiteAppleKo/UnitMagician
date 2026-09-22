@@ -41,9 +41,11 @@ namespace PipeLine.Combat
             (AttackStepFlags.Critical, CriticalStep.Instance),
         };
 
-        // 피격 파이프라인 정준 순서: Evasion → Defense. 새 HitStepFlags 비트가 생기면 여기에도 추가해야 합니다.
+        // 피격 파이프라인 정준 순서: AttributeGate(비-캐릭터 오브젝트 속성 게이트) → Evasion → Defense.
+        // 새 HitStepFlags 비트가 생기면 여기에도 추가해야 합니다.
         private static readonly (HitStepFlags flag, IPipeLineStep<DamageContext> step)[] HitStepOrder =
         {
+            (HitStepFlags.AttributeGate, AttributeGateStep.Instance),
             (HitStepFlags.Evasion, EvasionStep.Instance),
             (HitStepFlags.Defense, DefenseStep.Instance),
         };

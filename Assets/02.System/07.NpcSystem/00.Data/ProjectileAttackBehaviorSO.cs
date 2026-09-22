@@ -13,7 +13,7 @@ namespace NpcSystem
         [SerializeField] private GameObject projectilePrefab;
         [SerializeField] private float projectileSpeed = 10.0f;
 
-        public override void Execute(NpcCombatActorComponent actor, GameObject target)
+        public override void Execute(INpcCombatActorVisualizer visualizer, PureDataNpcActor pureData, GameObject target)
         {
             if (projectilePrefab == null)
             {
@@ -21,18 +21,18 @@ namespace NpcSystem
                 return;
             }
 
-            Vector3 spawnPosition = actor.transform.position;
+            Vector3 spawnPosition = visualizer.CurrentPosition;
             Vector3 direction = (target.transform.position - spawnPosition).normalized;
-            Quaternion spawnRotation = direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction) : actor.transform.rotation;
+            Quaternion spawnRotation = direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction) : visualizer.Owner.transform.rotation;
 
-            // 런타임 스폰 오브젝트는 자동 DI 대상이 아니므로 actor의 안전 스폰 헬퍼를 통해 주입까지 처리한다.
-            var projectile = actor.SpawnAndInject(projectilePrefab, spawnPosition, spawnRotation);
+            // 런타임 스폰 오브젝트는 자동 DI 대상이 아니므로 visualizer의 안전 스폰 헬퍼를 통해 주입까지 처리한다.
+            var projectile = visualizer.SpawnAndInject(projectilePrefab, spawnPosition, spawnRotation);
             if (projectile == null) return;
 
             if (projectile.TryGetComponent<CollisionDamageTrigger>(out var trigger))
             {
-                trigger.SetOwner(actor.gameObject);
-                trigger.SetBaseDamage(actor.PureData.BaseDamage);
+                trigger.SetOwner(visualizer.Owner);
+                trigger.SetBaseDamage(pureData.BaseDamage);
             }
 
             if (projectile.TryGetComponent<Rigidbody>(out var rb))

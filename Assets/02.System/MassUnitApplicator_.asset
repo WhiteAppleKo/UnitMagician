@@ -12,3 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d8a8393f2c715a7438e38a9a23463130, type: 3}
   m_Name: MassUnitApplicator_
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.MassUnitApplicatorSO
+  scaleChangeVfxPrefab: {fileID: 2124241972905221359, guid: 5a934e6beb2b4b04c97f05720acb408c, type: 3}

@@ -3,7 +3,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using VContainer;
 using PipeLine.Contexts;
-using CharacterSystem;
+using PipeLine.Combat;
 
 namespace InteractionSystem.Logic
 {
@@ -97,8 +97,11 @@ namespace InteractionSystem.Logic
             // 2. 시전자(Owner) 피격 예외 처리
             if (IsOwnerOrRelative(victim)) return;
 
-            // 3. 피격 대상 CharacterStatComponent 미부착 예외 처리
-            if (!victim.TryGetComponent<CharacterStatComponent>(out _)) return;
+            // 3. 피격 대상 IDamageable 미부착 예외 처리
+            // (과거에는 CharacterStatComponent 부착 여부로 필터링했으나, 그러면 캐릭터가 아닌 IDamageable
+            // 구현체(예: 파괴 가능 환경 오브젝트인 돌문)가 애초에 파이프라인에 진입하지 못해 항상 무반응이었다.
+            // IDamageable은 캐릭터/오브젝트 공용 최소 인터페이스이므로 이 체크로 대체한다 - 04번 문서 참고.)
+            if (!victim.TryGetComponent<IDamageable>(out _)) return;
 
             // 4. 중복 피격 쿨타임 예외 처리
             if (hitHistory.TryGetValue(victim, out float lastHitTime))

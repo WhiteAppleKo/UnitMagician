@@ -70,6 +70,12 @@ namespace UnitSystem
             }
         }
 
+        public GameObject SpawnEffect(GameObject prefab, Vector3 position, Quaternion rotation)
+        {
+            if (prefab == null) return null;
+            return Instantiate(prefab, position, rotation);
+        }
+
         public void ApplyVisuals(RuntimeDataUnit runtimeData)
         {
             if (runtimeData == null) return;

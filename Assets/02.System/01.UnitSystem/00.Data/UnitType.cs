@@ -6,6 +6,7 @@ namespace UnitSystem
         None = 0,
         Mass = 1 << 0,
         Volume = 1 << 1,
-        Vector = 1 << 2
+        Vector = 1 << 2,
+        Temperature = 1 << 3
     }
 }

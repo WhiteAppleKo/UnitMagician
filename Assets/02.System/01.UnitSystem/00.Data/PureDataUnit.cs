@@ -18,6 +18,9 @@ namespace UnitSystem
         [Header("Mass Specific Properties")]
         [SerializeField] private float massScaleMultiplier = 1.0f;
 
+        [Header("Temperature Specific Properties")]
+        [SerializeField] private float temperatureTarget = 0f; // 음수 = 얼음(냉각) 방향, 양수 = 가열 방향
+
         public UnitType UnitType => unitType;
         public string UnitName => unitName;
         public int BaseCost => baseCost;
@@ -26,5 +29,6 @@ namespace UnitSystem
 
         public Material OverlayMaterial => overlayMaterial;
         public float MassScaleMultiplier => massScaleMultiplier;
+        public float TemperatureTarget => temperatureTarget;
     }
 }
