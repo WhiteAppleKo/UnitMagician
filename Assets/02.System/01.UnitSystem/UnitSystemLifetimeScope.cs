@@ -14,13 +14,15 @@ namespace UnitSystem
         [SerializeField] private UnitQuickSlotUIComponent quickSlotUI;
         [SerializeField] private UnitInventoryUIComponent inventoryUI;
         [SerializeField] private UnitUnlockPopupUIComponent unlockPopupUI;
-        [SerializeField] private UnitUnlockTestUIComponent unlockTestUI;
         [SerializeField] private UnitVectorGizmoUIComponent vectorGizmoUI;
 
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
         [SerializeField] private UnitGhostPreviewComponent ghostPreview;
         [SerializeField] private MultiLockOnVisualizer multiLockOnVisualizer;
+
+        [Header("Debug/Test Components")]
+        [SerializeField] private UnitDebugAcquireTestComponent debugAcquireTest;
 
         protected override void Awake()
         {
@@ -32,6 +34,7 @@ namespace UnitSystem
         {
             // Data & Service Register
             builder.RegisterInstance<IReadOnlyList<PureDataUnit>>(initialUnits);
+            builder.Register<DefaultUnitEquipRequirementChecker>(Lifetime.Singleton).As<IUnitEquipRequirementChecker>();
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
@@ -51,9 +54,6 @@ namespace UnitSystem
             if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
             else builder.RegisterComponentInHierarchy<UnitUnlockPopupUIComponent>();
 
-            if (unlockTestUI != null) builder.RegisterComponent(unlockTestUI);
-            else builder.RegisterComponentInHierarchy<UnitUnlockTestUIComponent>();
-
             if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
             else builder.RegisterComponentInHierarchy<UnitVectorGizmoUIComponent>();
 
@@ -66,6 +66,10 @@ namespace UnitSystem
 
             if (multiLockOnVisualizer != null) builder.RegisterComponent(multiLockOnVisualizer).As<IMultiLockOnVisualizer>();
             else builder.RegisterComponentInHierarchy<MultiLockOnVisualizer>().As<IMultiLockOnVisualizer>();
+
+            // Debug/Test Component Register (테스트 전용 — 실제 게임 기능 아님)
+            if (debugAcquireTest != null) builder.RegisterComponent(debugAcquireTest);
+            else builder.RegisterComponentInHierarchy<UnitDebugAcquireTestComponent>();
 
             // Player Magic LockOn Component Register
             builder.RegisterComponentInHierarchy<MagicLockOnComponent>();

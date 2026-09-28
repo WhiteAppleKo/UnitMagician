@@ -36,7 +36,6 @@ namespace UnitSystem
 
         private IUnitCastingStrategy currentStrategy;
         private TopViewMouseCastingStrategy topViewStrategy;
-        private AimLockOnCastingStrategy aimLockOnStrategy;
         private bool isInitialized = false;
 
         private CharacterSystem.ICharacterStatService playerStatService;
@@ -108,15 +107,11 @@ namespace UnitSystem
                 timeSlowData
             );
 
-            aimLockOnStrategy = new AimLockOnCastingStrategy(
-                multiLockOnData,
-                timeSlowData,
-                changeService,
-                quickSlotUI,
-                multiLockOnVisualizer,
-                playerStatSystem,
-                batchCastingService
-            );
+            // 참고: AimLockOnCastingStrategy는 SwitchByCameraMode()의 어떤 분기에서도 currentStrategy로 채택되지 않는
+            // 죽은 전략입니다(1인칭/숄더뷰는 자식 오브젝트 MagicLockOnComponent가 전담). 여기서 생성/구독하지 않습니다 —
+            // 생성 시 timeSlowData.OnSlowStateChanged를 구독해 PlayerLockOnController/MagicLockOnComponent가 쓰는
+            // 동일 RuntimeDataMultiLockOn을 두고 실제 경로(ExecuteBatchCast)와 경합할 위험이 있었습니다.
+            // AimLockOnCastingStrategy.cs 파일 자체는 다른 카메라 모드 조합에서 재사용될 수 있어 삭제하지 않습니다.
 
             isInitialized = true;
 
@@ -185,7 +180,6 @@ namespace UnitSystem
 
             currentStrategy?.Exit();
             topViewStrategy?.Dispose();
-            aimLockOnStrategy?.Dispose();
         }
 
         private void HandleCameraModeChanged(CameraMode mode)
@@ -246,10 +240,10 @@ namespace UnitSystem
             PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
             if (selectedUnitData == null && quickSlotUI != null && quickSlotUI.CatalogService != null)
             {
-                var unlocked = quickSlotUI.CatalogService.GetUnlockedUnits();
-                if (unlocked != null && unlocked.Count > 0)
+                var equipped = quickSlotUI.CatalogService.GetEquippedUnits();
+                if (equipped != null && equipped.Count > 0)
                 {
-                    selectedUnitData = unlocked[0];
+                    selectedUnitData = equipped[0];
                 }
             }
 
@@ -264,14 +258,14 @@ namespace UnitSystem
             multiLockOnData.ClearTargets();
             multiLockOnVisualizer?.UpdateLockOnCount(0);
 
-            var statComp = GetComponentInParent<CharacterSystem.CharacterStatComponent>() 
-                        ?? GetComponent<CharacterSystem.CharacterStatComponent>() 
+            var statComp = GetComponentInParent<CharacterSystem.CharacterStatComponent>()
+                        ?? GetComponent<CharacterSystem.CharacterStatComponent>()
                         ?? CharacterSystem.CharacterStatComponent.PlayerStat;
-            RuntimeStatData casterStat = statComp?.StatSystem?.RuntimeData ?? playerStatService?.RuntimeData ?? playerStatSystem?.RuntimeData;
+            CharacterSystem.ICharacterStatService statService = statComp?.StatService ?? playerStatService ?? playerStatSystem;
 
             GameObject casterObj = gameObject;
 
-            bool success = batchCastingService != null && batchCastingService.ExecuteBatchCast(targets, selectedUnitData, casterStat, casterObj);
+            bool success = batchCastingService != null && batchCastingService.ExecuteBatchCast(targets, selectedUnitData, statService, casterObj);
             if (success)
             {
                 multiLockOnVisualizer?.PlayBatchCastEffect();

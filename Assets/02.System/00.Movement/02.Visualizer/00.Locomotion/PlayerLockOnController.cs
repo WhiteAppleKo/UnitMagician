@@ -51,7 +51,12 @@ namespace Movement.Visualizer
 
             _timeSlowVisualizer = timeSlowVisualizer;
 
-            if (_timeSlowVisualizer != null && isActiveAndEnabled)
+            // VContainer가 [Inject] Construct()를 호출하는 시점(LifetimeScope.Awake() 도중)은 이 컴포넌트
+            // 자신의 Awake()가 아직 실행되지 않았을 수 있어, 그 시점의 isActiveAndEnabled는 신뢰할 수 없다
+            // (Unity는 컴포넌트의 첫 Awake가 끝나기 전까지 활성화 처리를 완료하지 않는다). 이 게이트 때문에
+            // 구독이 스킵되면 _timeSlowVisualizer는 이미 non-null이라 EnsureDependencies()가 절대 재구독하지
+            // 않아 구독 누락이 영구화됐다(실측 확인됨). 중복 구독은 위의 -= 로 이미 방지되므로 게이트 없이 항상 구독한다.
+            if (_timeSlowVisualizer != null)
             {
                 _timeSlowVisualizer.OnSlowStateChanged += HandleSlowStateChanged;
             }

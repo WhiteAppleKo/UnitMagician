@@ -82,9 +82,16 @@ namespace InteractionSystem.Logic
                 int maxHp = statService?.RuntimeData?.HP?.MaxValue ?? 0;
                 Debug.Log($"<color=red>[InteractionSystem.Damage]</color> Attacker: {result.Attacker?.name} -> Victim: {result.Victim.name} | Raw: {result.RawDamage} | Final: {result.FinalDamage} | Crit: {result.IsCritical} | HP: {currentHp}/{maxHp}");
             }
+            else if (result.Victim != null && result.Victim.TryGetComponent<IDamageable>(out _))
+            {
+                // CharacterStatComponent는 없지만 IDamageable은 있는 비-캐릭터 대상(돌문 등)에게 정상적으로
+                // 데미지가 적용된 케이스입니다. HP 개념이 없을 뿐 정상 동작이므로 경고가 아닌 정보 로그만 남깁니다.
+                Debug.Log($"<color=cyan>[InteractionSystem.Damage]</color> Attacker: {result.Attacker?.name} -> Victim: {result.Victim.name} | Final: {result.FinalDamage} (non-character IDamageable)");
+            }
             else if (result.Victim != null)
             {
-                Debug.LogWarning($"<color=orange>[InteractionSystem.Damage]</color> Victim: {result.Victim.name} does NOT have CharacterStatComponent!");
+                // IDamageable조차 없는 대상 - CollisionDamageTrigger 필터를 우회해서 직접 호출된 경우 등 진짜 이례적 케이스에서만 발생.
+                Debug.LogWarning($"<color=orange>[InteractionSystem.Damage]</color> Victim: {result.Victim.name} does NOT have IDamageable!");
             }
 
             OnDamageProcessed?.Invoke(result);

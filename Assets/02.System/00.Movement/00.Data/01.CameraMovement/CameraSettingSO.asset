@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CameraSettingSO
   m_EditorClassIdentifier: Assembly-CSharp::CameraMovement.CameraSettingSO
   defaultMode: 4
-  allowedModes: 000000000100000002000000030000000400000005000000
+  allowedModes: 000000000100000002000000030000000400000006000000
   mouseWeight: 0.25
   followSmoothTime: 0.15
   minZoomFOV: 30

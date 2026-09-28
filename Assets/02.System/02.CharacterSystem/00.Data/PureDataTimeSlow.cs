@@ -11,6 +11,10 @@ namespace CharacterSystem
         [SerializeField] private float slowTimeScale = 0.0f;
         [SerializeField] private float defaultFixedDeltaTime = 0.02f;
 
+        [Tooltip("이벤트 시퀀서 전용 감속 모드(3단계)에서 사용할 초기 TimeScale. 완전 정지(slowTimeScale)보다 큰 부분 감속값(예: 0.25).")]
+        [Range(0f, 1f)]
+        [SerializeField] private float eventSlowTimeScale = 0.25f;
+
         [Header("Focus Gauge Settings")]
         [SerializeField] private int maxFocus = 100;
         [SerializeField] private int minFocus = 0;
@@ -22,6 +26,7 @@ namespace CharacterSystem
 
         public float SlowTimeScale => slowTimeScale;
         public float DefaultFixedDeltaTime => defaultFixedDeltaTime;
+        public float EventSlowTimeScale => eventSlowTimeScale;
         public int MaxFocus => maxFocus;
         public int MinFocus => minFocus;
         public float FocusDrainPerSecond => focusDrainPerSecond;

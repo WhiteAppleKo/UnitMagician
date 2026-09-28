@@ -99,6 +99,7 @@ namespace CharacterSystem
             {
                 statSystem.RuntimeData.HP.OnValueChanged += UpdateHPUI;
                 statSystem.RuntimeData.MP.OnValueChanged += UpdateMPUI;
+                statSystem.RuntimeData.OnManaUnlimitedChanged += HandleManaUnlimitedChanged;
             }
 
             if (magicSlotSystem != null)
@@ -110,6 +111,11 @@ namespace CharacterSystem
             {
                 timeSlowData.FocusGauge.OnValueChanged += UpdateFocusUI;
             }
+
+            if (timeSlowData != null)
+            {
+                timeSlowData.OnGaugeOverrideChanged += HandleGaugeOverrideChanged;
+            }
         }
 
         private void UnsubscribeEvents()
@@ -118,6 +124,7 @@ namespace CharacterSystem
             {
                 statSystem.RuntimeData.HP.OnValueChanged -= UpdateHPUI;
                 statSystem.RuntimeData.MP.OnValueChanged -= UpdateMPUI;
+                statSystem.RuntimeData.OnManaUnlimitedChanged -= HandleManaUnlimitedChanged;
             }
 
             if (magicSlotSystem != null)
@@ -128,6 +135,11 @@ namespace CharacterSystem
             if (timeSlowData?.FocusGauge != null)
             {
                 timeSlowData.FocusGauge.OnValueChanged -= UpdateFocusUI;
+            }
+
+            if (timeSlowData != null)
+            {
+                timeSlowData.OnGaugeOverrideChanged -= HandleGaugeOverrideChanged;
             }
         }
 
@@ -152,6 +164,11 @@ namespace CharacterSystem
             if (timeSlowData?.FocusGauge != null)
             {
                 UpdateFocusUI(timeSlowData.FocusGauge.CurrentValue, timeSlowData.FocusGauge.MaxValue);
+            }
+
+            if (timeSlowData != null && timeSlowData.IsGaugeOverride)
+            {
+                HandleGaugeOverrideChanged(true);
             }
         }
 
@@ -183,6 +200,21 @@ namespace CharacterSystem
             }
         }
 
+        private void HandleManaUnlimitedChanged(bool isManaUnlimited)
+        {
+            if (isManaUnlimited)
+            {
+                if (mpBar != null)
+                {
+                    mpBar.style.width = Length.Percent(100f);
+                }
+            }
+            else if (statSystem?.RuntimeData != null)
+            {
+                UpdateMPUI(statSystem.RuntimeData.MP.CurrentValue, statSystem.RuntimeData.MP.MaxValue);
+            }
+        }
+
         private void UpdateFocusUI(int current, int max)
         {
             if (focusBar != null)
@@ -194,6 +226,26 @@ namespace CharacterSystem
             if (focusLabel != null)
             {
                 focusLabel.text = $"{current} / {max}";
+            }
+        }
+
+        /// <summary>
+        /// 게이지 오버라이드 On/Off (09번 기획서 9.8절). 오버라이드가 켜지는 시점의 실제 FocusGauge가
+        /// 부분값일 수 있으므로(8번 기획서의 MP 오버라이드와 동일한 이유), true 수신 시 실값과 무관하게
+        /// 항상 100%로 강제 표시하고, false 수신 시 즉시 실제 값 기준으로 복귀합니다.
+        /// </summary>
+        private void HandleGaugeOverrideChanged(bool isOverride)
+        {
+            if (isOverride)
+            {
+                if (focusBar != null)
+                {
+                    focusBar.style.width = Length.Percent(100f);
+                }
+            }
+            else if (timeSlowData?.FocusGauge != null)
+            {
+                UpdateFocusUI(timeSlowData.FocusGauge.CurrentValue, timeSlowData.FocusGauge.MaxValue);
             }
         }
 

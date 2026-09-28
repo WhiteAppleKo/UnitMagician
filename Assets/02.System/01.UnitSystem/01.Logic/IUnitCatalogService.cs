@@ -5,11 +5,18 @@ namespace UnitSystem
 {
     public interface IUnitCatalogService
     {
-        event Action<PureDataUnit> OnUnitUnlocked;
+        event Action<PureDataUnit> OnUnitAcquired;
+        event Action<PureDataUnit> OnUnitEquipped;
+        event Action<PureDataUnit> OnUnitUnequipped;
 
-        IReadOnlyList<PureDataUnit> GetUnlockedUnits();
+        IReadOnlyList<PureDataUnit> GetPossessedUnits();
+        IReadOnlyList<PureDataUnit> GetEquippedUnits();
         IReadOnlyList<PureDataUnit> GetAllUnits();
-        bool IsUnlocked(PureDataUnit unit);
-        void UnlockUnit(PureDataUnit unit);
+        bool IsPossessed(PureDataUnit unit);
+        bool IsEquipped(PureDataUnit unit);
+
+        void AcquireUnit(PureDataUnit unit);
+        bool TryEquipUnit(PureDataUnit unit, out string failReason);
+        void UnequipUnit(PureDataUnit unit);
     }
 }

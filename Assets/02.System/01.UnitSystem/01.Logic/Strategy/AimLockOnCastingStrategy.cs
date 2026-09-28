@@ -184,9 +184,8 @@ namespace UnitSystem
             }
 
             var targets = multiLockOnData.LockedTargets;
-            RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
 
-            bool success = batchCastingService.ExecuteBatchCast(targets, selectedUnitData, casterStat, null);
+            bool success = batchCastingService.ExecuteBatchCast(targets, selectedUnitData, playerStatSystem, null);
             if (success)
             {
                 visualizer?.PlayBatchCastEffect();

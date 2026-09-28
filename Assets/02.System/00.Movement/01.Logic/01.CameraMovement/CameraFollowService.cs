@@ -97,6 +97,8 @@ namespace CameraMovement
                 m_strategies[CameraMode.HybridFocus] = new HybridFocusCameraStrategy(m_mousePositionProvider);
             if (!m_strategies.ContainsKey(CameraMode.PlayerOnly))
                 m_strategies[CameraMode.PlayerOnly] = new PlayerOnlyCameraStrategy();
+            if (!m_strategies.ContainsKey(CameraMode.EventTargetTracking))
+                m_strategies[CameraMode.EventTargetTracking] = new EventTargetTrackingCameraStrategy();
         }
 
         public void SetTarget(Transform target)
@@ -148,9 +150,11 @@ namespace CameraMovement
         {
             if (m_targetTransform == null || m_cameraSetting == null) return;
 
-            // UI 메뉴 활성화 중에는 마우스 시점 회전 및 줌 조작 완전 차단
+            // UI 메뉴 / 이벤트 카메라(EventTargetTracking 등) 활성화 중에는 마우스 시점 회전 및 줌 조작 완전 차단
+            // (Event 추가: 10번 기획서 10.2/10.8절 - 06의 OnBoss50Percent로 진입한 이벤트 카메라 동안 회귀 없이 차단)
             var currentContext = m_inputContextManager?.CurrentContext;
-            if (currentContext != null && currentContext.ContextType == InputContextType.UI)
+            if (currentContext != null &&
+                (currentContext.ContextType == InputContextType.UI || currentContext.ContextType == InputContextType.Event))
             {
                 m_accumulatedWheelDelta = 0f;
                 UpdateCameraOffset(Vector2.zero, 0f);
@@ -195,6 +199,18 @@ namespace CameraMovement
         public void UpdateCameraOffset(Vector2 mouseInput, float wheelDelta)
         {
             if (m_targetTransform == null || m_cameraSetting == null) return;
+
+            // 이벤트 카메라(EventTargetTracking) 활성 중에는 이 메서드가 어떤 경로로 호출되어도(LateTick 경유든
+            // 외부에서 직접 호출하든) 마우스 회전/줌 입력이 결과에 반영되지 않아야 한다(10.6/10.8절 DoD).
+            // LateTick()의 조기 반환(위 UI/Event 체크)만으로는 UpdateCameraOffset을 직접 호출하는 경로까지
+            // 막을 수 없으므로, 이 메서드 최상단에서도 동일하게 입력을 무효화한다. TargetPivot 계산 자체는
+            // (EventTargetTrackingCameraStrategy가 아군/보스 위치를 계속 추적할 수 있도록) 계속 수행한다.
+            var eventGateContext = m_inputContextManager?.CurrentContext;
+            if (eventGateContext != null && eventGateContext.ContextType == InputContextType.Event)
+            {
+                mouseInput = Vector2.zero;
+                wheelDelta = 0f;
+            }
 
             float followSmoothTime = m_cameraSetting.FollowSmoothTime;
             float zoomSpeed = m_cameraSetting.ZoomSpeed;

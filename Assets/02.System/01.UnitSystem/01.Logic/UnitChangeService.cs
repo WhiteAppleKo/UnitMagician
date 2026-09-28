@@ -28,9 +28,9 @@ namespace UnitSystem
                 return false;
             }
 
-            if (!catalogService.IsUnlocked(newUnitData))
+            if (!catalogService.IsEquipped(newUnitData))
             {
-                Debug.LogWarning($"[UnitChangeService] Cannot change unit. Unit {newUnitData.name} is locked.");
+                Debug.LogWarning($"[UnitChangeService] Cannot change unit. Unit {newUnitData.name} is not equipped.");
                 return false;
             }
 

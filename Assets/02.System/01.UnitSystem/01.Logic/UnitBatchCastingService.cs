@@ -79,12 +79,60 @@ namespace UnitSystem
 
         public bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, ICharacterStatService statService, GameObject casterObject = null)
         {
-            return ExecuteBatchCast(targets, selectedUnit, statService?.RuntimeData, casterObject);
+            if (targets == null || targets.Count == 0) return false;
+
+            if (selectedUnit == null)
+            {
+                Debug.LogWarning("[UnitBatchCastingService] Batch Cast Aborted: No Unit selected.");
+                return false;
+            }
+
+            int totalCost = CalculateTotalCost(targets, selectedUnit);
+
+            // ICharacterStatService.UseMP() 경유 마나 검증 및 소모 (사전 MP 체크는 UseMP 자체가 처리 — 부족 시 false, 무제한이면 체크 없이 true)
+            if (statService != null)
+            {
+                if (!statService.UseMP(totalCost))
+                {
+                    Debug.LogWarning($"[UnitBatchCastingService] Insufficient Mana. (Required: {totalCost})");
+                    for (int i = 0; i < targets.Count; i++)
+                    {
+                        var target = targets[i];
+                        if (target != null) target.Highlight(false, false);
+                    }
+                    return false;
+                }
+                Debug.Log($"<color=green>[UnitBatchCastingService] Consumed {totalCost} MP!</color>");
+            }
+            else
+            {
+                Debug.LogWarning("[UnitBatchCastingService] Caster Stat Service is null! Mana not consumed.");
+            }
+
+            Debug.Log($"<color=green>[UnitBatchCastingService] Executing Batch Cast on {targets.Count} targets! Total Mana Cost: {totalCost}</color>");
+
+            // 타겟 순차 변환 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit에는 null 전달하여 중복 차감 방지)
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var targetGroup = targets[i];
+                if (targetGroup == null) continue;
+
+                targetGroup.Highlight(false, false);
+
+                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnit.UnitType);
+                if (matchingUnitData != null)
+                {
+                    float newValue = CalculateNewValue(matchingUnitData, selectedUnit);
+                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnit, newValue, null, null, casterObject);
+                }
+            }
+
+            return true;
         }
 
         public bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, CharacterStatSystem casterStat, GameObject casterObject = null)
         {
-            return ExecuteBatchCast(targets, selectedUnit, casterStat?.RuntimeData, casterObject);
+            return ExecuteBatchCast(targets, selectedUnit, (ICharacterStatService)casterStat, casterObject);
         }
 
         public bool ExecuteBatchCast(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, RuntimeStatData casterStatData, GameObject casterObject = null)

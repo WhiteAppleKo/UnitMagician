@@ -63,10 +63,10 @@ namespace UnitSystem
             // 초기 기동 시 기본 선택 유닛 동기화
             if (CurrentSelectedUnit == null && catalogService != null)
             {
-                var unlockedUnits = catalogService.GetUnlockedUnits();
-                if (unlockedUnits != null && unlockedUnits.Count > 0)
+                var equippedUnits = catalogService.GetEquippedUnits();
+                if (equippedUnits != null && equippedUnits.Count > 0)
                 {
-                    SelectSlot(unlockedUnits[0]);
+                    SelectSlot(equippedUnits[0]);
                 }
             }
             else
@@ -113,8 +113,10 @@ namespace UnitSystem
 
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
-                catalogService.OnUnitUnlocked += HandleUnitUnlocked;
+                catalogService.OnUnitEquipped -= HandleUnitEquipped;
+                catalogService.OnUnitEquipped += HandleUnitEquipped;
+                catalogService.OnUnitUnequipped -= HandleUnitUnequipped;
+                catalogService.OnUnitUnequipped += HandleUnitUnequipped;
             }
         }
 
@@ -127,7 +129,8 @@ namespace UnitSystem
 
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+                catalogService.OnUnitEquipped -= HandleUnitEquipped;
+                catalogService.OnUnitUnequipped -= HandleUnitUnequipped;
             }
         }
 
@@ -138,12 +141,28 @@ namespace UnitSystem
             OnSelectedUnitChanged?.Invoke(unitData);
         }
 
-        private void HandleUnitUnlocked(PureDataUnit unlockedUnit)
+        private void HandleUnitEquipped(PureDataUnit equippedUnit)
         {
-            // 아직 선택된 유닛이 없다면 해금된 첫 유닛 선택
-            if (CurrentSelectedUnit == null && unlockedUnit != null)
+            // 아직 선택된 유닛이 없다면 새로 장착된 유닛 선택
+            if (CurrentSelectedUnit == null && equippedUnit != null)
             {
-                SelectSlot(unlockedUnit);
+                SelectSlot(equippedUnit);
+            }
+        }
+
+        private void HandleUnitUnequipped(PureDataUnit unequippedUnit)
+        {
+            // 방금 해제된 유닛이 현재 선택 중이었다면 선택을 비운다(퀵슬롯 순환 대상에서 제외).
+            if (unequippedUnit == null || CurrentSelectedUnit != unequippedUnit) return;
+
+            var equippedUnits = catalogService != null ? catalogService.GetEquippedUnits() : null;
+            if (equippedUnits != null && equippedUnits.Count > 0)
+            {
+                SelectSlot(equippedUnits[0]);
+            }
+            else
+            {
+                SelectSlot((PureDataUnit)null);
             }
         }
 
@@ -164,21 +183,21 @@ namespace UnitSystem
                 return;
             }
 
-            if (catalogService != null && !catalogService.IsUnlocked(unitData))
+            if (catalogService != null && !catalogService.IsEquipped(unitData))
             {
-                Debug.LogWarning($"[UnitQuickSlotUIComponent] Unit {unitData.name} is locked!");
+                Debug.LogWarning($"[UnitQuickSlotUIComponent] Unit {unitData.name} is not equipped!");
                 return;
             }
 
             if (runtimeData != null)
             {
-                var unlockedUnits = catalogService != null ? catalogService.GetUnlockedUnits() : null;
+                var equippedUnits = catalogService != null ? catalogService.GetEquippedUnits() : null;
                 int slotIndex = -1;
-                if (unlockedUnits != null)
+                if (equippedUnits != null)
                 {
-                    for (int i = 0; i < unlockedUnits.Count; i++)
+                    for (int i = 0; i < equippedUnits.Count; i++)
                     {
-                        if (unlockedUnits[i] == unitData)
+                        if (equippedUnits[i] == unitData)
                         {
                             slotIndex = i;
                             break;
@@ -199,10 +218,10 @@ namespace UnitSystem
         {
             if (catalogService == null) return;
 
-            var unlockedUnits = catalogService.GetUnlockedUnits();
-            if (unlockedUnits != null && slotIndex >= 0 && slotIndex < unlockedUnits.Count)
+            var equippedUnits = catalogService.GetEquippedUnits();
+            if (equippedUnits != null && slotIndex >= 0 && slotIndex < equippedUnits.Count)
             {
-                SelectSlot(unlockedUnits[slotIndex]);
+                SelectSlot(equippedUnits[slotIndex]);
             }
         }
 

@@ -39,6 +39,7 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
 
         public Action onTimeSlowToggled;
         public Action onOptionToggled;
+        public Action onInventoryToggled;
         public Action<float> onMouseWheelScrolled;
 
         /// <inheritdoc cref="OnEnable" />
@@ -71,6 +72,11 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
                 if (Keyboard.current.escapeKey.wasPressedThisFrame)
                 {
                     onOptionToggled?.Invoke();
+                }
+
+                if (Keyboard.current.iKey.wasPressedThisFrame)
+                {
+                    onInventoryToggled?.Invoke();
                 }
             }
 

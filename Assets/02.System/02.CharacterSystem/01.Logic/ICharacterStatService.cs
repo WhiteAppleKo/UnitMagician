@@ -15,5 +15,7 @@ namespace CharacterSystem
         void TakeDamage(int amount);
         void RecoverMP(int amount);
         bool UseMP(int amount);
+        void SetInvincible(bool value);
+        void SetManaUnlimited(bool value);
     }
 }

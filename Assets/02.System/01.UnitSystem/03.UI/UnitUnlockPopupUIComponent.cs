@@ -24,13 +24,13 @@ namespace UnitSystem
         {
             if (this.catalogService != null)
             {
-                this.catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+                this.catalogService.OnUnitAcquired -= ShowUnlockPopup;
             }
 
             this.catalogService = catalogService;
             if (this.catalogService != null)
             {
-                this.catalogService.OnUnitUnlocked += ShowUnlockPopup;
+                this.catalogService.OnUnitAcquired += ShowUnlockPopup;
             }
         }
 
@@ -38,8 +38,8 @@ namespace UnitSystem
         {
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= ShowUnlockPopup;
-                catalogService.OnUnitUnlocked += ShowUnlockPopup;
+                catalogService.OnUnitAcquired -= ShowUnlockPopup;
+                catalogService.OnUnitAcquired += ShowUnlockPopup;
             }
 
             InitUI();
@@ -84,7 +84,7 @@ namespace UnitSystem
             CancelInvoke(nameof(ClosePopup));
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+                catalogService.OnUnitAcquired -= ShowUnlockPopup;
             }
         }
 
@@ -93,7 +93,7 @@ namespace UnitSystem
             CancelInvoke(nameof(ClosePopup));
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= ShowUnlockPopup;
+                catalogService.OnUnitAcquired -= ShowUnlockPopup;
             }
         }
 
@@ -101,7 +101,7 @@ namespace UnitSystem
         {
             if (catalogService == null || unitData == null) return;
 
-            if (popupTitleLabel != null) popupTitleLabel.text = $"Unit Unlocked: {unitData.UnitName}";
+            if (popupTitleLabel != null) popupTitleLabel.text = $"Unit Acquired: {unitData.UnitName}";
             if (popupIconElement != null && unitData.Icon != null) popupIconElement.style.backgroundImage = new StyleBackground(unitData.Icon);
             if (popupPanel != null) popupPanel.style.display = DisplayStyle.Flex;
 

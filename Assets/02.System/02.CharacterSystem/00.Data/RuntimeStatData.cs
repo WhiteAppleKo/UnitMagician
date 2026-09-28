@@ -10,6 +10,8 @@ namespace CharacterSystem
         private ClampValueInt mp;
         private float moveSpeed;
         private FactionType currentFaction;
+        private bool isInvincible;
+        private bool isManaUnlimited;
 
         public IReadOnlyClampValueInt HP => hp;
         public IReadOnlyClampValueInt MP => mp;
@@ -35,10 +37,15 @@ namespace CharacterSystem
             }
         }
 
+        public bool IsInvincible => isInvincible;
+        public bool IsManaUnlimited => isManaUnlimited;
+
         public event Action OnDeath;
         public event Action OnInsufficientMana;
         public event Action<float> OnMoveSpeedChanged;
         public event Action<FactionType> OnFactionChanged;
+        public event Action<bool> OnInvincibleChanged;
+        public event Action<bool> OnManaUnlimitedChanged;
 
         public RuntimeStatData(PureStatData pureData)
         {
@@ -87,6 +94,20 @@ namespace CharacterSystem
         public void IncreaseHP(int amount) => hp.Increase(amount);
         public void ReduceHP(int amount) => hp.Reduce(amount);
         public void IncreaseMP(int amount) => mp.Increase(amount);
+
+        public void SetInvincible(bool value)
+        {
+            if (isInvincible == value) return;
+            isInvincible = value;
+            OnInvincibleChanged?.Invoke(isInvincible);
+        }
+
+        public void SetManaUnlimited(bool value)
+        {
+            if (isManaUnlimited == value) return;
+            isManaUnlimited = value;
+            OnManaUnlimitedChanged?.Invoke(isManaUnlimited);
+        }
 
         public bool TryConsumeMP(int amount)
         {

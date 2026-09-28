@@ -30,6 +30,7 @@ namespace CharacterSystem
 
         public void TakeDamage(int amount)
         {
+            if (runtimeData.IsInvincible) return;
             runtimeData.ReduceHP(amount);
         }
 
@@ -40,7 +41,18 @@ namespace CharacterSystem
 
         public bool UseMP(int amount)
         {
+            if (runtimeData.IsManaUnlimited) return true;
             return runtimeData.TryConsumeMP(amount);
+        }
+
+        public void SetInvincible(bool value)
+        {
+            runtimeData.SetInvincible(value);
+        }
+
+        public void SetManaUnlimited(bool value)
+        {
+            runtimeData.SetManaUnlimited(value);
         }
     }
 }

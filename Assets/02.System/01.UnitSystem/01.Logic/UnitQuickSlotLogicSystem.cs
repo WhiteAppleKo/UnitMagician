@@ -37,16 +37,18 @@ namespace UnitSystem
 
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
-                catalogService.OnUnitUnlocked += HandleUnitUnlocked;
+                catalogService.OnUnitEquipped -= HandleUnitEquipped;
+                catalogService.OnUnitEquipped += HandleUnitEquipped;
+                catalogService.OnUnitUnequipped -= HandleUnitUnequipped;
+                catalogService.OnUnitUnequipped += HandleUnitUnequipped;
 
-                // 초기 해금 유닛 중 첫 번째 유닛 기본 선택
+                // 초기 장착 유닛 중 첫 번째 유닛 기본 선택
                 if (runtimeData.SelectedUnit == null)
                 {
-                    var unlockedUnits = catalogService.GetUnlockedUnits();
-                    if (unlockedUnits != null && unlockedUnits.Count > 0)
+                    var equippedUnits = catalogService.GetEquippedUnits();
+                    if (equippedUnits != null && equippedUnits.Count > 0)
                     {
-                        SelectSlot(0, unlockedUnits[0]);
+                        SelectSlot(0, equippedUnits[0]);
                     }
                 }
             }
@@ -63,7 +65,8 @@ namespace UnitSystem
 
             if (catalogService != null)
             {
-                catalogService.OnUnitUnlocked -= HandleUnitUnlocked;
+                catalogService.OnUnitEquipped -= HandleUnitEquipped;
+                catalogService.OnUnitUnequipped -= HandleUnitUnequipped;
             }
 
             if (inputReader != null)
@@ -107,10 +110,10 @@ namespace UnitSystem
         private void OnQuickSlotKeyPressed(int slotIndex)
         {
             if (catalogService == null) return;
-            var unlockedUnits = catalogService.GetUnlockedUnits();
-            if (unlockedUnits == null || slotIndex >= unlockedUnits.Count) return;
+            var equippedUnits = catalogService.GetEquippedUnits();
+            if (equippedUnits == null || slotIndex >= equippedUnits.Count) return;
 
-            SelectSlot(slotIndex, unlockedUnits[slotIndex]);
+            SelectSlot(slotIndex, equippedUnits[slotIndex]);
         }
 
         private void HandleMouseWheelScrolled(float scrollDelta)
@@ -127,14 +130,32 @@ namespace UnitSystem
             CycleSlot(direction);
         }
 
-        private void HandleUnitUnlocked(PureDataUnit unlockedUnit)
+        private void HandleUnitEquipped(PureDataUnit equippedUnit)
         {
-            if (unlockedUnit == null) return;
+            if (equippedUnit == null) return;
 
-            // 현재 선택된 유닛이 없으면 새로 해금된 유닛을 기본 선택
+            // 현재 선택된 유닛이 없으면 새로 장착된 유닛을 기본 선택
             if (runtimeData.SelectedUnit == null)
             {
-                SelectUnit(unlockedUnit);
+                SelectUnit(equippedUnit);
+            }
+        }
+
+        private void HandleUnitUnequipped(PureDataUnit unequippedUnit)
+        {
+            if (unequippedUnit == null) return;
+
+            // 방금 해제된 유닛이 현재 선택 중이었다면, 다른 장착 유닛으로 전환하거나 선택을 비운다.
+            if (runtimeData.SelectedUnit != unequippedUnit) return;
+
+            var equippedUnits = catalogService?.GetEquippedUnits();
+            if (equippedUnits != null && equippedUnits.Count > 0)
+            {
+                SelectSlot(0, equippedUnits[0]);
+            }
+            else
+            {
+                runtimeData.ClearSelection();
             }
         }
 
@@ -156,25 +177,25 @@ namespace UnitSystem
         {
             if (catalogService == null) return;
 
-            var unlockedUnits = catalogService.GetUnlockedUnits();
-            if (unlockedUnits == null || unlockedUnits.Count <= 1) return;
+            var equippedUnits = catalogService.GetEquippedUnits();
+            if (equippedUnits == null || equippedUnits.Count <= 1) return;
 
             int currentIndex = runtimeData.SelectedSlotIndex;
             if (currentIndex < 0) currentIndex = 0;
 
-            int nextIndex = (currentIndex + direction) % unlockedUnits.Count;
-            if (nextIndex < 0) nextIndex += unlockedUnits.Count;
+            int nextIndex = (currentIndex + direction) % equippedUnits.Count;
+            if (nextIndex < 0) nextIndex += equippedUnits.Count;
 
-            SelectSlot(nextIndex, unlockedUnits[nextIndex]);
+            SelectSlot(nextIndex, equippedUnits[nextIndex]);
         }
 
         public bool SelectSlot(int slotIndex, PureDataUnit unitData)
         {
             if (catalogService == null || unitData == null) return false;
 
-            if (!catalogService.IsUnlocked(unitData))
+            if (!catalogService.IsEquipped(unitData))
             {
-                Debug.LogWarning($"[UnitQuickSlotLogicSystem] Unit {unitData.name} is locked!");
+                Debug.LogWarning($"[UnitQuickSlotLogicSystem] Unit {unitData.name} is not equipped!");
                 return false;
             }
 
@@ -186,10 +207,10 @@ namespace UnitSystem
         {
             if (catalogService == null) return false;
 
-            var unlockedUnits = catalogService.GetUnlockedUnits();
-            if (slotIndex >= 0 && slotIndex < unlockedUnits.Count)
+            var equippedUnits = catalogService.GetEquippedUnits();
+            if (slotIndex >= 0 && slotIndex < equippedUnits.Count)
             {
-                return SelectSlot(slotIndex, unlockedUnits[slotIndex]);
+                return SelectSlot(slotIndex, equippedUnits[slotIndex]);
             }
 
             return false;
@@ -199,19 +220,19 @@ namespace UnitSystem
         {
             if (catalogService == null || unitData == null) return false;
 
-            if (!catalogService.IsUnlocked(unitData))
+            if (!catalogService.IsEquipped(unitData))
             {
-                Debug.LogWarning($"[UnitQuickSlotLogicSystem] Unit {unitData.name} is locked!");
+                Debug.LogWarning($"[UnitQuickSlotLogicSystem] Unit {unitData.name} is not equipped!");
                 return false;
             }
 
-            var unlockedUnits = catalogService.GetUnlockedUnits();
+            var equippedUnits = catalogService.GetEquippedUnits();
             int index = -1;
-            if (unlockedUnits != null)
+            if (equippedUnits != null)
             {
-                for (int i = 0; i < unlockedUnits.Count; i++)
+                for (int i = 0; i < equippedUnits.Count; i++)
                 {
-                    if (unlockedUnits[i] == unitData)
+                    if (equippedUnits[i] == unitData)
                     {
                         index = i;
                         break;

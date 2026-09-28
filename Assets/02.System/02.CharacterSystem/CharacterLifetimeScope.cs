@@ -1,4 +1,5 @@
 using CharacterSystem;
+using EventSequencerSystem;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -20,6 +21,12 @@ public class CharacterLifetimeScope : LifetimeScope
     [Header("Input (Optional)")]
     [SerializeField] private Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
     [SerializeField] private Common.InputSystem.InputContextManager inputContextManager;
+
+    [Header("Event Sequencer(06) Linkage - Optional")]
+    [Tooltip("06(이벤트 시퀀서)과 09(시간 정지 감속 모드)를 연결하는 인스펙터 직접 참조입니다. " +
+             "두 시스템은 서로 다른 VContainer 스코프 트리(부모 없는 루트 스코프)에 있어 생성자 주입이 불가능하므로, " +
+             "06의 bossStatComponent와 동일한 패턴으로 씬에서 직접 드래그해 연결하고 Start()에서 수동 배선합니다.")]
+    [SerializeField] private EventSequencerSystemLifetimeScope eventSequencerScope;
 
     protected override void Configure(IContainerBuilder builder)
     {
@@ -80,10 +87,38 @@ public class CharacterLifetimeScope : LifetimeScope
 
         // 5. Logic Systems 등록
         builder.RegisterEntryPoint<PlayerStateLogicSystem>(Lifetime.Singleton);
-        builder.RegisterEntryPoint<TimeSlowLogicSystem>(Lifetime.Singleton);
+        // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로도 Resolve 가능하게 함.
+        builder.RegisterEntryPoint<TimeSlowLogicSystem>(Lifetime.Singleton).AsSelf();
 
         // 6. UI View 등록
         if (hudUIView != null) builder.RegisterComponent(hudUIView);
         else builder.RegisterComponentInHierarchy<CharacterHUDUIView>();
+    }
+
+    /// <summary>
+    /// 06(EventSequencerSystem)과의 연동 배선. VContainer의 Awake()/Build() 타이밍(스크립트 실행 순서 무관하게
+    /// "모든 Awake는 어떤 Start보다 먼저 실행된다"는 유니티 보장)을 이용해, 두 스코프의 Container가 모두 준비된
+    /// 뒤인 Start()에서 한 번만 연결한다. GameObject.Find/FindObjectOfType은 사용하지 않고 인스펙터에 직접
+    /// 연결해둔 eventSequencerScope 참조만 사용한다(06의 bossStatComponent와 동일한 패턴).
+    /// </summary>
+    private void Start()
+    {
+        if (eventSequencerScope == null)
+        {
+            Debug.LogWarning("[CharacterLifetimeScope] eventSequencerScope가 연결되지 않아 06(이벤트 시퀀서) 연동 없이 동작합니다. " +
+                              "감속 모드(ActivateEventSlow)는 06의 자동 발동 없이는 트리거되지 않습니다.");
+            return;
+        }
+
+        if (Container == null || eventSequencerScope.Container == null)
+        {
+            Debug.LogError("[CharacterLifetimeScope] Container가 아직 준비되지 않아 06 연동을 배선할 수 없습니다.");
+            return;
+        }
+
+        var timeSlowLogicSystem = Container.Resolve<TimeSlowLogicSystem>();
+        var eventSequencer = eventSequencerScope.Container.Resolve<IEventSequencer>();
+        var pureDataTutorialSequence = eventSequencerScope.Container.Resolve<PureDataTutorialSequence>();
+        timeSlowLogicSystem.BindEventSequencer(eventSequencer, pureDataTutorialSequence);
     }
 }
