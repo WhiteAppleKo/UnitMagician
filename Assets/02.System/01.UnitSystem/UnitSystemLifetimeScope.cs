@@ -15,6 +15,7 @@ namespace UnitSystem
         [SerializeField] private UnitInventoryUIComponent inventoryUI;
         [SerializeField] private UnitUnlockPopupUIComponent unlockPopupUI;
         [SerializeField] private UnitVectorGizmoUIComponent vectorGizmoUI;
+        [SerializeField] private MagicSelectionPopupUIComponent magicSelectionPopupUI;
 
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
@@ -40,9 +41,11 @@ namespace UnitSystem
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
             builder.Register<RuntimeDataUnitQuickSlot>(Lifetime.Singleton);
+            builder.Register<RuntimeDataMagicFavoriteSlots>(Lifetime.Singleton);
 
             // Logic Systems Register
             builder.RegisterEntryPoint<UnitQuickSlotLogicSystem>(Lifetime.Singleton).AsSelf();
+            builder.RegisterEntryPoint<MagicSelectionPopupLogicSystem>(Lifetime.Singleton).As<IMagicSelectionPopupLogic>();
 
             // UI Toolkit Component Register
             if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
@@ -56,6 +59,9 @@ namespace UnitSystem
 
             if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
             else builder.RegisterComponentInHierarchy<UnitVectorGizmoUIComponent>();
+
+            if (magicSelectionPopupUI != null) builder.RegisterComponent(magicSelectionPopupUI);
+            else builder.RegisterComponentInHierarchy<MagicSelectionPopupUIComponent>();
 
             // Gameplay Component Register
             if (unitCaster != null) builder.RegisterComponent(unitCaster);

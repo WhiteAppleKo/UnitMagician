@@ -15,7 +15,6 @@ namespace CameraMovement
         private readonly IMouseWorldPositionProvider m_mousePositionProvider;
         private readonly Dictionary<CameraMode, ICameraModeCalculationStrategy> m_strategies;
         private readonly InputReader m_inputReader;
-        private float m_accumulatedWheelDelta;
 
         private Transform m_targetTransform;
         private Vector3 m_currentTargetPosition;
@@ -27,8 +26,6 @@ namespace CameraMovement
         private float m_zoomVelocity;
         private CameraMode m_currentMode = CameraMode.ThirdPersonShoulder;
         private bool m_requireRightClickToRotate = false;
-
-        private const float WHEEL_SCROLL_THRESHOLD = 0.01f;
 
         public Vector3 CurrentTargetPosition => m_currentTargetPosition;
         public Vector2 CurrentLookAngles => m_currentLookAngles;
@@ -55,10 +52,7 @@ namespace CameraMovement
             m_mousePositionProvider = mousePositionProvider ?? new MouseWorldPositionProvider();
             m_inputReader = inputReader;
             m_inputContextManager = contextManager;
-            if (m_inputReader != null)
-            {
-                m_inputReader.onMouseWheelScrolled += HandleMouseWheelScrolled;
-            }
+            // 카메라 줌 기능 폐지(§9) — 휠 입력은 더 이상 구독하지 않는다(휠은 퀵슬롯 순환 전용).
 
             m_strategies = new Dictionary<CameraMode, ICameraModeCalculationStrategy>();
             if (strategies != null)
@@ -135,15 +129,7 @@ namespace CameraMovement
 
         public void Dispose()
         {
-            if (m_inputReader != null)
-            {
-                m_inputReader.onMouseWheelScrolled -= HandleMouseWheelScrolled;
-            }
-        }
-
-        private void HandleMouseWheelScrolled(float scrollY)
-        {
-            m_accumulatedWheelDelta += scrollY;
+            // 휠 입력 구독을 하지 않으므로 해제할 것도 없다(§9).
         }
 
         public void LateTick()
@@ -156,7 +142,6 @@ namespace CameraMovement
             if (currentContext != null &&
                 (currentContext.ContextType == InputContextType.UI || currentContext.ContextType == InputContextType.Event))
             {
-                m_accumulatedWheelDelta = 0f;
                 UpdateCameraOffset(Vector2.zero, 0f);
                 return;
             }
@@ -179,21 +164,8 @@ namespace CameraMovement
                 }
             }
 
-            float wheelDelta = m_accumulatedWheelDelta;
-            m_accumulatedWheelDelta = 0f;
-
-            if (Mathf.Abs(wheelDelta) <= WHEEL_SCROLL_THRESHOLD && Mouse.current != null)
-            {
-                wheelDelta = Mouse.current.scroll.ReadValue().y;
-            }
-
-            // 전술(시간 정지) 컨텍스트에서는 휠 입력이 퀵슬롯 순환 전용으로 사용되므로 카메라 줌에 반영하지 않음
-            if (currentContext != null && currentContext.ContextType == InputContextType.Tactical)
-            {
-                wheelDelta = 0f;
-            }
-
-            UpdateCameraOffset(mouseDelta, wheelDelta);
+            // 카메라 줌 기능 폐지(§9) — 휠 입력은 더 이상 읽지 않으며 항상 0으로 고정한다(휠은 퀵슬롯 순환 전용).
+            UpdateCameraOffset(mouseDelta, 0f);
         }
 
         public void UpdateCameraOffset(Vector2 mouseInput, float wheelDelta)
@@ -213,7 +185,6 @@ namespace CameraMovement
             }
 
             float followSmoothTime = m_cameraSetting.FollowSmoothTime;
-            float zoomSpeed = m_cameraSetting.ZoomSpeed;
             Vector3 basePos = m_targetTransform.position + Vector3.up * 1.4f;
 
             if (!m_strategies.TryGetValue(m_currentMode, out var strategy) || strategy == null)
@@ -250,13 +221,8 @@ namespace CameraMovement
 
             OnTargetPositionChanged?.Invoke(m_currentTargetPosition);
 
-            // 3. 줌 연산
-            if (Mathf.Abs(wheelDelta) > WHEEL_SCROLL_THRESHOLD)
-            {
-                float scrollDir = Mathf.Sign(wheelDelta);
-                m_targetZoomRatio = Mathf.Clamp01(m_targetZoomRatio + scrollDir * zoomSpeed);
-            }
-
+            // 3. 줌 연산 — 카메라 줌 기능 자체가 폐지되어(§9) wheelDelta는 더 이상 m_targetZoomRatio에 반영하지
+            // 않는다. m_targetZoomRatio는 생성자에서 설정된 defaultZoomRatio로 고정된 채 유지된다.
             m_currentZoomRatio = Mathf.SmoothDamp(
                 m_currentZoomRatio,
                 m_targetZoomRatio,

@@ -118,16 +118,19 @@ namespace UnitSystem
 
         private void HandleMouseWheelScrolled(float scrollDelta)
         {
-            // 전술(시간 정지) 컨텍스트에서만 휠로 퀵슬롯 순환 (그 외에는 카메라 줌이 휠을 사용)
-            var currentContext = contextManager?.CurrentContext;
-            if (currentContext != null && currentContext.ContextType != Common.InputSystem.InputContextType.Tactical)
-            {
-                return;
-            }
+            // 휠 퀵슬롯 순환은 컨텍스트와 무관하게 항상 동작한다(§9). 단, UI 메뉴(인벤토리/옵션)가
+            // 열려 있는 동안에는 배경에서 장착 유닛이 바뀌지 않도록 계속 막는다.
+            if (IsQuickSlotWheelBlocked()) return;
 
             // 휠 위로: 다음(1), 휠 아래로: 이전(-1)
             int direction = scrollDelta > 0f ? 1 : -1;
             CycleSlot(direction);
+        }
+
+        private bool IsQuickSlotWheelBlocked()
+        {
+            var currentContext = contextManager?.CurrentContext;
+            return currentContext != null && currentContext.ContextType == Common.InputSystem.InputContextType.UI;
         }
 
         private void HandleUnitEquipped(PureDataUnit equippedUnit)
@@ -162,7 +165,8 @@ namespace UnitSystem
         public void Tick()
         {
             // 숫자키 슬롯 선택은 InputAction 이벤트 콜백으로 처리되므로 루프 폴링 제거됨
-            if (inputReader == null && Mouse.current != null)
+            // InputReader 미주입 시의 폴백 휠 스크롤 처리도 HandleMouseWheelScrolled와 동일한 UI 게이트를 따른다.
+            if (inputReader == null && Mouse.current != null && !IsQuickSlotWheelBlocked())
             {
                 float scroll = Mouse.current.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > 0.01f)

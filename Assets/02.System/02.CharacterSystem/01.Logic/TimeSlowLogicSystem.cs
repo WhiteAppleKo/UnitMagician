@@ -11,6 +11,7 @@ namespace CharacterSystem
     public class TimeSlowLogicSystem : ITickable, IDisposable
     {
         private readonly RuntimeDataTimeSlow runtimeData;
+        private readonly ICharacterStatService characterStatService;
         private readonly ITimeSlowVisualizer visualizer;
         private readonly InputReader inputReader;
 
@@ -24,10 +25,12 @@ namespace CharacterSystem
         [Inject]
         public TimeSlowLogicSystem(
             RuntimeDataTimeSlow runtimeData,
+            ICharacterStatService characterStatService,
             ITimeSlowVisualizer visualizer = null,
             InputReader inputReader = null)
         {
             this.runtimeData = runtimeData ?? throw new ArgumentNullException(nameof(runtimeData));
+            this.characterStatService = characterStatService ?? throw new ArgumentNullException(nameof(characterStatService));
             this.visualizer = visualizer;
             this.inputReader = inputReader;
 
@@ -175,6 +178,7 @@ namespace CharacterSystem
         {
             float rampDuration = pureDataTutorialSequence != null ? pureDataTutorialSequence.CoreHitTimeoutSeconds : 0f;
             ActivateEventSlow(rampDuration);
+            characterStatService.SetManaUnlimited(true);
         }
 
         /// <summary>
@@ -200,6 +204,7 @@ namespace CharacterSystem
             runtimeData.SetGaugeOverride(false);
             runtimeData.EndEventRamp();
             DeactivateSlow();
+            characterStatService.SetManaUnlimited(false);
         }
 
         public void ToggleSlow()

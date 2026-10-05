@@ -4155,6 +4155,7 @@ GameObject:
   - component: {fileID: 1179478210}
   - component: {fileID: 1179478208}
   - component: {fileID: 1179478211}
+  - component: {fileID: 1179478212}
   m_Layer: 0
   m_Name: UI Test
   m_TagString: Untagged
@@ -4243,6 +4244,22 @@ MonoBehaviour:
   ghostPreview: {fileID: 1834538405}
   unitMagicPipeLine: {fileID: 11400000, guid: 6cbfad32eb2600645a1411c66b2503db, type: 2}
   playerStatComponent: {fileID: 1565979558}
+--- !u!114 &1179478212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1179478205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca7be8013e57ab24098a6abb6adbaea1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.MagicSelectionPopupUIComponent
+  uiDocument: {fileID: 1081942172}
+  popupContainerName: MagicSelectionPopupContainer
+  fullListContainerName: MagicFullListContainer
+  fullListGridName: MagicFullListGrid
 --- !u!1 &1181702561
 GameObject:
   m_ObjectHideFlags: 0
@@ -6913,6 +6930,7 @@ MonoBehaviour:
   inventoryUI: {fileID: 1179478209}
   unlockPopupUI: {fileID: 1179478208}
   vectorGizmoUI: {fileID: 1179478211}
+  magicSelectionPopupUI: {fileID: 1179478212}
   unitCaster: {fileID: 0}
   ghostPreview: {fileID: 1834538405}
   multiLockOnVisualizer: {fileID: 1834538406}

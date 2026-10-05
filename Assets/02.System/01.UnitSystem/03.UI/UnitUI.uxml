@@ -12,8 +12,8 @@
         <ui:VisualElement name="UnlockButtonContainer" picking-mode="Ignore" style="position: absolute; top: 20px; right: 20px; flex-direction: column; align-items: flex-end; background-color: rgba(0, 0, 0, 0.7); padding: 8px; border-radius: 6px;">
         </ui:VisualElement>
 
-        <!-- Inventory Container -->
-        <ui:VisualElement name="InventoryContainer" picking-mode="Ignore" style="flex-direction: row; flex-wrap: wrap; background-color: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: 8px; margin-top: 10px;" />
+        <!-- Inventory Container (Dark Souls 3 style centered modal menu) -->
+        <ui:VisualElement name="InventoryContainer" picking-mode="Ignore" style="position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 640px; height: 420px; flex-direction: row; flex-wrap: wrap; align-content: flex-start; background-color: rgba(10, 10, 15, 0.95); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; padding: 16px;" />
 
         <!-- Target Object Info & Hover Visual Feedback Container -->
         <ui:VisualElement name="TargetInfoContainer" picking-mode="Ignore" style="position: absolute; bottom: 20px; right: 20px; background-color: rgba(0, 0, 0, 0.85); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 8px; padding: 12px; display: none;">
@@ -25,6 +25,49 @@
         <ui:VisualElement name="PopupPanel" style="position: absolute; top: 30%; left: 35%; width: 300px; height: 180px; background-color: rgba(20, 20, 20, 0.9); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; align-items: center; justify-content: center; display: none;">
             <ui:Label name="PopupTitleText" picking-mode="Ignore" text="Unit Unlocked!" style="color: rgb(255, 215, 0); font-size: 20px; margin-bottom: 10px; -unity-font-style: bold;" />
             <ui:VisualElement name="PopupIconImage" picking-mode="Ignore" style="width: 64px; height: 64px;" />
+        </ui:VisualElement>
+
+        <!-- Magic Selection Popup (33원정대 스타일 Q/W/E/F 선택지, 12번 기획서) -->
+        <ui:VisualElement name="MagicSelectionPopupContainer" picking-mode="Ignore" style="position: absolute; top: 50%; right: 80px; translate: 0 -50%; flex-direction: column; align-items: flex-end; display: none;">
+            <!-- Q: 장착 유닛 전체 목록 토글 -->
+            <ui:VisualElement name="MagicChoiceQRow" picking-mode="Ignore" style="flex-direction: row; align-items: center; margin-bottom: 18px;">
+                <ui:VisualElement picking-mode="Ignore" style="width: 36px; height: 36px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 8px; align-items: center; justify-content: center; margin-right: 10px;">
+                    <ui:Label picking-mode="Ignore" text="Q" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold;" />
+                </ui:VisualElement>
+                <ui:Label picking-mode="Ignore" text="전체 목록" style="color: rgb(240, 240, 240); font-size: 13px; background-color: rgba(0, 0, 0, 0.6); padding-left: 6px; padding-right: 6px; border-radius: 4px;" />
+            </ui:VisualElement>
+
+            <!-- W: 즐겨찾기 슬롯 0 -->
+            <ui:VisualElement name="FavoriteSlotW" picking-mode="Ignore" style="flex-direction: row; align-items: center; margin-bottom: 14px; margin-right: 20px; background-color: rgba(0, 0, 0, 0); border-radius: 8px; padding: 4px;">
+                <ui:VisualElement picking-mode="Ignore" style="width: 36px; height: 36px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 8px; align-items: center; justify-content: center; margin-right: 10px;">
+                    <ui:Label picking-mode="Ignore" text="W" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold;" />
+                </ui:VisualElement>
+                <ui:VisualElement name="FavoriteSlotIconW" picking-mode="Ignore" style="width: 32px; height: 32px; margin-right: 8px; border-radius: 4px; background-color: rgba(0, 0, 0, 0.4);" />
+                <ui:Label name="FavoriteSlotLabelW" picking-mode="Ignore" text="비어있음" style="color: rgb(240, 240, 240); font-size: 13px; background-color: rgba(0, 0, 0, 0.6); padding-left: 6px; padding-right: 6px; border-radius: 4px;" />
+            </ui:VisualElement>
+
+            <!-- E: 즐겨찾기 슬롯 1 -->
+            <ui:VisualElement name="FavoriteSlotE" picking-mode="Ignore" style="flex-direction: row; align-items: center; margin-bottom: 14px; margin-right: 40px; background-color: rgba(0, 0, 0, 0); border-radius: 8px; padding: 4px;">
+                <ui:VisualElement picking-mode="Ignore" style="width: 36px; height: 36px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 8px; align-items: center; justify-content: center; margin-right: 10px;">
+                    <ui:Label picking-mode="Ignore" text="E" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold;" />
+                </ui:VisualElement>
+                <ui:VisualElement name="FavoriteSlotIconE" picking-mode="Ignore" style="width: 32px; height: 32px; margin-right: 8px; border-radius: 4px; background-color: rgba(0, 0, 0, 0.4);" />
+                <ui:Label name="FavoriteSlotLabelE" picking-mode="Ignore" text="비어있음" style="color: rgb(240, 240, 240); font-size: 13px; background-color: rgba(0, 0, 0, 0.6); padding-left: 6px; padding-right: 6px; border-radius: 4px;" />
+            </ui:VisualElement>
+
+            <!-- F: 즐겨찾기 슬롯 2 -->
+            <ui:VisualElement name="FavoriteSlotF" picking-mode="Ignore" style="flex-direction: row; align-items: center; margin-right: 60px; background-color: rgba(0, 0, 0, 0); border-radius: 8px; padding: 4px;">
+                <ui:VisualElement picking-mode="Ignore" style="width: 36px; height: 36px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 8px; align-items: center; justify-content: center; margin-right: 10px;">
+                    <ui:Label picking-mode="Ignore" text="F" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold;" />
+                </ui:VisualElement>
+                <ui:VisualElement name="FavoriteSlotIconF" picking-mode="Ignore" style="width: 32px; height: 32px; margin-right: 8px; border-radius: 4px; background-color: rgba(0, 0, 0, 0.4);" />
+                <ui:Label name="FavoriteSlotLabelF" picking-mode="Ignore" text="비어있음" style="color: rgb(240, 240, 240); font-size: 13px; background-color: rgba(0, 0, 0, 0.6); padding-left: 6px; padding-right: 6px; border-radius: 4px;" />
+            </ui:VisualElement>
+
+            <!-- Q로 펼치는 장착 유닛 전체 목록 서브패널(기본 숨김) -->
+            <ui:VisualElement name="MagicFullListContainer" picking-mode="Ignore" style="position: absolute; top: 0px; right: 240px; width: 320px; max-height: 360px; background-color: rgba(10, 10, 15, 0.95); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; padding: 12px; display: none;">
+                <ui:VisualElement name="MagicFullListGrid" picking-mode="Ignore" style="flex-direction: row; flex-wrap: wrap; align-content: flex-start;" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
