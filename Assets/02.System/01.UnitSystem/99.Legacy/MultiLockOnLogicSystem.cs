@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // 숄더뷰 고정(22번 기획서)으로 CameraMode 비숄더 멤버가 [Obsolete] — 레거시 격리 파일이므로 경고 억제
 using System;
 using UnityEngine;
 using VContainer;
@@ -47,10 +48,6 @@ namespace UnitSystem
             this.batchCastingService = batchCastingService ?? (changeService != null ? new UnitBatchCastingService(changeService) : null);
 
             this.timeSlowData.OnSlowStateChanged += HandleSlowStateChanged;
-            if (this.cameraFollowService != null)
-            {
-                this.cameraFollowService.OnCameraModeChanged += HandleCameraModeChanged;
-            }
         }
 
         public void Dispose()
@@ -60,30 +57,13 @@ namespace UnitSystem
                 timeSlowData.OnSlowStateChanged -= HandleSlowStateChanged;
             }
 
-            if (cameraFollowService != null)
-            {
-                cameraFollowService.OnCameraModeChanged -= HandleCameraModeChanged;
-            }
-
             ClearAllLockOns();
         }
 
         private bool IsAimLockOnViewMode()
         {
-            if (cameraFollowService == null) return false;
-            return cameraFollowService.CurrentMode == CameraMode.FirstPerson ||
-                   cameraFollowService.CurrentMode == CameraMode.ThirdPersonShoulder;
-        }
-
-        private void HandleCameraModeChanged(CameraMode mode)
-        {
-            bool isAimMode = IsAimLockOnViewMode();
-            visualizer?.SetCrosshairVisible(isAimMode);
-
-            if (!isAimMode && multiLockOnData.TargetCount > 0)
-            {
-                ClearAllLockOns();
-            }
+            // 숄더뷰 고정(22번 기획서) — ICameraFollowService의 카메라 모드 조회가 제거되어 항상 숄더뷰로 간주한다.
+            return cameraFollowService != null;
         }
 
         public void Tick()
@@ -155,12 +135,13 @@ namespace UnitSystem
                 // 4. 쿨다운 및 중복 락온 처리
                 if (unitGroup != lastHoveredTarget || lockOnCooldownTimer <= 0f)
                 {
-                    multiLockOnData.AddTarget(unitGroup);
+                    multiLockOnData.BeginPending(unitGroup);
+                    multiLockOnData.CommitPending(selectedUnitData);
                     unitGroup.Highlight(true, true);
                     lastHoveredTarget = unitGroup;
                     lockOnCooldownTimer = LOCK_ON_INTERVAL;
 
-                    visualizer.UpdateLockOnCount(multiLockOnData.TargetCount);
+                    visualizer.UpdateLockOnCount(multiLockOnData.EntryCount);
                 }
                 return;
             }
@@ -173,7 +154,7 @@ namespace UnitSystem
             if (!isSlowActive)
             {
                 // 시간 정지 해제 순간 일괄 마법 발동
-                if (IsAimLockOnViewMode() && multiLockOnData.TargetCount > 0)
+                if (IsAimLockOnViewMode() && multiLockOnData.EntryCount > 0)
                 {
                     ExecuteBatchCast();
                 }
@@ -186,7 +167,7 @@ namespace UnitSystem
 
         private void ExecuteBatchCast()
         {
-            int targetCount = multiLockOnData.TargetCount;
+            int targetCount = multiLockOnData.EntryCount;
             if (targetCount == 0) return;
 
             PureDataUnit selectedUnitData = quickSlotUI != null ? quickSlotUI.CurrentSelectedUnit : null;
@@ -197,10 +178,9 @@ namespace UnitSystem
                 return;
             }
 
-            var targets = multiLockOnData.LockedTargets;
-            RuntimeStatData casterStat = playerStatSystem?.RuntimeData;
+            var entries = multiLockOnData.Entries;
 
-            bool success = batchCastingService.ExecuteBatchCast(targets, selectedUnitData, casterStat, null);
+            bool success = batchCastingService.ExecuteBatchCast(entries, playerStatSystem, null);
             if (success)
             {
                 visualizer?.PlayBatchCastEffect();
@@ -211,15 +191,15 @@ namespace UnitSystem
 
         private void ClearAllLockOns()
         {
-            foreach (var target in multiLockOnData.LockedTargets)
+            foreach (var entry in multiLockOnData.Entries)
             {
-                if (target != null)
+                if (entry.Target != null)
                 {
-                    target.Highlight(false, false);
+                    entry.Target.Highlight(false, false);
                 }
             }
 
-            multiLockOnData.ClearTargets();
+            multiLockOnData.ClearEntries();
             visualizer?.UpdateLockOnCount(0);
             lastHoveredTarget = null;
         }

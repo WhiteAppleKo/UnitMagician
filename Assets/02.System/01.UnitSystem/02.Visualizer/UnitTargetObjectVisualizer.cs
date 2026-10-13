@@ -1,13 +1,18 @@
 using UnityEngine;
+using Pooling;
 
 namespace UnitSystem
 {
-    public class UnitTargetObjectVisualizer : MonoBehaviour, IUnitTargetVisualizer
+    public class UnitTargetObjectVisualizer : MonoBehaviour, IUnitTargetVisualizer, IPoolReusable
     {
         private Rigidbody rb;
         private MeshRenderer meshRenderer;
         private Vector3 initialTransformScale;
         private bool isScaleCaptured = false;
+
+        // 풀링 재사용(15-B) 시 마법(질량/온도/벡터)으로 바뀐 값을 되돌리기 위해 최초 값을 보관한다.
+        private float initialMass = 1f;
+        private Material initialSharedMaterial;
 
         public Vector3 InitialScale => isScaleCaptured ? initialTransformScale : Vector3.one;
 
@@ -15,6 +20,33 @@ namespace UnitSystem
         {
             EnsureComponents();
             CaptureInitialScale();
+            if (rb != null) initialMass = rb.mass;
+            if (meshRenderer != null) initialSharedMaterial = meshRenderer.sharedMaterial;
+        }
+
+        public void OnReturnedToPool()
+        {
+        }
+
+        /// <summary>재사용 직전: 마법으로 바뀐 스케일/질량/머티리얼/속도를 최초 값으로 되돌린다.</summary>
+        public void ResetForReuse()
+        {
+            EnsureComponents();
+            CaptureInitialScale();
+
+            transform.localScale = InitialScale;
+
+            if (rb != null)
+            {
+                rb.mass = initialMass;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
+            if (meshRenderer != null && initialSharedMaterial != null)
+            {
+                meshRenderer.sharedMaterial = initialSharedMaterial;
+            }
         }
 
         private void EnsureComponents()

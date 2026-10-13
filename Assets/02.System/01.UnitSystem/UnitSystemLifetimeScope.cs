@@ -21,9 +21,16 @@ namespace UnitSystem
         [SerializeField] private UnitCasterSystem unitCaster;
         [SerializeField] private UnitGhostPreviewComponent ghostPreview;
         [SerializeField] private MultiLockOnVisualizer multiLockOnVisualizer;
+        [Tooltip("13-C 적용 전 변화 미리보기 비주얼. 비어 있으면 같은 이름의 오브젝트를 새로 만들어 등록합니다(고스트 머티리얼 미지정 시 미리보기가 보이지 않음).")]
+        [SerializeField] private LockOnPreviewVisualizer lockOnPreviewVisualizer;
 
         [Header("Debug/Test Components")]
         [SerializeField] private UnitDebugAcquireTestComponent debugAcquireTest;
+
+        [Header("Event Sequencer(06) Linkage - Optional")]
+        [Tooltip("3단계 전환점에서 마법 큐를 발동하기 위한 06(이벤트 시퀀서) 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 " +
+                 "VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로, 09/10번과 동일하게 Start()에서 사후 배선합니다.")]
+        [SerializeField] private EventSequencerSystem.EventSequencerSystemLifetimeScope eventSequencerScope;
 
         protected override void Awake()
         {
@@ -39,6 +46,7 @@ namespace UnitSystem
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
+            builder.Register<LockOnPreviewCalculator>(Lifetime.Singleton).As<ILockOnPreviewCalculator>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
             builder.Register<RuntimeDataUnitQuickSlot>(Lifetime.Singleton);
             builder.Register<RuntimeDataMagicFavoriteSlots>(Lifetime.Singleton);
@@ -46,6 +54,13 @@ namespace UnitSystem
             // Logic Systems Register
             builder.RegisterEntryPoint<UnitQuickSlotLogicSystem>(Lifetime.Singleton).AsSelf();
             builder.RegisterEntryPoint<MagicSelectionPopupLogicSystem>(Lifetime.Singleton).As<IMagicSelectionPopupLogic>();
+            // 13-C: 락온 큐 적용 전 변화 미리보기(비주얼) + 예상 총비용(마나 UI)
+            builder.RegisterEntryPoint<LockOnPreviewLogicSystem>(Lifetime.Singleton);
+            builder.RegisterEntryPoint<LockOnManaPreviewLogicSystem>(Lifetime.Singleton);
+            // 15-A: 락온 대상 소실(파괴/비활성/풀 반환) 시 지정 대기·큐 엔트리 정리
+            builder.RegisterEntryPoint<LockOnTargetLossLogicSystem>(Lifetime.Singleton);
+            // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로 Resolve 가능하게 함.
+            builder.Register<EventCastTriggerLogicSystem>(Lifetime.Singleton).AsSelf();
 
             // UI Toolkit Component Register
             if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
@@ -73,6 +88,9 @@ namespace UnitSystem
             if (multiLockOnVisualizer != null) builder.RegisterComponent(multiLockOnVisualizer).As<IMultiLockOnVisualizer>();
             else builder.RegisterComponentInHierarchy<MultiLockOnVisualizer>().As<IMultiLockOnVisualizer>();
 
+            if (lockOnPreviewVisualizer != null) builder.RegisterComponent(lockOnPreviewVisualizer).As<ILockOnPreviewVisualizer>();
+            else builder.RegisterComponentOnNewGameObject<LockOnPreviewVisualizer>(Lifetime.Singleton, "LockOnPreviewVisualizer").As<ILockOnPreviewVisualizer>();
+
             // Debug/Test Component Register (테스트 전용 — 실제 게임 기능 아님)
             if (debugAcquireTest != null) builder.RegisterComponent(debugAcquireTest);
             else builder.RegisterComponentInHierarchy<UnitDebugAcquireTestComponent>();
@@ -82,6 +100,31 @@ namespace UnitSystem
 
             // InputReader 등록
             builder.RegisterComponentInHierarchy<Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader>();
+        }
+
+        /// <summary>
+        /// 06(EventSequencerSystem)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서 한 번만
+        /// 연결합니다(CharacterLifetimeScope/AllySupportSystemLifetimeScope와 동일한 패턴).
+        /// GameObject.Find/FindObjectOfType은 사용하지 않고 인스펙터에 직접 연결해 둔 eventSequencerScope 참조만 씁니다.
+        /// </summary>
+        private void Start()
+        {
+            if (eventSequencerScope == null)
+            {
+                Debug.LogWarning("[UnitSystemLifetimeScope] eventSequencerScope가 연결되지 않아 06(이벤트 시퀀서) 연동 없이 동작합니다. " +
+                                  "3단계 전환점 마법 발동은 트리거되지 않습니다(일반 시간정지 발동은 영향 없음).");
+                return;
+            }
+
+            if (Container == null || eventSequencerScope.Container == null)
+            {
+                Debug.LogError("[UnitSystemLifetimeScope] Container가 아직 준비되지 않아 06 연동을 배선할 수 없습니다.");
+                return;
+            }
+
+            var eventCastTrigger = Container.Resolve<EventCastTriggerLogicSystem>();
+            var eventSequencer = eventSequencerScope.Container.Resolve<EventSequencerSystem.IEventSequencer>();
+            eventCastTrigger.BindEventSequencer(eventSequencer);
         }
     }
 }

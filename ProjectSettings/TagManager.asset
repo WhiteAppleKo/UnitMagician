@@ -13,13 +13,13 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - BodyAlly
+  - BodyEnemy
+  - AttackAlly
+  - AttackEnemy
+  - BodyNeutral
+  - AttackNeutral
+  - IgnoreAttack
   - 
   - 
   - 

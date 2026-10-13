@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CharacterSystem;
 using Movement.Visualizer;
 using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 using UnityEngine;
@@ -18,6 +19,12 @@ namespace Movement.RefactoredLocomotion
         private readonly ILocomotionVisualizer _visualizer;
         private readonly InputReader _inputReader;
         private readonly ILockOnController _lockOnController;
+        private readonly ICharacterStatService _statService;
+        private readonly Common.InputSystem.IInputContextManager _inputContextManager;
+
+        // 구르기 입력은 콜백에서 요청만 올리고 Tick에서 처리한다(19-B). 같은 입력 업데이트 안의 Move/Jump 콜백 순서와 무관하게
+        // Tick 시점에는 WASD 입력이 최종 상태라 "Space를 누른 시점의 WASD 방향"이 순서에 흔들리지 않는다.
+        private bool _rollRequested;
 
         [Inject]
         public LocomotionLogicSystem(
@@ -25,15 +32,20 @@ namespace Movement.RefactoredLocomotion
             RuntimeDataLocomotion runtimeData,
             ILocomotionVisualizer visualizer,
             InputReader inputReader,
+            ICharacterStatService statService,
+            Common.InputSystem.IInputContextManager inputContextManager,
             ILockOnController lockOnController = null)
         {
             _pureData = pureData;
             _runtimeData = runtimeData;
             _visualizer = visualizer;
             _inputReader = inputReader;
+            _statService = statService;
+            _inputContextManager = inputContextManager;
             _lockOnController = lockOnController;
 
             RegisterInputEvents();
+            RegisterRollInterruptEvents();
             SwitchState(LocomotionAnimationState.Locomotion);
         }
 
@@ -51,10 +63,33 @@ namespace Movement.RefactoredLocomotion
             _inputReader.onCrouchDeactivated += DeactivateCrouch;
             _inputReader.onAimActivated += ActivateAim;
             _inputReader.onAimDeactivated += DeactivateAim;
+            _inputReader.onRollPressed += RequestRoll;
+        }
+
+        /// <summary>구르기가 중간에 끊기는 경로(사망, 비주얼라이저 비활성/파괴)를 구독한다(19-B). 피격 경직은 CancelRoll()을 호출하면 된다.</summary>
+        private void RegisterRollInterruptEvents()
+        {
+            _visualizer.OnVisualizerDisabled += CancelRoll;
+
+            var statData = _statService?.RuntimeData;
+            if (statData != null)
+            {
+                statData.OnDeath += CancelRoll;
+            }
         }
 
         public void Dispose()
         {
+            _visualizer.OnVisualizerDisabled -= CancelRoll;
+
+            var statData = _statService?.RuntimeData;
+            if (statData != null)
+            {
+                statData.OnDeath -= CancelRoll;
+            }
+
+            _rollRequested = false;
+
             if (_inputReader == null) return;
 
             _inputReader.onLockOnToggled -= ToggleLockOn;
@@ -65,6 +100,7 @@ namespace Movement.RefactoredLocomotion
             _inputReader.onCrouchDeactivated -= DeactivateCrouch;
             _inputReader.onAimActivated -= ActivateAim;
             _inputReader.onAimDeactivated -= DeactivateAim;
+            _inputReader.onRollPressed -= RequestRoll;
             _inputReader.onJumpPerformed -= LocomotionToJumpState;
             _inputReader.onJumpPerformed -= CrouchToJumpState;
         }
@@ -106,6 +142,11 @@ namespace Movement.RefactoredLocomotion
                 case LocomotionAnimationState.Crouch:
                     if (_inputReader != null) _inputReader.onJumpPerformed += CrouchToJumpState;
                     break;
+                case LocomotionAnimationState.Roll:
+                    // 구르기 중에는 점프 구독이 없고(점프 차단), 수평 속도는 매 프레임 구르기 방향/속도로 정해진다.
+                    _runtimeData.IsSliding = false;
+                    _runtimeData.Velocity = new Vector3(0f, _runtimeData.Velocity.y, 0f);
+                    break;
             }
         }
 
@@ -122,11 +163,21 @@ namespace Movement.RefactoredLocomotion
                 case LocomotionAnimationState.Crouch:
                     if (_inputReader != null) _inputReader.onJumpPerformed -= CrouchToJumpState;
                     break;
+                case LocomotionAnimationState.Roll:
+                    // 구르기를 벗어나는 모든 경로(정상 종료/CancelRoll/사망/비활성)의 공통 정리 지점.
+                    // 무적 구간 중이었다면 레이어를 그 시점 진영의 몸체 레이어로 복원한다.
+                    if (_runtimeData.IsRollInvincible) _visualizer.SetAttackIgnored(false);
+                    _runtimeData.EndRoll();
+                    _runtimeData.Velocity = new Vector3(0f, _runtimeData.Velocity.y, 0f);
+                    break;
             }
         }
 
         public void Tick()
         {
+            UpdateSprintLock();
+            ProcessRollRequest();
+
             switch (_runtimeData.CurrentState)
             {
                 case LocomotionAnimationState.Locomotion:
@@ -140,6 +191,9 @@ namespace Movement.RefactoredLocomotion
                     break;
                 case LocomotionAnimationState.Crouch:
                     UpdateCrouchState();
+                    break;
+                case LocomotionAnimationState.Roll:
+                    UpdateRollState();
                     break;
             }
         }
@@ -166,6 +220,7 @@ namespace Movement.RefactoredLocomotion
             CheckEnableLean();
             CalculateRotationalAdditives(_runtimeData.EnableLean, _runtimeData.EnableHeadTurn, _runtimeData.EnableBodyTurn);
 
+            ConsumeSprintStamina();
             CalculateMoveDirection();
 
             // 접지 중력 유지
@@ -218,6 +273,49 @@ namespace Movement.RefactoredLocomotion
             UpdateFallingDuration();
         }
 
+        /// <summary>
+        /// 구르기 진행(19-B). rollDuration 동안 rollDirection으로 rollDistance만큼 등속 이동하고, 무적 구간(rollInvincibleStart~End)에는
+        /// IgnoreAttack 레이어를 적용한다. 게임 시간(Time.deltaTime) 기준이라 시간정지/일시정지(dt=0) 중에는 멈춘다.
+        /// 구르기 중에는 이동/점프/달리기 입력을 읽지 않는다(애니메이션은 클립 확보 후 연결).
+        /// </summary>
+        private void UpdateRollState()
+        {
+            float dt = Time.deltaTime;
+            if (dt <= 0f) return;
+
+            float duration = _pureData.RollDuration;
+            float remaining = duration - _runtimeData.RollElapsed;
+            bool finishing = dt >= remaining;
+            float stepDt = finishing ? remaining : dt;
+
+            // 마지막 프레임은 남은 시간만큼만 이동해 총 이동 거리가 정확히 rollDistance가 되게 한다.
+            float horizontalSpeed = _pureData.RollDistance / duration * (stepDt / dt);
+
+            if (_visualizer.IsControllerGrounded)
+            {
+                _runtimeData.Velocity = new Vector3(_runtimeData.Velocity.x, -2f, _runtimeData.Velocity.z);
+            }
+            else
+            {
+                ApplyGravity();
+            }
+
+            Vector3 rollVelocity = _runtimeData.RollDirection * horizontalSpeed;
+            rollVelocity.y = _runtimeData.Velocity.y;
+            _runtimeData.Velocity = rollVelocity;
+            Move();
+
+            _runtimeData.SetRollElapsed(finishing ? duration : _runtimeData.RollElapsed + dt);
+
+            if (finishing)
+            {
+                SwitchState(LocomotionAnimationState.Locomotion);
+                return;
+            }
+
+            UpdateRollInvincibility();
+        }
+
         private void UpdateCrouchState()
         {
             GroundedCheck();
@@ -260,6 +358,89 @@ namespace Movement.RefactoredLocomotion
 
         #region Actions & Calculations
 
+        #region Roll (19-B)
+
+        private void RequestRoll()
+        {
+            _rollRequested = true;
+        }
+
+        private void ProcessRollRequest()
+        {
+            if (!_rollRequested) return;
+
+            _rollRequested = false;
+            TryStartRoll();
+        }
+
+        /// <summary>
+        /// 구르기 시작 조건(전부 만족): 지면 접촉의 로코모션 상태(공중/앉기/점프/낙하 불가), 구르기 중 아님, 입력 컨텍스트 Player(Tactical/UI/Event/시간정지 불가),
+        /// 스태미나 TryUseStamina(rollStaminaCost) 성공. 스태미나 소모는 가장 마지막에 시도하므로 다른 조건 실패나 스태미나 부족 시에는 소모가 없다.
+        /// </summary>
+        private bool TryStartRoll()
+        {
+            if (_pureData == null || _statService == null) return false;
+            if (_runtimeData.IsRolling) return false;
+            if (_runtimeData.CurrentState != LocomotionAnimationState.Locomotion || !_runtimeData.IsGrounded) return false;
+            if (!IsPlayerInputContext()) return false;
+            if (!_statService.TryUseStamina(_pureData.RollStaminaCost)) return false;
+
+            _runtimeData.BeginRoll(CalculateRollDirection());
+            SwitchState(LocomotionAnimationState.Roll);
+            UpdateRollInvincibility();
+            return true;
+        }
+
+        private bool IsPlayerInputContext()
+        {
+            var current = _inputContextManager?.CurrentContext;
+            return current != null && current.ContextType == Common.InputSystem.InputContextType.Player;
+        }
+
+        /// <summary>
+        /// WASD 입력을 카메라 기준 월드 방향으로 변환한다. 입력이 없으면 캐릭터가 현재 바라보는 방향(transform.forward의 수평 성분).
+        /// </summary>
+        private Vector3 CalculateRollDirection()
+        {
+            Vector2 input = _inputReader != null ? _inputReader._moveComposite : Vector2.zero;
+            Vector3 direction = (_visualizer.GetCameraForwardZeroedY() * input.y) + (_visualizer.GetCameraRightZeroedY() * input.x);
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude > 0.0001f)
+            {
+                return direction.normalized;
+            }
+
+            Vector3 facing = _visualizer.Forward;
+            facing.y = 0f;
+            return facing.normalized;
+        }
+
+        /// <summary>무적 구간(rollInvincibleStart 이상, rollInvincibleEnd 미만)에 들어가거나 나올 때만 IgnoreAttack 레이어를 켜고 끈다.</summary>
+        private void UpdateRollInvincibility()
+        {
+            float elapsed = _runtimeData.RollElapsed;
+            bool inWindow = elapsed >= _pureData.RollInvincibleStart && elapsed < _pureData.RollInvincibleEnd;
+            if (_runtimeData.IsRollInvincible == inWindow) return;
+
+            _runtimeData.SetRollInvincible(inWindow);
+            _visualizer.SetAttackIgnored(inWindow);
+        }
+
+        /// <summary>
+        /// 구르기를 중단한다(피격 경직/사망/비주얼라이저 비활성 등 외부 요인). 구르기 중이 아니면 아무것도 하지 않는다.
+        /// 로코모션 상태로 돌아가면서 상태 이탈 정리(ExitCurrentState)가 IgnoreAttack 레이어를 그 시점 진영의 몸체 레이어로 복원하고 IsRolling을 내린다.
+        /// 지면이 없으면 다음 Tick의 로코모션 상태가 낙하로 넘긴다.
+        /// </summary>
+        public void CancelRoll()
+        {
+            if (!_runtimeData.IsRolling) return;
+
+            SwitchState(LocomotionAnimationState.Locomotion);
+        }
+
+        #endregion
+
         private void LocomotionToJumpState() => SwitchState(LocomotionAnimationState.Jump);
 
         private void CrouchToJumpState()
@@ -295,8 +476,54 @@ namespace Movement.RefactoredLocomotion
             _runtimeData.IsWalking = enable && _runtimeData.IsGrounded && !_runtimeData.IsSprinting;
         }
 
+        /// <summary>
+        /// 달리기 연속 소모(19-A). 이동 입력이 있는 상태로 달리는 동안(접지 로코모션 상태) 매 프레임 게임 시간 기준으로 소모하고,
+        /// 스태미나가 0이 되면 달리기를 해제하고 잠근다. 시간정지/일시정지 중(dt=0)에는 소모되지 않는다.
+        /// </summary>
+        private void ConsumeSprintStamina()
+        {
+            if (_statService == null || !_runtimeData.IsSprinting) return;
+            if (_runtimeData.MoveDirection.magnitude <= 0.01f) return;
+
+            float costPerSecond = _pureData != null ? _pureData.SprintStaminaCostPerSecond : 0f;
+            _statService.DrainStamina(costPerSecond * Time.deltaTime);
+
+            if (_statService.Stamina <= 0f)
+            {
+                DeactivateSprint();
+                _runtimeData.SetSprintLocked(true);
+            }
+        }
+
+        /// <summary>
+        /// 달리기 잠금 해제 판정(19-A). 스태미나가 최대치 x sprintRestartThresholdRatio(PureData) 이상으로 회복되면 풀린다.
+        /// 풀려도 달리기가 자동 재개되지는 않고, 다시 달리기 입력(Shift 누름)이 있어야 시작된다.
+        /// </summary>
+        private void UpdateSprintLock()
+        {
+            if (_statService == null || !_runtimeData.IsSprintLocked) return;
+
+            float ratio = _pureData != null ? _pureData.SprintRestartThresholdRatio : 0f;
+            float stamina = _statService.Stamina;
+            if (stamina > 0f && stamina >= _statService.MaxStamina * ratio)
+            {
+                _runtimeData.SetSprintLocked(false);
+            }
+        }
+
         private void ActivateSprint()
         {
+            // 구르기 중에는 달리기 입력을 차단한다(19-B).
+            if (_runtimeData.IsRolling) return;
+            if (_runtimeData.IsSprintLocked) return;
+
+            // 스태미나가 이미 0이면(구르기/공격 소모 등) 달리기를 시작하지 않고 같은 잠금 규칙으로 회복을 기다린다.
+            if (_statService != null && _statService.Stamina <= 0f)
+            {
+                _runtimeData.SetSprintLocked(true);
+                return;
+            }
+
             if (!_runtimeData.IsCrouching)
             {
                 EnableWalk(false);
@@ -316,6 +543,9 @@ namespace Movement.RefactoredLocomotion
 
         private void ActivateCrouch()
         {
+            // 구르기 중에는 앉기 입력도 차단한다(19-B) - 캡슐 크기가 구르기 도중 바뀌지 않게.
+            if (_runtimeData.IsRolling) return;
+
             _runtimeData.CrouchKeyPressed = true;
             if (_runtimeData.IsGrounded)
             {

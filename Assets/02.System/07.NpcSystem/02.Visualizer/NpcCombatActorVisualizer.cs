@@ -1,6 +1,7 @@
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
+using Pooling;
 
 namespace NpcSystem
 {
@@ -14,7 +15,7 @@ namespace NpcSystem
     /// (CharacterStatComponent.StatService => StatSystem 패턴 참고). 이 클래스를 상속해서 두뇌 로직이나 공격 방식을
     /// 얹지 마세요(컴포지션 원칙 - 공격 방식은 PureDataNpcActor.AttackBehavior 교체로).
     /// </summary>
-    public class NpcCombatActorVisualizer : MonoBehaviour, INpcCombatActorVisualizer
+    public class NpcCombatActorVisualizer : MonoBehaviour, INpcCombatActorVisualizer, INpcProjectileLaunchHook
     {
         [SerializeField] private PureDataNpcActor pureData;
 
@@ -24,7 +25,29 @@ namespace NpcSystem
         public Vector3 CurrentPosition => transform.position;
         public GameObject Owner => gameObject;
 
+        private bool hasArmedLaunchOrigin;
+        private Vector3 armedLaunchOrigin;
+
+        /// <summary>예약된 발사 지점이 있으면 그 지점, 없으면 현재 위치(투사체 스폰 기준점).</summary>
+        public Vector3 AttackOrigin => hasArmedLaunchOrigin ? armedLaunchOrigin : transform.position;
+
+        public bool HasArmedLaunchOrigin => hasArmedLaunchOrigin;
+
+        public event System.Action<GameObject> OnProjectileSpawned;
+
+        public void ArmLaunchOrigin(Vector3 origin)
+        {
+            armedLaunchOrigin = origin;
+            hasArmedLaunchOrigin = true;
+        }
+
+        public void DisarmLaunchOrigin()
+        {
+            hasArmedLaunchOrigin = false;
+        }
+
         private IObjectResolver resolver;
+        private IPoolService<NpcProjectile, NpcProjectileLaunchData> projectilePool;
 
         private void Awake()
         {
@@ -32,9 +55,10 @@ namespace NpcSystem
         }
 
         [Inject]
-        public void Construct(IObjectResolver resolver)
+        public void Construct(IObjectResolver resolver, IPoolService<NpcProjectile, NpcProjectileLaunchData> projectilePool)
         {
             this.resolver = resolver;
+            this.projectilePool = projectilePool;
         }
 
         private void EnsureInitialized()
@@ -56,7 +80,31 @@ namespace NpcSystem
 
             var instance = Instantiate(prefab, position, rotation);
             resolver?.InjectGameObject(instance);
+
+            NotifyProjectileSpawned(instance);
             return instance;
+        }
+
+        /// <summary>
+        /// 풀링된 아군 투사체를 꺼내 발사한다(15-B). 풀 Get이 Setting(상태 초기화 + 발사 설정) → SetActive(활성화/속도 적용)를 수행한 뒤
+        /// 예약된 발사 지점 소모와 스폰 통지(OnProjectileSpawned)를 한다.
+        /// </summary>
+        public GameObject SpawnProjectile(NpcProjectileLaunchData launchData)
+        {
+            if (projectilePool == null) return null;
+
+            var projectile = projectilePool.Get(launchData);
+            if (projectile == null) return null;
+
+            NotifyProjectileSpawned(projectile.gameObject);
+            return projectile.gameObject;
+        }
+
+        /// <summary>예약된 발사 지점은 이 스폰 1회로 소모되고, 구독자(비행 추적기 등)가 스폰된 투사체 참조를 받는다.</summary>
+        private void NotifyProjectileSpawned(GameObject spawned)
+        {
+            hasArmedLaunchOrigin = false;
+            OnProjectileSpawned?.Invoke(spawned);
         }
 
         public void PlayMotion(string motionKey)

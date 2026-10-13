@@ -79,10 +79,45 @@ namespace UnitSystem
                 _visualizer.UpdateLockOnCount(0);
             }
 
-            _multiLockOnData?.ClearTargets();
+            _multiLockOnData?.ClearEntries();
             _currentHoverTarget = null;
             _isRightClickDown = false;
             _maxRightDragDist = 0f;
+
+            SubscribeQueueEvents();
+        }
+
+        private void SubscribeQueueEvents()
+        {
+            if (_multiLockOnData == null) return;
+
+            // 팝업 확정(CommitPending)처럼 이 컴포넌트 밖에서 큐가 바뀌어도 락온 카운트 표시를 갱신한다.
+            _multiLockOnData.OnEntryAdded -= HandleEntryAdded;
+            _multiLockOnData.OnEntryAdded += HandleEntryAdded;
+            _multiLockOnData.OnEntryRemoved -= HandleEntryRemoved;
+            _multiLockOnData.OnEntryRemoved += HandleEntryRemoved;
+            _multiLockOnData.OnEntriesCleared -= RefreshLockOnCount;
+            _multiLockOnData.OnEntriesCleared += RefreshLockOnCount;
+        }
+
+        private void UnsubscribeQueueEvents()
+        {
+            if (_multiLockOnData == null) return;
+
+            _multiLockOnData.OnEntryAdded -= HandleEntryAdded;
+            _multiLockOnData.OnEntryRemoved -= HandleEntryRemoved;
+            _multiLockOnData.OnEntriesCleared -= RefreshLockOnCount;
+        }
+
+        private void HandleEntryAdded(LockOnCastEntry entry) => RefreshLockOnCount();
+        private void HandleEntryRemoved(LockOnCastEntry entry) => RefreshLockOnCount();
+
+        private void RefreshLockOnCount()
+        {
+            if (_multiLockOnData != null)
+            {
+                _visualizer?.UpdateLockOnCount(_multiLockOnData.EntryCount);
+            }
         }
 
         private void OnDisable()
@@ -110,6 +145,8 @@ namespace UnitSystem
                 _multiLockOnData?.RequestBatchCast();
             }
 
+            UnsubscribeQueueEvents();
+
             if (_visualizer != null)
             {
                 _visualizer.SetCrosshairVisible(false);
@@ -118,9 +155,11 @@ namespace UnitSystem
 
         private void Update()
         {
-            // UI 메뉴 등 다른 컨텍스트 활성화 시 마법 락온 조작 완전 차단
+            // UI 메뉴 등 다른 컨텍스트 활성화 시 마법 락온 조작 완전 차단.
+            // 3단계 이벤트 중에는 스택 최상단이 Event(Tactical은 그 아래)이므로 판정을 MagicLockOnInputGate 한 곳에 모아
+            // 이벤트 지정 창이 열려 있는 동안은 허용하고, 이탈 구간(지정 창 닫힘)/UI 컨텍스트에서는 차단한다.
             var currentContext = _inputContextManager?.CurrentContext;
-            if (currentContext != null && currentContext.ContextType != InputContextType.Tactical)
+            if (!MagicLockOnInputGate.IsInputAllowed(currentContext, _multiLockOnData))
             {
                 return;
             }
@@ -179,15 +218,10 @@ namespace UnitSystem
                 }
             }
 
-            // 2. 마우스 좌클릭 마법 타깃 지정
-            if (mouse.leftButton.wasPressedThisFrame && _currentHoverTarget != null)
+            // 2. 마우스 좌클릭 락온 → 마법 지정 대기(팝업 오픈). 이미 큐에 있는 대상이어도 다시 락온해 마법을 더 지정할 수 있다.
+            if (mouse.leftButton.wasPressedThisFrame)
             {
-                if (_multiLockOnData != null && !_multiLockOnData.Contains(_currentHoverTarget))
-                {
-                    _multiLockOnData.AddTarget(_currentHoverTarget);
-                    _currentHoverTarget.Highlight(true, true);
-                    _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
-                }
+                BeginPendingOnHoverTarget();
             }
 
             // 3. 마우스 우클릭 드래그 vs 탭 취소 구분
@@ -218,10 +252,17 @@ namespace UnitSystem
                 Vector2 releasePos = mouse.position.ReadValue();
                 float finalDist = Vector2.Distance(releasePos, _rightClickDownPos);
 
-                // 드래그 없이 제자리(5픽셀 미만)에서 뗐을 때: 최근 락온 대상 1개 취소
+                // 드래그 없이 제자리(5픽셀 미만)에서 뗐을 때: 팝업(지정 대기) 중이면 지정 취소, 아니면 최근 지정된 쌍 1개 취소
                 if (finalDist < DRAG_CANCEL_THRESHOLD && _maxRightDragDist < DRAG_CANCEL_THRESHOLD)
                 {
-                    CancelLastLockOnTarget();
+                    if (_multiLockOnData != null && _multiLockOnData.HasPending)
+                    {
+                        CancelPendingLockOn();
+                    }
+                    else
+                    {
+                        CancelLastLockOnEntry();
+                    }
                 }
 
                 _isRightClickDown = false;
@@ -229,51 +270,67 @@ namespace UnitSystem
             }
         }
 
-        private void CancelLastLockOnTarget()
+        /// <summary>
+        /// 현재 예비 락온(호버) 대상을 락온해 마법 지정 대기(PendingTarget)로 만든다 → 팝업이 열린다.
+        /// 팝업이 열려 있는(지정 대기 중인) 동안에는 새 락온을 시작하지 않는다 — 팝업 UI 클릭이 뒤쪽 3D 대상의 락온으로 새지 않게 한다.
+        /// </summary>
+        private bool BeginPendingOnHoverTarget()
         {
-            if (_multiLockOnData != null && _multiLockOnData.TargetCount > 0)
-            {
-                var targets = _multiLockOnData.LockedTargets;
-                var lastTarget = targets[targets.Count - 1];
-                _multiLockOnData.RemoveTarget(lastTarget);
+            if (_currentHoverTarget == null || _multiLockOnData == null) return false;
+            if (_multiLockOnData.IsDesignationClosed) return false;
+            if (_multiLockOnData.HasPending) return false;
 
-                if (lastTarget != null)
-                {
-                    if (lastTarget == _currentHoverTarget)
-                    {
-                        lastTarget.Highlight(true, false);
-                    }
-                    else
-                    {
-                        lastTarget.Highlight(false, false);
-                    }
-                }
+            // 이미 큐에 있는 대상이어도 허용(한 대상에 여러 마법). 빨간(확정 락온) 마커를 켠다.
+            _multiLockOnData.BeginPending(_currentHoverTarget);
+            _currentHoverTarget.Highlight(true, true);
+            return true;
+        }
 
-                _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
-            }
+        /// <summary>팝업이 열린 상태의 취소 입력: 지정 대기를 취소하고, 큐에 없는 대상이면 마커를 예비 락온 상태로 되돌린다.</summary>
+        private void CancelPendingLockOn()
+        {
+            if (_multiLockOnData == null) return;
+
+            var pending = _multiLockOnData.PendingTarget;
+            _multiLockOnData.CancelPending();
+            RestoreHighlightAfterRelease(pending);
+        }
+
+        /// <summary>팝업이 닫힌 상태의 취소 입력: 가장 최근에 쌓인 (대상, 마법) 쌍 1개를 취소한다.</summary>
+        private void CancelLastLockOnEntry()
+        {
+            if (_multiLockOnData == null || _multiLockOnData.EntryCount == 0) return;
+
+            var entries = _multiLockOnData.Entries;
+            var lastTarget = entries[entries.Count - 1].Target;
+            _multiLockOnData.RemoveLastEntry();
+            RestoreHighlightAfterRelease(lastTarget);
+        }
+
+        /// <summary>대상이 큐/대기 어디에도 남아 있지 않으면 마커를 호버 여부에 맞춰 되돌린다(남아 있으면 확정 락온 마커 유지).</summary>
+        private void RestoreHighlightAfterRelease(RuntimeDataUnitGroup target)
+        {
+            if (target == null || _multiLockOnData == null) return;
+            if (_multiLockOnData.Contains(target)) return;
+
+            target.Highlight(target == _currentHoverTarget, false);
         }
 
         /// <summary>
-        /// 마우스 휠 클릭 시 현재 예비 락온 대상을 확정 락온 목록에 누적/토글합니다.
+        /// 마우스 휠 클릭: 호버 대상 락온(= 좌클릭과 동일하게 마법 지정 대기 + 팝업 오픈).
+        /// 그 대상이 이미 지정 대기 중이면 지정을 취소한다(토글).
         /// </summary>
         public void ToggleLockOn()
         {
             if (_currentHoverTarget == null || _multiLockOnData == null) return;
 
-            if (_multiLockOnData.Contains(_currentHoverTarget))
+            if (_multiLockOnData.PendingTarget == _currentHoverTarget)
             {
-                // 이미 확정 락온된 대상을 다시 클릭하면 락온 해제 -> 예비 락온(노란색)으로 복귀
-                _multiLockOnData.RemoveTarget(_currentHoverTarget);
-                _currentHoverTarget.Highlight(true, false);
-            }
-            else
-            {
-                // 새로운 대상 확정 락온 추가 -> 빨간색 마커 켜기 및 리스트 누적
-                _multiLockOnData.AddTarget(_currentHoverTarget);
-                _currentHoverTarget.Highlight(true, true);
+                CancelPendingLockOn();
+                return;
             }
 
-            _visualizer?.UpdateLockOnCount(_multiLockOnData.TargetCount);
+            BeginPendingOnHoverTarget();
         }
     }
 }

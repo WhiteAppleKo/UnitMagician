@@ -11,9 +11,15 @@ namespace CharacterSystem
         [SerializeField] private float slowTimeScale = 0.0f;
         [SerializeField] private float defaultFixedDeltaTime = 0.02f;
 
-        [Tooltip("이벤트 시퀀서 전용 감속 모드(3단계)에서 사용할 초기 TimeScale. 완전 정지(slowTimeScale)보다 큰 부분 감속값(예: 0.25).")]
-        [Range(0f, 1f)]
-        [SerializeField] private float eventSlowTimeScale = 0.25f;
+        [Header("Event Slow (3-Stage Approach/Exit Curve)")]
+        [Tooltip("이벤트 시퀀서 전용 감속(3단계)에서 접근->이탈 전환점의 최저 TimeScale. 0보다 큰 '거의 정지' 값(예: 0.02~0.05). " +
+                 "0이면 투사체가 전환점에 영영 닿지 못하므로 허용하지 않습니다.")]
+        [Range(0.001f, 1f)]
+        [SerializeField] private float eventSlowMinTimeScale = 0.03f;
+        [Tooltip("접근 구간 완급 곡선: x=접근 진행도 t(0~1), y=감속 비율(0=정상 속도, 1=최저 TimeScale). timeScale = lerp(1, min, curve(t)).")]
+        [SerializeField] private AnimationCurve eventApproachCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        [Tooltip("이탈 구간 완급 곡선: x=이탈 진행도 u(0~1), y=회복 비율(0=최저 TimeScale, 1=정상 속도). timeScale = lerp(min, 1, curve(u)).")]
+        [SerializeField] private AnimationCurve eventExitCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
         [Header("Focus Gauge Settings")]
         [SerializeField] private int maxFocus = 100;
@@ -26,7 +32,9 @@ namespace CharacterSystem
 
         public float SlowTimeScale => slowTimeScale;
         public float DefaultFixedDeltaTime => defaultFixedDeltaTime;
-        public float EventSlowTimeScale => eventSlowTimeScale;
+        public float EventSlowMinTimeScale => Mathf.Max(0.001f, eventSlowMinTimeScale);
+        public AnimationCurve EventApproachCurve => eventApproachCurve;
+        public AnimationCurve EventExitCurve => eventExitCurve;
         public int MaxFocus => maxFocus;
         public int MinFocus => minFocus;
         public float FocusDrainPerSecond => focusDrainPerSecond;

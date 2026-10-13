@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="Root" picking-mode="Ignore" style="flex-grow: 1;">
+        <!-- 줍기 프롬프트: 화면 하단 중앙 고정(고정형 UI), 입력 비차단 -->
+        <ui:VisualElement name="PickupPromptPanel" picking-mode="Ignore" style="position: absolute; bottom: 140px; left: 50%; translate: -50% 0; flex-direction: row; align-items: center; background-color: rgba(12, 14, 20, 0.85); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 8px; padding: 6px 14px; display: none;">
+            <ui:VisualElement picking-mode="Ignore" style="width: 30px; height: 30px; background-color: rgba(12, 14, 20, 0.9); border-width: 2px; border-color: rgba(212, 175, 55, 0.85); border-radius: 6px; align-items: center; justify-content: center; margin-right: 10px;">
+                <ui:Label picking-mode="Ignore" text="E" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold;" />
+            </ui:VisualElement>
+            <ui:Label name="PickupPromptText" picking-mode="Ignore" text="[E] 줍기" style="color: rgb(240, 240, 240); font-size: 16px;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

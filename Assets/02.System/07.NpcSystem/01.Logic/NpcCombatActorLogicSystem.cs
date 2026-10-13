@@ -45,8 +45,8 @@ namespace NpcSystem
             // 타겟이 없거나 이미 파괴된 경우 방어적으로 무시 (예외/실패 케이스 - 01번 문서 1.5절)
             if (target == null) return;
 
-            // 공격 쿨타임 체크
-            if (Time.time - runtimeData.LastAttackTime < pureData.AttackCooldown) return;
+            // 공격 쿨타임 체크 (외부가 발사 지점을 예약한 이벤트 사격은 쿨타임에 막히지 않는다 - INpcCombatActorVisualizer.HasArmedLaunchOrigin)
+            if (!visualizer.HasArmedLaunchOrigin && Time.time - runtimeData.LastAttackTime < pureData.AttackCooldown) return;
             runtimeData.RecordAttackTime(Time.time);
 
             // 이동 중 공격 명령이 들어오면 공격이 이동보다 우선한다 (정책 - 01번 문서 1.5절 확인 필요 항목에 대한 채택안)

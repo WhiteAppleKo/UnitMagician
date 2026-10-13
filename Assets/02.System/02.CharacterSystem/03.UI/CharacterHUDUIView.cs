@@ -12,6 +12,10 @@ namespace CharacterSystem
 
         private VisualElement hpBar;
         private VisualElement mpBar;
+        private VisualElement mpPreviewFill;
+        private Label mpPreviewLabel;
+        private VisualElement staminaBar;
+        private Label staminaLabel;
         private VisualElement focusBar;
         private Label hpLabel;
         private Label mpLabel;
@@ -83,6 +87,10 @@ namespace CharacterSystem
 
             hpBar = root.Q<VisualElement>("HPBarFill");
             mpBar = root.Q<VisualElement>("MPBarFill");
+            mpPreviewFill = root.Q<VisualElement>("MPPreviewFill");
+            mpPreviewLabel = root.Q<Label>("MPPreviewText");
+            staminaBar = root.Q<VisualElement>("StaminaBarFill");
+            staminaLabel = root.Q<Label>("StaminaText");
             focusBar = root.Q<VisualElement>("FocusBarFill");
             hpLabel = root.Q<Label>("HPText");
             mpLabel = root.Q<Label>("MPText");
@@ -99,7 +107,9 @@ namespace CharacterSystem
             {
                 statSystem.RuntimeData.HP.OnValueChanged += UpdateHPUI;
                 statSystem.RuntimeData.MP.OnValueChanged += UpdateMPUI;
+                statSystem.OnStaminaChanged += UpdateStaminaUI;
                 statSystem.RuntimeData.OnManaUnlimitedChanged += HandleManaUnlimitedChanged;
+                statSystem.RuntimeData.OnPreviewManaCostChanged += HandlePreviewManaCostChanged;
             }
 
             if (magicSlotSystem != null)
@@ -124,7 +134,9 @@ namespace CharacterSystem
             {
                 statSystem.RuntimeData.HP.OnValueChanged -= UpdateHPUI;
                 statSystem.RuntimeData.MP.OnValueChanged -= UpdateMPUI;
+                statSystem.OnStaminaChanged -= UpdateStaminaUI;
                 statSystem.RuntimeData.OnManaUnlimitedChanged -= HandleManaUnlimitedChanged;
+                statSystem.RuntimeData.OnPreviewManaCostChanged -= HandlePreviewManaCostChanged;
             }
 
             if (magicSlotSystem != null)
@@ -154,6 +166,8 @@ namespace CharacterSystem
             {
                 UpdateHPUI(statSystem.RuntimeData.HP.CurrentValue, statSystem.RuntimeData.HP.MaxValue);
                 UpdateMPUI(statSystem.RuntimeData.MP.CurrentValue, statSystem.RuntimeData.MP.MaxValue);
+                UpdateStaminaUI(statSystem.Stamina, statSystem.MaxStamina);
+                RefreshManaPreview();
             }
 
             if (magicSlotSystem != null)
@@ -198,6 +212,72 @@ namespace CharacterSystem
             {
                 mpLabel.text = $"{current} / {max}";
             }
+
+            // 현재 MP가 바뀌면 예상 비용 구간(바 오른쪽 끝)과 부족 판정도 다시 그린다.
+            RefreshManaPreview();
+        }
+
+        /// <summary>스태미나 바(19-A). OnStaminaChanged를 받아 비율과 라벨만 갱신한다(계산 로직 없음).</summary>
+        private void UpdateStaminaUI(float current, float max)
+        {
+            if (staminaBar != null)
+            {
+                float ratio = max > 0f ? Mathf.Clamp01(current / max) : 0f;
+                staminaBar.style.width = Length.Percent(ratio * 100f);
+            }
+
+            if (staminaLabel != null)
+            {
+                staminaLabel.text = $"{Mathf.CeilToInt(current)} / {Mathf.CeilToInt(max)}";
+            }
+        }
+
+        private void HandlePreviewManaCostChanged(int cost)
+        {
+            RefreshManaPreview();
+        }
+
+        /// <summary>
+        /// 락온 큐의 예상 총비용 표시(13-C). RuntimeStatData.PreviewManaCost가 0보다 크면 현재 MP 바의 오른쪽 끝에서
+        /// 비용만큼 겹쳐 칠하고 "-비용" 라벨을 보인다. 현재 MP보다 크면(부족) 바 전체를 붉게 칠하고 라벨에 LOW를 덧붙인다.
+        /// 비용이 0이거나(큐 비움) 마나 무제한(3단계 이벤트: 실제 차감 0)이면 표시를 숨긴다.
+        /// </summary>
+        private void RefreshManaPreview()
+        {
+            if (mpPreviewFill == null && mpPreviewLabel == null) return;
+
+            var data = statSystem?.RuntimeData;
+            int cost = data != null ? data.PreviewManaCost : 0;
+            bool show = data != null && cost > 0 && !data.IsManaUnlimited;
+
+            DisplayStyle display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (mpPreviewFill != null) mpPreviewFill.style.display = display;
+            if (mpPreviewLabel != null) mpPreviewLabel.style.display = display;
+            if (!show)
+            {
+                if (mpPreviewLabel != null) mpPreviewLabel.text = string.Empty;
+                return;
+            }
+
+            int current = data.MP.CurrentValue;
+            int max = data.MP.MaxValue;
+            bool insufficient = cost > current;
+
+            if (mpPreviewFill != null)
+            {
+                float visibleCost = Mathf.Min(cost, current);
+                float leftRatio = max > 0 ? Mathf.Clamp01((current - visibleCost) / max) : 0f;
+                float widthRatio = max > 0 ? Mathf.Clamp01(visibleCost / max) : 0f;
+                mpPreviewFill.style.left = Length.Percent(leftRatio * 100f);
+                mpPreviewFill.style.width = Length.Percent(widthRatio * 100f);
+                mpPreviewFill.EnableInClassList("mp-preview-fill--insufficient", insufficient);
+            }
+
+            if (mpPreviewLabel != null)
+            {
+                mpPreviewLabel.text = insufficient ? $"-{cost} LOW" : $"-{cost}";
+                mpPreviewLabel.EnableInClassList("mp-preview-label--insufficient", insufficient);
+            }
         }
 
         private void HandleManaUnlimitedChanged(bool isManaUnlimited)
@@ -213,6 +293,9 @@ namespace CharacterSystem
             {
                 UpdateMPUI(statSystem.RuntimeData.MP.CurrentValue, statSystem.RuntimeData.MP.MaxValue);
             }
+
+            // 마나 무제한이면 실제 차감이 0이므로 예상 비용 표시를 숨기고, 해제되면 다시 판단한다.
+            RefreshManaPreview();
         }
 
         private void UpdateFocusUI(int current, int max)

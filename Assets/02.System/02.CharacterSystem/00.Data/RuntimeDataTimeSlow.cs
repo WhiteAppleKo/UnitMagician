@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using EventSequencerSystem;
 
 namespace CharacterSystem
 {
@@ -14,24 +15,29 @@ namespace CharacterSystem
         private float recoverBuffer;
         private float timeSinceLastDrain;
 
-        // 09번(시간 정지 마법 시스템 확장) 신규 필드 — 게이지 오버라이드 + 이벤트 전용 감속 램프
+        // 09번(시간 정지 마법 시스템 확장) 신규 필드 — 게이지 오버라이드 + 이벤트 전용 감속
+        // 13번 기획서: 시간 기반 램프 대신 아군 투사체의 구간(접근/이탈) + 구간 내 진행도(0~1) 모델로 감속을 구동한다.
         private bool isGaugeOverride;
         private bool isEventTriggered;
-        private float eventRampElapsedSeconds;
-        private float eventRampDurationSeconds;
+        private EventFlightPhase eventFlightPhase;
+        private float eventFlightProgress;
 
         public PureDataTimeSlow PureData => pureData;
         public ClampValueInt FocusGauge => focusGauge;
         public bool IsSlowActive => isSlowActive;
         public float TimeSinceLastDrain => timeSinceLastDrain;
         public bool IsGaugeOverride => isGaugeOverride;
+        /// <summary>이벤트 감속 진행 중(접근 시작부터 이벤트 종료까지 true).</summary>
         public bool IsEventTriggered => isEventTriggered;
-        public float EventRampElapsedSeconds => eventRampElapsedSeconds;
-        public float EventRampDurationSeconds => eventRampDurationSeconds;
+        public EventFlightPhase EventFlightPhase => eventFlightPhase;
+        /// <summary>현재 구간(접근/이탈)의 진행도 0~1.</summary>
+        public float EventFlightProgress => eventFlightProgress;
 
         public event Action<bool> OnSlowStateChanged;
         public event Action OnFocusDepleted;
         public event Action<bool> OnGaugeOverrideChanged;
+        /// <summary>이벤트 비행 구간 또는 진행도가 바뀔 때 발행됩니다(시작/종료 포함).</summary>
+        public event Action<EventFlightPhase, float> OnEventFlightChanged;
 
         public RuntimeDataTimeSlow(PureDataTimeSlow pureData)
         {
@@ -50,6 +56,15 @@ namespace CharacterSystem
         public void SetSlowActive(bool active)
         {
             if (active && !CanActivateSlow())
+            {
+                return;
+            }
+
+            // 13번 기획서 §3 "이벤트 중 차단": 이벤트 감속(IsEventTriggered) 진행 중에는 수동 해제를 단일 관문에서 거부한다
+            // (T 키 등 모든 SetSlowActive(false) 경로). 이벤트 종료는 TimeSlowLogicSystem.DeactivateEventSlow()만 수행하며,
+            // 그 메서드는 EndEventFlight()로 IsEventTriggered를 먼저 끈 뒤 해제하므로 이 가드에 걸리지 않는다.
+            // 활성화 경로(SetSlowActive(true)/ForceSlowActive)는 영향받지 않는다.
+            if (!active && isEventTriggered)
             {
                 return;
             }
@@ -96,29 +111,37 @@ namespace CharacterSystem
             OnGaugeOverrideChanged?.Invoke(isGaugeOverride);
         }
 
-        /// <summary>감속 모드(이벤트 전용) 진입 — 램프 경과/총 시간을 초기화합니다.</summary>
-        public void BeginEventRamp(float durationSeconds)
+        /// <summary>감속 모드(이벤트 전용) 진입 — 접근 구간 시작(진행도 0)으로 초기화합니다.</summary>
+        public void BeginEventFlight()
         {
             isEventTriggered = true;
-            eventRampElapsedSeconds = 0f;
-            eventRampDurationSeconds = durationSeconds;
-        }
-
-        /// <summary>감속 모드 종료.</summary>
-        public void EndEventRamp()
-        {
-            isEventTriggered = false;
+            ApplyEventFlight(EventFlightPhase.Approach, 0f);
         }
 
         /// <summary>
-        /// 램프 경과 시간을 누적하고 진행률(0~1)을 반환합니다. durationSeconds가 0 이하이면 0으로 나누기를
-        /// 피하기 위해 즉시 1을 반환합니다(호출부에서 즉시 DeactivateEventSlow 트리거 가능).
+        /// 비행 구간/진행도를 갱신합니다(진행도는 0~1로 클램프). 이벤트 감속 중이 아니면 무시하고,
+        /// 값이 실제로 바뀔 때만 <see cref="OnEventFlightChanged"/>를 발행합니다.
         /// </summary>
-        public float TickEventRamp(float deltaTime)
+        public void UpdateEventFlight(EventFlightPhase phase, float progress)
         {
-            eventRampElapsedSeconds += deltaTime;
-            if (eventRampDurationSeconds <= 0f) return 1f;
-            return Mathf.Clamp01(eventRampElapsedSeconds / eventRampDurationSeconds);
+            if (!isEventTriggered) return;
+            ApplyEventFlight(phase, Mathf.Clamp01(progress));
+        }
+
+        /// <summary>감속 모드 종료 — 구간/진행도를 초기화하고 IsEventTriggered를 끕니다.</summary>
+        public void EndEventFlight()
+        {
+            isEventTriggered = false;
+            ApplyEventFlight(EventFlightPhase.None, 0f);
+        }
+
+        private void ApplyEventFlight(EventFlightPhase phase, float progress)
+        {
+            if (eventFlightPhase == phase && Mathf.Approximately(eventFlightProgress, progress)) return;
+
+            eventFlightPhase = phase;
+            eventFlightProgress = progress;
+            OnEventFlightChanged?.Invoke(eventFlightPhase, eventFlightProgress);
         }
 
         public void DrainFocus(float amount)

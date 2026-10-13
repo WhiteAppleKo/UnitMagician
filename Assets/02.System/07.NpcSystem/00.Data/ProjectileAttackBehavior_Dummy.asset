@@ -12,5 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20e27c3858ee4a241b915934e1323177, type: 3}
   m_Name: ProjectileAttackBehavior_Dummy
   m_EditorClassIdentifier: Assembly-CSharp::NpcSystem.ProjectileAttackBehaviorSO
-  projectilePrefab: {fileID: 5122777725880258257, guid: 7e60ccff4fdf190479364482a7199208, type: 3}
   projectileSpeed: 12

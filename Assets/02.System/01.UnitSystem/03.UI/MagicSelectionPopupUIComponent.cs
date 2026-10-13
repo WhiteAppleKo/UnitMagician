@@ -29,6 +29,7 @@ namespace UnitSystem
         private IMagicSelectionPopupLogic popupLogic;
         private RuntimeDataMagicFavoriteSlots favoriteSlots;
         private Common.InputSystem.IInputContextManager inputContextManager;
+        private RuntimeDataMultiLockOn multiLockOnData;
 
         private VisualElement popupContainer;
         private VisualElement fullListContainer;
@@ -41,13 +42,15 @@ namespace UnitSystem
         public void Construct(
             IMagicSelectionPopupLogic popupLogic,
             RuntimeDataMagicFavoriteSlots favoriteSlots = null,
-            Common.InputSystem.IInputContextManager inputContextManager = null)
+            Common.InputSystem.IInputContextManager inputContextManager = null,
+            RuntimeDataMultiLockOn multiLockOnData = null)
         {
             UnbindEvents();
 
             this.popupLogic = popupLogic;
             this.favoriteSlots = favoriteSlots;
             this.inputContextManager = inputContextManager;
+            this.multiLockOnData = multiLockOnData;
 
             BindEvents();
             RefreshFavoriteSlots();
@@ -278,9 +281,10 @@ namespace UnitSystem
         {
             if (popupLogic == null || !popupLogic.IsPopupOpen) return;
 
+            // Tactical뿐 아니라 이벤트 중(스택 최상단 Event, 지정 창 열림)에도 키를 받는다 — 판정은 MagicLockOnInputGate 한 곳.
+            // (컨텍스트 매니저가 없으면 기존처럼 입력을 받지 않는다.)
             var currentContext = inputContextManager?.CurrentContext;
-            bool isTactical = currentContext != null && currentContext.ContextType == Common.InputSystem.InputContextType.Tactical;
-            if (!isTactical) return;
+            if (currentContext == null || !MagicLockOnInputGate.IsInputAllowed(currentContext, multiLockOnData)) return;
 
             var keyboard = Keyboard.current;
             if (keyboard == null) return;

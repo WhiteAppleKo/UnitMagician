@@ -19,6 +19,13 @@ MonoBehaviour:
   speedChangeDamping: 10
   rotationSmoothing: 10
   cameraRotationOffset: 0
+  sprintStaminaCostPerSecond: 15
+  sprintRestartThresholdRatio: 0.3
+  rollStaminaCost: 25
+  rollDistance: 3
+  rollDuration: 0.6
+  rollInvincibleStart: 0.1
+  rollInvincibleEnd: 0.4
   buttonHoldThreshold: 0.15
   capsuleStandingHeight: 1.8
   capsuleStandingCentre: 0.93

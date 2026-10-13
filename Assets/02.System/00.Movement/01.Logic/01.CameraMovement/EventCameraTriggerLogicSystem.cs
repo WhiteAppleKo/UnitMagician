@@ -7,15 +7,15 @@ namespace CameraMovement
 {
     /// <summary>
     /// 06(EventSequencerSystem)의 신호(OnBoss50Percent/OnCoreHitSuccess/OnCoreHitFail)를 구독해
-    /// ICameraFollowService.SetCameraMode + IInputContextManager.PushContext/PopContext를 정확한 시점에
-    /// 호출하는 판정 전용 로직입니다([L] 호출형 순수 로직, 10번 기획서 10.7/10.8절, 설계 정정 이후). MonoBehaviour나
-    /// Transform 등 구체 타입을 직접 참조하지 않습니다(Goal 프롬프트 완료 기준 항목) — 카메라 좌표 계산에
-    /// 필요한 Transform 참조는 이 클래스가 아니라 EventTargetTrackingCameraStrategy
-    /// (및 그 아래 EventCameraTargetProvider) 계층에 격리되어 있습니다.
+    /// ICameraFollowService.SetEventTargetOverride + IInputContextManager.PushContext/PopContext를 정확한 시점에
+    /// 호출하는 판정 전용 로직입니다([L] 호출형 순수 로직, 10번 기획서 10.7/10.8절, 22번 기획서). MonoBehaviour나
+    /// Transform 등 구체 타입을 직접 참조하지 않습니다(Goal 프롬프트 완료 기준 항목) — 시선 대상(이벤트 투사체)
+    /// 위치는 CameraFollowService가 주입받는 IEventCameraLookTarget(EventProjectileLookTarget)이 값으로 공급합니다.
     ///
-    /// 설계 정정(10번 기획서 10.1~10.9절 정정 완료): 3D 카메라는 항상 다크소울3식 3인칭 숄더뷰가 기본이며,
-    /// 1단계 퍼즐 구간에서도 유저가 평소처럼 카메라를 직접 조작합니다 — 씬 진입 시 고정 쿼터뷰로 강제 전환하던
-    /// 로직(과거 Initialize())은 제거되었습니다. 3단계 이벤트 추적 카메라(BindEventSequencer 이하)는 그대로 유지됩니다.
+    /// 설계: 평상시 3D 카메라는 다크소울3식 3인칭 숄더뷰 하나로 고정이며(22번 기획서), 3단계 이벤트 구간에는
+    /// 숄더 카메라가 캐릭터 몸에 투사체를 가리므로 이벤트 전용 1인칭 가상 카메라(눈 위치, 시선 = 카메라→이벤트 투사체)로
+    /// Cinemachine 블렌드 전환합니다(22번 §10). 이 클래스는 오버라이드 ON/OFF 시점과 입력 컨텍스트만 정확히 지시하고,
+    /// 가상 카메라 전환은 CameraFollowVisualizer가 오버라이드 변경 이벤트를 받아 수행합니다.
     ///
     /// 06(EventSequencerSystem)은 이 클래스가 등록되는 LocomotionLifetimeScope(부모: CharacterLifetimeScope)와
     /// 서로 다른 VContainer 스코프 트리(EventSequencerSystemLifetimeScope의 parentReference는
@@ -31,7 +31,6 @@ namespace CameraMovement
 
         private IEventSequencer m_eventSequencer;
         private IInputContext m_pushedEventContext;
-        private CameraMode m_modeBeforeEventCamera = CameraMode.ThirdPersonShoulder;
 
         [Inject]
         public EventCameraTriggerLogicSystem(
@@ -75,18 +74,16 @@ namespace CameraMovement
             UnbindEventSequencer();
         }
 
-        /// <summary>3단계 보스 50%: 이벤트 추적 카메라로 전환하고 Event 입력 컨텍스트를 Push한다(10.8절 데이터 흐름).</summary>
+        /// <summary>3단계 보스 50%: 이벤트 대상 오버라이드를 켜고 Event 입력 컨텍스트를 Push한다(10.8절, 22번 기획서).</summary>
         private void HandleBoss50Percent()
         {
-            m_modeBeforeEventCamera = m_cameraFollowService.CurrentMode;
-
-            m_cameraFollowService.SetCameraMode(CameraMode.EventTargetTracking);
+            m_cameraFollowService.SetEventTargetOverride(true);
 
             m_pushedEventContext = new EventCameraInputContext();
             m_inputContextManager.PushContext(m_pushedEventContext);
         }
 
-        /// <summary>결정타 성공/실패 신호 수신 시 Event 컨텍스트를 Pop하고 원래 모드로 복귀한다(10.5/10.8절).</summary>
+        /// <summary>결정타 성공/실패 신호 수신 시 Event 컨텍스트를 Pop하고 이벤트 대상 오버라이드를 끈다(10.5/10.8절).</summary>
         private void HandleEventCameraEnd()
         {
             if (m_pushedEventContext != null)
@@ -95,7 +92,7 @@ namespace CameraMovement
                 m_pushedEventContext = null;
             }
 
-            m_cameraFollowService.SetCameraMode(m_modeBeforeEventCamera);
+            m_cameraFollowService.SetEventTargetOverride(false);
         }
     }
 }

@@ -27,6 +27,10 @@ namespace EventSequencerSystem
         [Header("Boss Reference (Temporary substitute until 03.BossAI exists)")]
         [SerializeField] private CharacterStatComponent bossStatComponent;
 
+        [Header("Event Flight Tracker (13번 - 3단계 아군 투사체 비행 추적기)")]
+        [Tooltip("투사체/플레이어/보스 위치를 값으로 제공하는 비주얼 구현체(IEventFlightTracker). 인스펙터 고정 참조입니다.")]
+        [SerializeField] private EventFlightTrackerComponent flightTracker;
+
         [Header("Pure Data (Optional - auto-created with defaults if empty)")]
         [SerializeField] private PureDataTutorialSequence pureDataTutorialSequence;
 
@@ -65,11 +69,28 @@ namespace EventSequencerSystem
             // 3. Runtime Data 등록
             builder.Register<RuntimeDataTutorialSequence>(Lifetime.Scoped);
 
+            // 3-1. 3단계 비행 추적기(비주얼) 등록 - 보스 Transform은 위 bossStatComponent를 그대로 쓴다(중복 참조 방지).
+            if (flightTracker == null)
+            {
+                Debug.LogError("[EventSequencerSystemLifetimeScope] flightTracker(EventFlightTrackerComponent)가 연결되지 않았습니다. " +
+                                "3단계 비행 구간 계산을 할 수 없어 시퀀서 등록을 중단합니다.");
+                return;
+            }
+
+            flightTracker.SetBossTransform(bossStatComponent.transform);
+            builder.RegisterComponent(flightTracker).As<IEventFlightTracker>();
+            builder.Register<EventFlightLogicSystem>(Lifetime.Scoped)
+                .As<IEventFlightLogic>()
+                .As<ITickable>();
+
             // 4. Logic System 등록 (IInteractionService는 부모 스코프인 InteractionSystemLifetimeScope에서 주입됨)
+            // 13번 기획서: 타임아웃 판정 제거로 Tick()이 필요 없어 ITickable 등록을 정리했다. 다만 ITickable 등록은 컨테이너 Build 시
+            // 인스턴스를 즉시 생성하는 부수 효과도 있었고(보스 HP/피격 구독이 시작부터 살아 있어야 함) 그 시점을 유지하기 위해
+            // 빌드 콜백으로 명시적으로 Resolve한다.
             builder.Register<TutorialSequencerLogicSystem>(Lifetime.Scoped)
-                .As<ITickable>()
                 .As<System.IDisposable>()
                 .As<IEventSequencer>();
+            builder.RegisterBuildCallback(resolver => resolver.Resolve<IEventSequencer>());
         }
     }
 }

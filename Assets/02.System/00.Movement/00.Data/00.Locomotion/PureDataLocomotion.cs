@@ -14,6 +14,25 @@ namespace Movement.RefactoredLocomotion
         [SerializeField] private float rotationSmoothing = 10f;
         [SerializeField] private float cameraRotationOffset;
 
+        [Header("Sprint Stamina (19-A)")]
+        [Tooltip("달리는 동안(이동 중 스프린트) 초당 소모되는 스태미나.")]
+        [SerializeField] private float sprintStaminaCostPerSecond = 15f;
+        [Tooltip("스태미나가 0이 되어 달리기가 끊긴 뒤, 다시 달릴 수 있게 되는 회복 비율(최대 스태미나 대비). 0.3 = 30%.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float sprintRestartThresholdRatio = 0.3f;
+
+        [Header("Roll (19-B)")]
+        [Tooltip("구르기 시작 시 한 번 소모되는 스태미나. 현재 스태미나가 이 값 이상이어야 시작된다.")]
+        [SerializeField] private float rollStaminaCost = 25f;
+        [Tooltip("구르기 동안 이동하는 수평 거리(m). rollDuration 동안 등속으로 이동한다.")]
+        [SerializeField] private float rollDistance = 3f;
+        [Tooltip("구르기 전체 시간(초).")]
+        [SerializeField] private float rollDuration = 0.6f;
+        [Tooltip("구르기 시작 후 무적(IgnoreAttack 레이어)이 시작되는 시각(초).")]
+        [SerializeField] private float rollInvincibleStart = 0.1f;
+        [Tooltip("구르기 시작 후 무적(IgnoreAttack 레이어)이 끝나는 시각(초).")]
+        [SerializeField] private float rollInvincibleEnd = 0.4f;
+
         [Header("Shuffle Settings")]
         [SerializeField] private float buttonHoldThreshold = 0.15f;
 
@@ -57,6 +76,15 @@ namespace Movement.RefactoredLocomotion
         public float SpeedChangeDamping => speedChangeDamping;
         public float RotationSmoothing => rotationSmoothing;
         public float CameraRotationOffset => cameraRotationOffset;
+
+        public float SprintStaminaCostPerSecond => sprintStaminaCostPerSecond;
+        public float SprintRestartThresholdRatio => sprintRestartThresholdRatio;
+
+        public float RollStaminaCost => rollStaminaCost;
+        public float RollDistance => rollDistance;
+        public float RollDuration => rollDuration;
+        public float RollInvincibleStart => rollInvincibleStart;
+        public float RollInvincibleEnd => rollInvincibleEnd;
 
         public float ButtonHoldThreshold => buttonHoldThreshold;
 

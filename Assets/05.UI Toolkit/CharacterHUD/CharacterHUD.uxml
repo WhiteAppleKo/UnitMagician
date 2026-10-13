@@ -10,7 +10,15 @@
         <ui:VisualElement name="MPBarContainer" picking-mode="Ignore" class="stat-bar-container">
             <ui:VisualElement name="MPBarBG" picking-mode="Ignore" class="stat-bar-bg">
                 <ui:VisualElement name="MPBarFill" picking-mode="Ignore" class="mp-fill"/>
+                <ui:VisualElement name="MPPreviewFill" picking-mode="Ignore" class="mp-preview-fill"/>
+                <ui:Label name="MPPreviewText" text="" picking-mode="Ignore" class="mp-preview-label"/>
                 <ui:Label name="MPText" text="100 / 100" picking-mode="Ignore" class="stat-label"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="StaminaBarContainer" picking-mode="Ignore" class="stat-bar-container">
+            <ui:VisualElement name="StaminaBarBG" picking-mode="Ignore" class="stat-bar-bg">
+                <ui:VisualElement name="StaminaBarFill" picking-mode="Ignore" class="stamina-fill"/>
+                <ui:Label name="StaminaText" text="100 / 100" picking-mode="Ignore" class="stat-label"/>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="FocusBarContainer" picking-mode="Ignore" class="stat-bar-container">

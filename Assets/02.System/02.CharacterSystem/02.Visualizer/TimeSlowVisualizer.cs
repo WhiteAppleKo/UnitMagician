@@ -36,10 +36,6 @@ namespace CharacterSystem
         {
             OnSlowStateChanged?.Invoke(isActive);
 
-            // TimeScale 및 FixedDeltaTime 제어 전담 (DLV 원칙 준수)
-            Time.timeScale = targetScale;
-            Time.fixedDeltaTime = targetScale > 0f ? (defaultFixedDeltaTime * targetScale) : defaultFixedDeltaTime;
-
             if (slowVfxObject != null)
             {
                 slowVfxObject.SetActive(isActive);
@@ -60,6 +56,16 @@ namespace CharacterSystem
             }
 
             Debug.Log($"<color=yellow>[TimeSlowVisualizer] TimeSlow Effect: {(isActive ? "ACTIVE" : "INACTIVE")}, TimeScale: {targetScale:F2}</color>");
+        }
+
+        /// <summary>
+        /// TimeScale 및 FixedDeltaTime 제어 전담(17번 기획서: 프로젝트에서 Time.timeScale/fixedDeltaTime을 쓰는 유일한 지점).
+        /// 시간정지/이벤트 감속 요청과 UI 일시정지 요청이 합성된 유효 배율을 TimeScaleLogicSystem이 전달합니다.
+        /// </summary>
+        public void ApplyTimeScale(float effectiveScale)
+        {
+            Time.timeScale = effectiveScale;
+            Time.fixedDeltaTime = effectiveScale > 0f ? (defaultFixedDeltaTime * effectiveScale) : defaultFixedDeltaTime;
         }
 
         public void UpdateFocusGaugeUI(int current, int max)

@@ -17,3 +17,8 @@ MonoBehaviour:
   maxMP: 100
   baseMoveSpeed: 5
   defaultUnitMagics: []
+  maxStamina: 100
+  staminaRegenPerSecond: 30
+  staminaRegenDelaySeconds: 1
+  defaultAttackFlags: 0
+  defaultHitFlags: 3

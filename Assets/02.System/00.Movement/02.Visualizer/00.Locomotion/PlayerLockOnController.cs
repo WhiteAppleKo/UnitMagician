@@ -26,6 +26,7 @@ namespace Movement.Visualizer
         private TimeSlowVisualizer _timeSlowVisualizer;
         private CameraMovement.ICameraFollowService _cameraFollowService;
         private Common.InputSystem.IInputContextManager _inputContextManager;
+        private bool _tacticalContextPushed;
 
         [Inject]
         public void Construct(
@@ -154,9 +155,16 @@ namespace Movement.Visualizer
         {
             EnsureDependencies();
 
+            // TimeSlowVisualizer.SetTimeSlowEffect는 감속 곡선 동안(예: 13-D 보스 이벤트) 매 프레임 같은 값으로
+            // OnSlowStateChanged를 발행한다. IInputContextManager.PushContext의 중복 방지는 스택 최상단만 비교하므로
+            // 최상단이 다른 컨텍스트(Event 등)일 때 Tactical이 반복해서 쌓이지 않도록, 내가 Push한 경우에만 Pop하는 멱등 규칙을 쓴다.
             if (isSlowActive)
             {
-                _inputContextManager?.PushContext(_inputContextManager.TacticalContext);
+                if (!_tacticalContextPushed && _inputContextManager != null)
+                {
+                    _inputContextManager.PushContext(_inputContextManager.TacticalContext);
+                    _tacticalContextPushed = true;
+                }
                 _cameraFollowService?.SetRequireRightClickToRotate(true);
 
                 if (magicLockOnObject != null) magicLockOnObject.SetActive(true);
@@ -165,7 +173,11 @@ namespace Movement.Visualizer
             }
             else
             {
-                _inputContextManager?.PopContext(_inputContextManager.TacticalContext);
+                if (_tacticalContextPushed)
+                {
+                    _tacticalContextPushed = false;
+                    _inputContextManager?.PopContext(_inputContextManager.TacticalContext);
+                }
                 _cameraFollowService?.SetRequireRightClickToRotate(false);
 
                 if (magicLockOnObject != null) magicLockOnObject.SetActive(false);

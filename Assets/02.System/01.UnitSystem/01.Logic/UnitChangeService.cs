@@ -1,7 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using InteractionSystem.Logic;
 
 namespace UnitSystem
 {
@@ -52,8 +51,8 @@ namespace UnitSystem
 
             if (pipeLine != null)
             {
+                // 진영 변경은 ApplyUnitChangeStep이 단위 변경이 실제로 적용된 경우에만 처리한다(여기서 호출하지 않는다).
                 pipeLine.Run(context).Forget();
-                UpdateCollisionTriggerOwner(targetObject, casterGameObject);
                 return true;
             }
 
@@ -76,29 +75,10 @@ namespace UnitSystem
                 newUnitData.Applicator.Apply(targetObject, targetRuntimeData);
             }
 
-            // 소유자 권한 시전자(Caster)로 강탈 갱신
-            UpdateCollisionTriggerOwner(targetObject, casterGameObject);
+            // 마나 소모가 성공한 뒤에만 대상 투사체의 진영을 시전자 진영으로 바꾼다(적 투사체 빼앗기)
+            PipeLine.Combat.FactionChange.ApplyCasterFaction(targetObject, casterGameObject);
 
             return true;
-        }
-
-        private void UpdateCollisionTriggerOwner(GameObject targetObject, GameObject casterGameObject)
-        {
-            if (targetObject == null || casterGameObject == null) return;
-
-            var parentTriggers = targetObject.GetComponentsInParent<CollisionDamageTrigger>(true);
-            foreach (var trigger in parentTriggers)
-            {
-                trigger.SetOwner(casterGameObject);
-                Debug.Log($"<color=cyan>[UnitChangeService]</color> Overtook Parent Owner for {trigger.name} -> New Owner: {casterGameObject.name}");
-            }
-
-            var childTriggers = targetObject.GetComponentsInChildren<CollisionDamageTrigger>(true);
-            foreach (var trigger in childTriggers)
-            {
-                trigger.SetOwner(casterGameObject);
-                Debug.Log($"<color=cyan>[UnitChangeService]</color> Overtook Child Owner for {trigger.name} -> New Owner: {casterGameObject.name}");
-            }
         }
     }
 }

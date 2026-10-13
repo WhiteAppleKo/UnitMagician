@@ -9,15 +9,14 @@ namespace UnitSystem
     /// 시간정지(완전정지) 중 마법 락온 후 "어떤 마법을 쓸지"를 고르는 33원정대 스타일 Q/W/E/F 선택지 팝업의
     /// 열림/닫힘 상태와 선택 확정 로직을 담당하는 순수 C# 로직 시스템입니다(12번 기획서 §3/§4).
     ///
-    /// 다중 락온 누적(RuntimeDataMultiLockOn), 퀵슬롯 선택(RuntimeDataUnitQuickSlot),
-    /// 시간정지 해제(RuntimeDataTimeSlow) 체인은 이미 완성돼 있으므로 이 클래스는 그 체인을 "트리거"만 합니다.
-    /// MagicLockOnComponent.OnDisable() → UnitCasterSystem.ExecuteBatchCast() 로 이어지는 기존 로직은 수정하지 않습니다.
+    /// 13번 기획서(12번 정정): 락온할 때마다(RuntimeDataMultiLockOn.PendingTarget 설정) 팝업이 열리고,
+    /// 선택은 그 락온에 쓸 마법을 "지정"(CommitPending)할 뿐 시간정지는 해제하지 않습니다.
+    /// 쌓인 (대상, 마법) 쌍은 시간정지 해제(MagicLockOnComponent.OnDisable → UnitCasterSystem.ExecuteBatchCast)
+    /// 또는 이벤트 전환점에서 한꺼번에 발동합니다.
     /// </summary>
     public class MagicSelectionPopupLogicSystem : IMagicSelectionPopupLogic, IInitializable, IDisposable
     {
         private readonly RuntimeDataMultiLockOn multiLockOnData;
-        private readonly RuntimeDataUnitQuickSlot quickSlotData;
-        private readonly CharacterSystem.RuntimeDataTimeSlow timeSlowData;
         private readonly IUnitCatalogService catalogService;
         private readonly RuntimeDataMagicFavoriteSlots favoriteSlots;
 
@@ -34,14 +33,10 @@ namespace UnitSystem
         [Inject]
         public MagicSelectionPopupLogicSystem(
             RuntimeDataMultiLockOn multiLockOnData,
-            RuntimeDataUnitQuickSlot quickSlotData,
-            CharacterSystem.RuntimeDataTimeSlow timeSlowData,
             IUnitCatalogService catalogService,
             RuntimeDataMagicFavoriteSlots favoriteSlots)
         {
             this.multiLockOnData = multiLockOnData;
-            this.quickSlotData = quickSlotData;
-            this.timeSlowData = timeSlowData;
             this.catalogService = catalogService;
             this.favoriteSlots = favoriteSlots;
         }
@@ -50,43 +45,28 @@ namespace UnitSystem
         {
             if (multiLockOnData == null) return;
 
-            multiLockOnData.OnTargetAdded -= HandleTargetAdded;
-            multiLockOnData.OnTargetAdded += HandleTargetAdded;
-            multiLockOnData.OnTargetRemoved -= HandleTargetRemoved;
-            multiLockOnData.OnTargetRemoved += HandleTargetRemoved;
-            multiLockOnData.OnTargetsCleared -= HandleTargetsCleared;
-            multiLockOnData.OnTargetsCleared += HandleTargetsCleared;
+            multiLockOnData.OnPendingChanged -= HandlePendingChanged;
+            multiLockOnData.OnPendingChanged += HandlePendingChanged;
         }
 
         public void Dispose()
         {
             if (multiLockOnData == null) return;
 
-            multiLockOnData.OnTargetAdded -= HandleTargetAdded;
-            multiLockOnData.OnTargetRemoved -= HandleTargetRemoved;
-            multiLockOnData.OnTargetsCleared -= HandleTargetsCleared;
+            multiLockOnData.OnPendingChanged -= HandlePendingChanged;
         }
 
-        private void HandleTargetAdded(RuntimeDataUnitGroup target)
+        /// <summary>
+        /// 락온(지정 시작)할 때마다 팝업을 연다 — 같은 대상을 다시 락온해도 마찬가지.
+        /// 지정 확정/취소/큐 비움 등으로 PendingTarget이 비면 팝업을 닫는다.
+        /// </summary>
+        private void HandlePendingChanged()
         {
-            // 최초 1개(0->1)가 되는 시점만 오픈. 이미 열려 있으면(추가 락온) 아무 것도 하지 않는다 — 팝업 유지.
-            if (isPopupOpen) return;
-            if (multiLockOnData.TargetCount != 1) return;
-
-            OpenPopup();
-        }
-
-        private void HandleTargetRemoved(RuntimeDataUnitGroup target)
-        {
-            if (isPopupOpen && multiLockOnData.TargetCount == 0)
+            if (multiLockOnData.PendingTarget != null)
             {
-                ClosePopup();
+                OpenPopup();
             }
-        }
-
-        private void HandleTargetsCleared()
-        {
-            if (isPopupOpen)
+            else
             {
                 ClosePopup();
             }
@@ -150,19 +130,16 @@ namespace UnitSystem
 
         /// <summary>
         /// Q 전체 목록에서 유닛을 직접 클릭했을 때 호출되는 공통 확정 처리.
-        /// SelectUnit + SetSlowActive(false) 한 줄이 기존에 완성된 시간정지 해제->일괄 시전 체인을 그대로 재사용한다.
+        /// 락온 대기 중인 대상에 이 마법을 "지정"(CommitPending)할 뿐, 시간정지는 해제하지 않는다(13번 기획서).
         /// </summary>
         public void ConfirmUnit(PureDataUnit unit)
         {
             if (!isPopupOpen || unit == null) return;
 
-            quickSlotData?.SelectUnit(unit);
-            timeSlowData?.SetSlowActive(false);
+            // CommitPending → OnPendingChanged(PendingTarget == null) → HandlePendingChanged → ClosePopup 이 동기적으로 일어난다.
+            multiLockOnData?.CommitPending(unit);
 
-            // SetSlowActive(false) 호출 체인(OnSlowStateChanged -> PlayerLockOnController.SetSlowMode(false) ->
-            // MagicLockOnComponent.OnDisable() -> UnitCasterSystem.ExecuteBatchCast() -> multiLockOnData.ClearTargets())이
-            // 동기적으로 HandleTargetsCleared()를 먼저 호출해 ClosePopup()을 끝냈을 수 있으므로, 아래 호출은
-            // 가드(!isPopupOpen return)에 의해 중복 발행 없이 안전하게 마무리 역할만 한다.
+            // 대기 대상이 없는 비정상 상태에서도 팝업이 남지 않도록 마무리(이미 닫혔다면 가드로 무시).
             ClosePopup();
         }
     }

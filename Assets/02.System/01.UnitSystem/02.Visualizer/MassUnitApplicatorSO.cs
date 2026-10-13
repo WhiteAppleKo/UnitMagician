@@ -17,9 +17,20 @@ namespace UnitSystem
         {
             if (runtimeData == null) return 1f;
 
-            float currentMass = runtimeData.CurrentValue;
-            float originalMass = runtimeData.OriginalValue > 0f ? runtimeData.OriginalValue : 1.0f;
-            return currentMass / Mathf.Max(0.0001f, originalMass);
+            return CalculateMassRatio(runtimeData.CurrentValue, runtimeData.OriginalValue);
+        }
+
+        /// <summary>값 기반 오버로드. 적용 전 미리보기(13-C)가 RuntimeDataUnit 없이 같은 규칙으로 비율을 계산할 때 사용합니다.</summary>
+        public static float CalculateMassRatio(float currentMass, float originalMass)
+        {
+            float original = originalMass > 0f ? originalMass : 1.0f;
+            return currentMass / Mathf.Max(0.0001f, original);
+        }
+
+        /// <summary>질량(부피) 비율 → 스케일 비율(세제곱근). Apply와 미리보기가 같은 변환을 공유합니다.</summary>
+        public static float CalculateScaleRatio(float massRatio)
+        {
+            return Mathf.Pow(massRatio, 1f / 3f);
         }
 
         public override void Apply(GameObject target, RuntimeDataUnit runtimeData)
@@ -30,7 +41,7 @@ namespace UnitSystem
             float ratio = CalculateMassRatio(runtimeData);
 
             // 스케일 비례 적용: 질량(부피) 비율의 세제곱근(Cube Root) 산출
-            float scaleRatio = Mathf.Pow(ratio, 1f / 3f);
+            float scaleRatio = CalculateScaleRatio(ratio);
 
             var visualizer = target.GetComponent<IUnitTargetVisualizer>();
             if (visualizer != null)

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
+using Pooling;
 
 namespace NpcSystem
 {
@@ -47,6 +48,10 @@ namespace NpcSystem
         [Header("NpcCombatActorVisualizer 인스턴스 (씬에 배치된 모든 인스턴스를 직접 등록 - 인스펙터 전용)")]
         [SerializeField] private List<NpcCombatActorVisualizer> npcCombatActorVisualizers = new List<NpcCombatActorVisualizer>();
 
+        [Header("15-B 아군 투사체 풀링")]
+        [SerializeField] private PureDataNpcProjectile projectileSettings;
+        [SerializeField] private NpcProjectilePool projectilePool;
+
         protected override void Awake()
         {
             parentReference = ParentReference.Create<InteractionSystem.InteractionSystemLifetimeScope>();
@@ -55,6 +60,11 @@ namespace NpcSystem
 
         protected override void Configure(IContainerBuilder builder)
         {
+            // 15-B: 아군 투사체 풀. 풀 컴포넌트는 인터페이스로만 등록해 NpcCombatActorVisualizer/NpcProjectile이 주입받는다.
+            // 풀 크기/빗나감 반환 기준은 PureData(projectileSettings)가 소유한다.
+            builder.RegisterInstance(projectileSettings);
+            builder.RegisterComponent(projectilePool).As<IPoolService<NpcProjectile, NpcProjectileLaunchData>>();
+
             // 같은 구체 타입(NpcCombatActorVisualizer)을 키 없이 둘 이상 RegisterComponent하면 VContainer가
             // "동일 구현 타입 + Singleton" 조합을 컬렉션(IEnumerable<T>) 등록의 중복으로 간주해
             // VContainerException("Conflict implementation type")을 던진다(Play Mode 실검증 중 확인).

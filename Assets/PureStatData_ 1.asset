@@ -12,7 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 470b75c71bad32b4c9184e7a45a95e08, type: 3}
   m_Name: PureStatData_ 1
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.PureStatData
+  defaultFaction: 1
   maxHP: 50
   maxMP: 50
   baseMoveSpeed: 5
   defaultUnitMagics: []
+  maxStamina: 100
+  staminaRegenPerSecond: 30
+  staminaRegenDelaySeconds: 1
+  defaultAttackFlags: 0
+  defaultHitFlags: 3

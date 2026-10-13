@@ -1,5 +1,6 @@
 using UnityEngine;
 using Synty.AnimationBaseLocomotion.Samples;
+using CharacterSystem;
 
 namespace Movement.RefactoredLocomotion
 {
@@ -88,6 +89,22 @@ namespace Movement.RefactoredLocomotion
             if (GetComponent<Movement.Visualizer.PlayerLockOnController>() == null)
             {
                 gameObject.AddComponent<Movement.Visualizer.PlayerLockOnController>();
+            }
+        }
+
+        public event System.Action OnVisualizerDisabled;
+
+        private void OnDisable()
+        {
+            OnVisualizerDisabled?.Invoke();
+        }
+
+        public void SetAttackIgnored(bool ignored)
+        {
+            // 실제 레이어 적용(진영 몸체 레이어 <-> IgnoreAttack)은 몸체 레이어의 유일한 적용 주체인 CharacterStatComponent가 한다.
+            if (TryGetComponent<CharacterStatComponent>(out var statComponent))
+            {
+                statComponent.SetAttackIgnored(ignored);
             }
         }
 

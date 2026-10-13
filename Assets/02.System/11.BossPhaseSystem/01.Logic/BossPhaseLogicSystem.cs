@@ -4,6 +4,7 @@ using VContainer.Unity;
 using NpcSystem;
 using CharacterSystem;
 using EventSequencerSystem;
+using PipeLine.Combat;
 
 namespace BossPhaseSystem
 {
@@ -30,8 +31,13 @@ namespace BossPhaseSystem
         private readonly PureDataBossPattern pureData;
         private readonly GameObject playerTarget;
 
+        // 회복(무적) 페이즈 동안 보스 피격 플래그: 속성 게이트 + 크기 게이트(방어력 스텝은 FinalDamage의 질량 비율을 지우므로 함께 쓰지 않는다).
+        private const HitStepFlags InvulnerableAddedHitFlags = HitStepFlags.AttributeGate | HitStepFlags.SizeGate;
+        private const HitStepFlags InvulnerableSuppressedHitFlags = HitStepFlags.Evasion | HitStepFlags.Defense;
+
         private float elapsedSinceLastAttack;
         private float healAccumulator;
+        private bool invulnerableHitFlagsApplied;
 
         private IEventSequencer eventSequencer;
 
@@ -163,6 +169,7 @@ namespace BossPhaseSystem
             if (ratio <= InvulnerableHealingHpThresholdRatio)
             {
                 bossStatService.SetInvincible(true);
+                ApplyInvulnerableHitFlags();
                 runtimeData.ChangePhase(BossPhaseType.InvulnerableHealing);
                 healAccumulator = 0f;
             }
@@ -209,8 +216,35 @@ namespace BossPhaseSystem
             }
 
             bossStatService.SetInvincible(false);
+            RestoreInvulnerableHitFlags();
             elapsedSinceLastAttack = 0f;
             runtimeData.ChangePhase(BossPhaseType.BasicAttack);
+        }
+
+        /// <summary>
+        /// 회복(무적) 페이즈 진입: 보스의 피격 플래그를 속성·크기 게이트로 바꾼다(AddHit(AttributeGate | SizeGate) + SuppressHit(Evasion|Defense)).
+        /// 이전에는 전용 컴포넌트(BossEventHitFlagsComponent)가 IsInvincible을 읽어 코드로 반환했다. 페이즈를 관장하는 이 로직이 보스의
+        /// CombatFlagState를 갱신하고, InteractionSystem은 피격 시 CharacterStatComponent.CurrentHitFlags로 그 값을 읽는다.
+        /// </summary>
+        private void ApplyInvulnerableHitFlags()
+        {
+            if (invulnerableHitFlagsApplied) return;
+
+            var flags = bossStatService.RuntimeData.CombatFlags;
+            flags.AddHit(InvulnerableAddedHitFlags);
+            flags.SuppressHit(InvulnerableSuppressedHitFlags);
+            invulnerableHitFlagsApplied = true;
+        }
+
+        /// <summary>회복(무적) 페이즈 해제: 진입 때 적용한 플래그 변경을 되돌려 보스 피격 플래그를 PureStatData 기본값으로 원복한다.</summary>
+        private void RestoreInvulnerableHitFlags()
+        {
+            if (!invulnerableHitFlagsApplied) return;
+
+            var flags = bossStatService.RuntimeData.CombatFlags;
+            flags.RemoveHit(InvulnerableAddedHitFlags);
+            flags.UnsuppressHit(InvulnerableSuppressedHitFlags);
+            invulnerableHitFlagsApplied = false;
         }
     }
 }

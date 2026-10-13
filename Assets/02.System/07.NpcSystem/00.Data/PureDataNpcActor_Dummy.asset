@@ -15,5 +15,5 @@ MonoBehaviour:
   moveSpeed: 3
   arrivalThreshold: 0.1
   attackCooldown: 1
-  baseDamage: 10
+  baseDamage: 60
   attackBehavior: {fileID: 11400000, guid: 8e8f855d8bdf80743ac54ec589a3dac8, type: 2}

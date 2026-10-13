@@ -14,11 +14,6 @@ namespace InteractionSystem.Logic
     /// </summary>
     public class InteractionSystem : IInteractionService
     {
-        // 버프/무기 시스템이 아직 없어서 공격자/피격자 둘 다 우선 기본 플래그를 사용합니다.
-        // 실제 버프/장비에 따른 플래그 배선(FlagRefCounter/CombatFlagState 연동)은 이번 작업 범위 밖의 후속 작업입니다.
-        private const AttackStepFlags DefaultAttackFlags = AttackStepFlags.Critical;
-        private const HitStepFlags DefaultHitFlags = HitStepFlags.Evasion | HitStepFlags.Defense;
-
         private readonly ICombatPipelineManager combatPipelineManager;
         private readonly UnitMagicPipeLine unitMagicPipeLine;
 
@@ -38,9 +33,16 @@ namespace InteractionSystem.Logic
 
             if (combatPipelineManager != null)
             {
-                // victim이 IHitStepFlagsProvider를 구현하면(예: 돌문 - AttributeGate만 필요) 그 값을 사용하고,
-                // 구현하지 않으면(기존 캐릭터) 회귀 없이 기본값(Evasion|Defense)을 그대로 사용합니다.
-                HitStepFlags hitFlags = DefaultHitFlags;
+                // 플래그는 하드코딩 상수가 아니라 각 엔티티가 자기 데이터로 들고 있다(16-A).
+                // 공격 플래그: 충돌한 투사체(Source)가 독자적으로 보관한 값(IAttackStepFlagsProvider). provider가 없으면 None.
+                AttackStepFlags attackFlags = AttackStepFlags.None;
+                if (result.Source != null && result.Source.TryGetComponent<IAttackStepFlagsProvider>(out var attackFlagsProvider))
+                {
+                    attackFlags = attackFlagsProvider.CurrentAttackFlags;
+                }
+
+                // 피격 플래그: 피격 대상(캐릭터/돌문 등)의 IHitStepFlagsProvider. provider가 없으면 None.
+                HitStepFlags hitFlags = HitStepFlags.None;
                 if (result.Victim != null && result.Victim.TryGetComponent<IHitStepFlagsProvider>(out var hitFlagsProvider))
                 {
                     hitFlags = hitFlagsProvider.CurrentHitFlags;
@@ -48,7 +50,7 @@ namespace InteractionSystem.Logic
 
                 // 공격 파이프라인 -> HitRegistered 설정 -> 피격 파이프라인 -> ApplyDamageStep(고정, 항상 실행) 순으로 실행.
                 // HP 차감은 ApplyDamageStep이 victim의 IDamageable을 통해 이미 직접 처리하므로 여기서 중복 적용하지 않습니다.
-                result = await combatPipelineManager.RunFullPipeline(result, DefaultAttackFlags, hitFlags);
+                result = await combatPipelineManager.RunFullPipeline(result, attackFlags, hitFlags);
             }
             else
             {

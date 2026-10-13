@@ -13,3 +13,7 @@ MonoBehaviour:
   m_Name: PureDataDestructibleDoor_Test
   m_EditorClassIdentifier: Assembly-CSharp::DestructibleSystem.PureDataDestructibleDoor
   hp: 100
+  requiredMaxTemperature: 0
+  requiredMassRatio: 1.5
+  faction: 2
+  hitFlags: 12

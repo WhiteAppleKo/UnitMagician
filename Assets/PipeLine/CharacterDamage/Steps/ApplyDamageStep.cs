@@ -50,7 +50,16 @@ namespace PipeLine.CharacterDamage.Steps
 
             if (context.Victim != null && context.Victim.TryGetComponent<IDamageable>(out var damageable))
             {
-                damageable.ApplyDamage(context.FinalDamage);
+                // 게이트 결과를 스스로 판정하는 대상(IGateAwareDamageable, 예: 돌문)에는 컨텍스트를 함께 전달하고,
+                // 일반 IDamageable(예: CharacterStatComponent)에는 기존 호출을 그대로 유지한다(하위 호환).
+                if (damageable is IGateAwareDamageable gateAware)
+                {
+                    gateAware.ApplyDamage(context.FinalDamage, in context);
+                }
+                else
+                {
+                    damageable.ApplyDamage(context.FinalDamage);
+                }
             }
 
             Debug.Log($"[ApplyDamageStep] Applied FinalDamage: {context.FinalDamage} to victim: {context.Victim?.name}");

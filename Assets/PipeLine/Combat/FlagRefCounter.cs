@@ -55,6 +55,17 @@ namespace PipeLine.Combat
             }
         }
 
+        /// <summary>
+        /// 모든 추가/제외 카운터를 비우고 기본 플래그를 새 값으로 되돌립니다(풀링 재사용 시 이전 사용의 비트가 남지 않게 하는 초기화용, 할당 없음).
+        /// </summary>
+        public void Reset(TFlags baseFlags = default)
+        {
+            additiveCounters.Clear();
+            suppressCounters.Clear();
+            baseFlagsRaw = ToInt(baseFlags);
+            dirty = true;
+        }
+
         public void Add(TFlags flags) => AdjustBits(additiveCounters, ToInt(flags), +1);
         public void Remove(TFlags flags) => AdjustBits(additiveCounters, ToInt(flags), -1);
         public void Suppress(TFlags flags) => AdjustBits(suppressCounters, ToInt(flags), +1);
@@ -117,6 +128,13 @@ namespace PipeLine.Combat
         {
             attackFlags = new FlagRefCounter<AttackStepFlags>(baseAttackFlags);
             hitFlags = new FlagRefCounter<HitStepFlags>(baseHitFlags);
+        }
+
+        /// <summary>모든 카운터를 비우고 기본 플래그를 새 값으로 되돌립니다(풀링 재사용 초기화용).</summary>
+        public void Reset(AttackStepFlags baseAttackFlags = AttackStepFlags.None, HitStepFlags baseHitFlags = HitStepFlags.None)
+        {
+            attackFlags.Reset(baseAttackFlags);
+            hitFlags.Reset(baseHitFlags);
         }
 
         public AttackStepFlags CurrentAttackFlags => attackFlags.CurrentFlags;

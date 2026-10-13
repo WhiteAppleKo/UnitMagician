@@ -8,6 +8,7 @@ namespace UnitSystem
     {
         private SerializedProperty unitTypeProp;
         private SerializedProperty unitNameProp;
+        private SerializedProperty descriptionProp;
         private SerializedProperty baseCostProp;
         private SerializedProperty iconProp;
         private SerializedProperty applicatorProp;
@@ -19,6 +20,7 @@ namespace UnitSystem
         {
             unitTypeProp = serializedObject.FindProperty("unitType");
             unitNameProp = serializedObject.FindProperty("unitName");
+            descriptionProp = serializedObject.FindProperty("description");
             baseCostProp = serializedObject.FindProperty("baseCost");
             iconProp = serializedObject.FindProperty("icon");
             applicatorProp = serializedObject.FindProperty("applicator");
@@ -37,6 +39,7 @@ namespace UnitSystem
             bool isTypeChanged = EditorGUI.EndChangeCheck();
 
             EditorGUILayout.PropertyField(unitNameProp);
+            EditorGUILayout.PropertyField(descriptionProp);
             EditorGUILayout.PropertyField(baseCostProp);
             EditorGUILayout.PropertyField(iconProp);
             EditorGUILayout.PropertyField(applicatorProp);

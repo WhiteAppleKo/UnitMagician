@@ -7,7 +7,8 @@ using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 namespace UnitSystem
 {
     /// <summary>
-    /// 소유 중인 유닛(마법) 인벤토리를 아이콘 그리드로 표시하고, 클릭으로 장착/해제를 토글하는 UI 컴포넌트입니다.
+    /// 소유 중인 유닛(마법) 인벤토리를 행 목록(아이콘 + 이름 + 설명 + 장착 상태)으로 표시하고, 아이콘 클릭으로 장착/해제를 토글하는 UI 컴포넌트입니다.
+    /// 행에 마우스를 올리면 우측 상세 패널에 이름/아이콘/전체 설명을 보여 줍니다(18번 기획서).
     /// 장착된 유닛은 강조 테두리, 미장착이지만 장착 가능한 유닛은 기본 테두리,
     /// 조건 미달로 장착 불가능한 유닛(현재는 스텁 체커라 발생하지 않음)은 회색+비활성으로 표시합니다.
     ///
@@ -31,18 +32,24 @@ namespace UnitSystem
         private IUnitCatalogService catalogService;
         private IUnitEquipRequirementChecker requirementChecker;
         private RuntimeDataMagicFavoriteSlots favoriteSlots;
+        // 이벤트(3단계 감속) 중 인벤토리 열기 차단용(선택적 주입 - 미주입이면 차단 없이 기존 동작).
+        private CharacterSystem.RuntimeDataTimeSlow timeSlowData;
         private InputReader m_inputReader;
         private Common.InputSystem.IInputContextManager m_inputContextManager;
 
+        // 18번 기획서 §6 A안: 행 형태 목록 + 호버 시 우측 상세 패널(이름/아이콘/전체 설명).
+        private static readonly Color DescriptionColor = new Color(0.78f, 0.78f, 0.78f, 1f);
+        private const float DescriptionListFontSize = 11f;
+        private const float DescriptionListMaxHeight = 28f; // 11pt(줄 높이 약 13.5) 기준 2줄, 패딩 0 — 초과분은 말줄임
+        private const float DetailPanelWidth = 190f;
+
+        private VisualElement detailPanel;
+        private PureDataUnit hoveredUnit;
+
         private bool m_isOpen = false;
 
-        // 인벤토리 메뉴가 씬에 둘 이상 존재해 동시에 InputReader.onInventoryToggled를 구독하는 경우에도,
-        // Time.timeScale은 전역 자원이므로 인스턴스별 캐시가 아니라 정적 참조 카운트로 관리해
-        // 마지막으로 닫힌 시점에만 원래 값으로 복원한다.
-        // OptionUIComponent의 s_pauseRefCount/s_cachedTimeScale과는 별개의 정적 필드로 관리한다
-        // (두 메뉴를 동시에 열 때의 Time.timeScale 상호작용은 이번 범위 밖의 알려진 한계).
-        private static int s_pauseRefCount = 0;
-        private static float s_cachedTimeScale = 1f;
+        // 17번 기획서: Time.timeScale은 직접 쓰지 않고 일시정지 요청만 올리고 내린다(요청자 집합으로 멱등 관리).
+        private CharacterSystem.ITimeScaleService timeScaleService;
 
         public bool IsOpen => m_isOpen;
 
@@ -52,15 +59,19 @@ namespace UnitSystem
             IUnitEquipRequirementChecker requirementChecker = null,
             InputReader inputReader = null,
             Common.InputSystem.IInputContextManager contextManager = null,
-            RuntimeDataMagicFavoriteSlots favoriteSlots = null)
+            RuntimeDataMagicFavoriteSlots favoriteSlots = null,
+            CharacterSystem.RuntimeDataTimeSlow timeSlowData = null,
+            CharacterSystem.ITimeScaleService timeScaleService = null)
         {
             UnbindEvents();
 
+            this.timeScaleService = timeScaleService;
             this.catalogService = catalogService;
             this.requirementChecker = requirementChecker;
             m_inputReader = inputReader;
             m_inputContextManager = contextManager;
             this.favoriteSlots = favoriteSlots;
+            this.timeSlowData = timeSlowData;
 
             BindEvents();
             RefreshInventory();
@@ -176,13 +187,106 @@ namespace UnitSystem
             var possessedUnits = catalogService.GetPossessedUnits();
             Debug.Log($"[UnitInventoryUIComponent] Inventory Refreshed. Possessed Count: {possessedUnits.Count}");
 
+            // 좌: 행 목록(스크롤), 우: 호버 상세 패널. 컨테이너는 UXML의 줄바꿈 그리드 대신 2열 레이아웃으로 쓴다.
             inventoryContainer.Clear();
+            inventoryContainer.style.flexDirection = FlexDirection.Row;
+            inventoryContainer.style.flexWrap = Wrap.NoWrap;
+
+            var listView = new ScrollView(ScrollViewMode.Vertical);
+            listView.style.flexGrow = 1;
+            listView.style.flexShrink = 1;
+            listView.RegisterCallback<PointerLeaveEvent>(_ => SetHoveredUnit(null));
+
+            bool hoveredStillPossessed = false;
             foreach (var unitData in possessedUnits)
             {
                 if (unitData == null) continue;
 
-                inventoryContainer.Add(BuildUnitElement(unitData));
+                if (unitData == hoveredUnit) hoveredStillPossessed = true;
+                listView.Add(BuildUnitElement(unitData));
             }
+            inventoryContainer.Add(listView);
+
+            detailPanel = BuildDetailPanel();
+            inventoryContainer.Add(detailPanel);
+
+            // 클릭 등으로 목록이 다시 그려져도 포인터가 올라가 있던 마법의 상세는 유지한다.
+            if (!hoveredStillPossessed) hoveredUnit = null;
+            RefreshDetailPanel();
+        }
+
+        private VisualElement BuildDetailPanel()
+        {
+            var panel = new VisualElement();
+            panel.pickingMode = PickingMode.Ignore;
+            panel.style.width = DetailPanelWidth;
+            panel.style.flexShrink = 0;
+            panel.style.marginLeft = 12;
+            panel.style.paddingTop = 10;
+            panel.style.paddingBottom = 10;
+            panel.style.paddingLeft = 10;
+            panel.style.paddingRight = 10;
+            panel.style.backgroundColor = new StyleColor(new Color(0.12f, 0.12f, 0.16f, 0.9f));
+            panel.style.borderTopLeftRadius = 8;
+            panel.style.borderTopRightRadius = 8;
+            panel.style.borderBottomLeftRadius = 8;
+            panel.style.borderBottomRightRadius = 8;
+            panel.style.alignItems = Align.Center;
+            panel.style.visibility = Visibility.Hidden;
+            return panel;
+        }
+
+        private void SetHoveredUnit(PureDataUnit unitData)
+        {
+            hoveredUnit = unitData;
+            RefreshDetailPanel();
+        }
+
+        /// <summary>호버 중인 마법의 이름 + 아이콘 + 전체 설명을 상세 패널에 그린다(설명이 비면 설명 요소를 만들지 않는다).</summary>
+        private void RefreshDetailPanel()
+        {
+            if (detailPanel == null) return;
+
+            detailPanel.Clear();
+            if (hoveredUnit == null)
+            {
+                detailPanel.style.visibility = Visibility.Hidden;
+                return;
+            }
+
+            var iconElement = new VisualElement();
+            iconElement.pickingMode = PickingMode.Ignore;
+            iconElement.style.width = 96;
+            iconElement.style.height = 96;
+            iconElement.style.marginBottom = 8;
+            if (hoveredUnit.Icon != null)
+            {
+                iconElement.style.backgroundImage = new StyleBackground(hoveredUnit.Icon);
+            }
+            detailPanel.Add(iconElement);
+
+            var nameLabel = new Label(hoveredUnit.UnitName);
+            nameLabel.pickingMode = PickingMode.Ignore;
+            nameLabel.style.color = new StyleColor(EquippedBorderColor);
+            nameLabel.style.fontSize = 16;
+            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            nameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            nameLabel.style.whiteSpace = WhiteSpace.Normal;
+            nameLabel.style.marginBottom = 6;
+            detailPanel.Add(nameLabel);
+
+            if (!string.IsNullOrEmpty(hoveredUnit.Description))
+            {
+                var descriptionLabel = new Label(hoveredUnit.Description);
+                descriptionLabel.pickingMode = PickingMode.Ignore;
+                descriptionLabel.style.color = new StyleColor(DescriptionColor);
+                descriptionLabel.style.fontSize = 12;
+                descriptionLabel.style.whiteSpace = WhiteSpace.Normal;
+                descriptionLabel.style.unityTextAlign = TextAnchor.UpperLeft;
+                detailPanel.Add(descriptionLabel);
+            }
+
+            detailPanel.style.visibility = Visibility.Visible;
         }
 
         private VisualElement BuildUnitElement(PureDataUnit unitData)
@@ -190,14 +294,25 @@ namespace UnitSystem
             bool isEquipped = catalogService.IsEquipped(unitData);
             bool canEquip = isEquipped || requirementChecker == null || requirementChecker.CanEquip(unitData, out _);
 
-            // 아이콘 + 라벨을 세로로 쌓기 위한 부모 컨테이너 (그리드 배치 단위는 이 컨테이너가 담당).
+            // 한 행 = 아이콘(클릭 대상) + 이름/설명 열 + 장착 상태. 행에 마우스를 올리면 우측 상세 패널을 갱신한다.
             var slotElement = new VisualElement();
-            slotElement.style.width = 64;
-            slotElement.style.marginRight = 8;
-            slotElement.style.marginBottom = 8;
+            slotElement.style.flexDirection = FlexDirection.Row;
             slotElement.style.alignItems = Align.Center;
+            slotElement.style.paddingTop = 6;
+            slotElement.style.paddingBottom = 6;
+            slotElement.style.paddingLeft = 8;
+            slotElement.style.paddingRight = 8;
+            slotElement.style.marginBottom = 4;
+            slotElement.style.backgroundColor = new StyleColor(new Color(1f, 1f, 1f, 0.04f));
+            slotElement.style.borderTopLeftRadius = 6;
+            slotElement.style.borderTopRightRadius = 6;
+            slotElement.style.borderBottomLeftRadius = 6;
+            slotElement.style.borderBottomRightRadius = 6;
+            PureDataUnit hoverUnit = unitData;
+            slotElement.RegisterCallback<PointerEnterEvent>(_ => SetHoveredUnit(hoverUnit));
 
             var unitElement = new VisualElement();
+            unitElement.style.flexShrink = 0;
             unitElement.style.width = 48;
             unitElement.style.height = 48;
             unitElement.style.backgroundColor = new StyleColor(canEquip ? EnabledTint : DisabledTint);
@@ -231,21 +346,48 @@ namespace UnitSystem
             string statusText = isEquipped ? "장착됨" : (canEquip ? "미장착" : "장착 불가");
             Color statusColor = isEquipped ? EquippedBorderColor : (canEquip ? DefaultBorderColor : DisabledTint);
 
+            var textColumn = new VisualElement();
+            textColumn.pickingMode = PickingMode.Ignore;
+            textColumn.style.flexGrow = 1;
+            textColumn.style.flexShrink = 1;
+            textColumn.style.marginLeft = 10;
+            textColumn.style.marginRight = 8;
+
             var nameLabel = new Label(unitData.UnitName);
             nameLabel.style.color = new StyleColor(Color.white);
-            nameLabel.style.fontSize = 11;
-            nameLabel.style.marginTop = 2;
-            nameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            nameLabel.style.fontSize = 13;
+            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            nameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             nameLabel.pickingMode = PickingMode.Ignore;
+            textColumn.Add(nameLabel);
+
+            // 설명이 비어 있으면 설명 요소를 만들지 않는다(기존과 같은 모습).
+            if (!string.IsNullOrEmpty(unitData.Description))
+            {
+                var descriptionLabel = new Label(unitData.Description);
+                descriptionLabel.pickingMode = PickingMode.Ignore;
+                descriptionLabel.style.color = new StyleColor(DescriptionColor);
+                descriptionLabel.style.fontSize = DescriptionListFontSize;
+                descriptionLabel.style.unityTextAlign = TextAnchor.UpperLeft;
+                descriptionLabel.style.whiteSpace = WhiteSpace.Normal;
+                descriptionLabel.style.overflow = Overflow.Hidden;
+                descriptionLabel.style.textOverflow = TextOverflow.Ellipsis;
+                descriptionLabel.style.maxHeight = DescriptionListMaxHeight; // 최대 2줄
+                descriptionLabel.style.marginTop = 2;
+                descriptionLabel.style.paddingTop = 0;
+                descriptionLabel.style.paddingBottom = 0;
+                textColumn.Add(descriptionLabel);
+            }
 
             var statusLabel = new Label(statusText);
             statusLabel.style.color = new StyleColor(statusColor);
             statusLabel.style.fontSize = 10;
-            statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            statusLabel.style.flexShrink = 0;
+            statusLabel.style.unityTextAlign = TextAnchor.MiddleRight;
             statusLabel.pickingMode = PickingMode.Ignore;
 
             slotElement.Add(unitElement);
-            slotElement.Add(nameLabel);
+            slotElement.Add(textColumn);
             slotElement.Add(statusLabel);
 
             // 즐겨찾기(W/E/F) 등록 배지 — 인벤토리에서 장착 유닛을 우클릭해 RuntimeDataMagicFavoriteSlots에
@@ -340,7 +482,10 @@ namespace UnitSystem
 
         public void OpenInventory()
         {
-            bool wasOpen = m_isOpen;
+            // 13번 기획서 §3 "이벤트 중 차단": 이벤트(3단계 감속) 진행 중에는 인벤토리를 열지 않는다.
+            // (이미 열려 있는 경우의 닫기는 CloseInventory가 그대로 허용한다.)
+            if (timeSlowData != null && timeSlowData.IsEventTriggered) return;
+
             m_isOpen = true;
 
             RefreshInventory();
@@ -350,16 +495,7 @@ namespace UnitSystem
                 inventoryContainer.style.display = DisplayStyle.Flex;
             }
 
-            if (!wasOpen)
-            {
-                if (s_pauseRefCount == 0)
-                {
-                    s_cachedTimeScale = Time.timeScale;
-                }
-                s_pauseRefCount++;
-            }
-
-            Time.timeScale = 0f;
+            timeScaleService?.SetPaused(this, true);
 
             var manager = m_inputContextManager;
             manager?.PushContext(manager.UIContext);
@@ -367,23 +503,15 @@ namespace UnitSystem
 
         public void CloseInventory()
         {
-            bool wasOpen = m_isOpen;
             m_isOpen = false;
+            SetHoveredUnit(null);
 
             if (inventoryContainer != null)
             {
                 inventoryContainer.style.display = DisplayStyle.None;
             }
 
-            if (wasOpen)
-            {
-                s_pauseRefCount = Mathf.Max(0, s_pauseRefCount - 1);
-            }
-
-            if (s_pauseRefCount == 0)
-            {
-                Time.timeScale = s_cachedTimeScale;
-            }
+            timeScaleService?.SetPaused(this, false);
 
             var manager = m_inputContextManager;
             manager?.PopContext(manager.UIContext);

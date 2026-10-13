@@ -42,6 +42,45 @@
     transition-duration: 0.2s;
 }
 
+/* 19-A: 스태미나 바. 소모는 즉시 줄고(트랜지션 없음) 회복은 프레임마다 조금씩 차오른다. */
+.stamina-fill {
+    height: 100%;
+    width: 100%;
+    background-color: #27ae60;
+    border-radius: 5px;
+}
+
+/* 13-C: 락온 큐 예상 마나 비용 표시. 현재 MP 바의 오른쪽 끝에서 비용만큼 겹쳐 그린다(부족하면 전체를 붉게). */
+.mp-preview-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    display: none;
+    background-color: rgba(255, 230, 120, 0.8);
+}
+
+.mp-preview-fill--insufficient {
+    background-color: rgba(231, 76, 60, 0.9);
+}
+
+.mp-preview-label {
+    position: absolute;
+    right: 6px;
+    top: 0;
+    bottom: 0;
+    display: none;
+    -unity-text-align: middle-right;
+    color: #ffe27a;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.mp-preview-label--insufficient {
+    color: #ff6b5b;
+}
+
 .focus-fill {
     height: 100%;
     width: 100%;

@@ -44,13 +44,6 @@ namespace OptionSystem
         private VisualElement m_contentSound;
         private VisualElement m_contentGraphics;
 
-        // Camera Mode Buttons
-        private Button m_hybridBtn;
-        private Button m_playerBtn;
-        private Button m_mouseBtn;
-        private Button m_firstPersonBtn;
-        private Button m_shoulderBtn;
-
         // Action Buttons
         private Button m_resumeBtn;
         private Button m_lobbyBtn;
@@ -60,11 +53,8 @@ namespace OptionSystem
         private OptionTabType m_currentTab = OptionTabType.General;
         private bool m_isOpen = false;
 
-        // OptionUIComponent(및 파생 클래스)가 씬에 둘 이상 존재해 동시에 InputReader.onOptionToggled를
-        // 구독하는 경우에도, Time.timeScale은 전역 자원이므로 인스턴스별 캐시가 아니라
-        // 정적 참조 카운트로 관리해 마지막으로 닫힌 시점에만 원래 값으로 복원한다.
-        private static int s_pauseRefCount = 0;
-        private static float s_cachedTimeScale = 1f;
+        // 17번 기획서: Time.timeScale은 직접 쓰지 않고 일시정지 요청만 올리고 내린다(요청자 집합으로 멱등 관리).
+        private CharacterSystem.ITimeScaleService m_timeScaleService;
 
         private IInputContextManager m_inputContextManager;
         private IInputContextManager ContextManager => m_inputContextManager;
@@ -75,19 +65,17 @@ namespace OptionSystem
         public void Construct(
             ICameraFollowService cameraFollowService = null,
             InputReader inputReader = null,
-            Common.InputSystem.IInputContextManager contextManager = null)
+            Common.InputSystem.IInputContextManager contextManager = null,
+            CharacterSystem.ITimeScaleService timeScaleService = null)
         {
             m_cameraFollowService = cameraFollowService;
             m_inputReader = inputReader;
             m_inputContextManager = contextManager;
+            m_timeScaleService = timeScaleService;
 
             if (isActiveAndEnabled)
             {
                 SubscribeEvents();
-                if (m_cameraFollowService != null)
-                {
-                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
-                }
             }
         }
 
@@ -100,10 +88,6 @@ namespace OptionSystem
             if (isActiveAndEnabled)
             {
                 SubscribeEvents();
-                if (m_cameraFollowService != null)
-                {
-                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
-                }
             }
         }
 
@@ -111,10 +95,6 @@ namespace OptionSystem
         {
             RegisterButtonCallbacks();
             SubscribeEvents();
-            if (m_cameraFollowService != null)
-            {
-                UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
-            }
         }
 
         private void OnDisable()
@@ -129,12 +109,6 @@ namespace OptionSystem
 
         private void SubscribeEvents()
         {
-            if (m_cameraFollowService != null)
-            {
-                m_cameraFollowService.OnCameraModeChanged -= UpdateCameraModeHighlights;
-                m_cameraFollowService.OnCameraModeChanged += UpdateCameraModeHighlights;
-            }
-
             if (m_inputReader != null)
             {
                 m_inputReader.onOptionToggled -= ToggleOption;
@@ -144,11 +118,6 @@ namespace OptionSystem
 
         private void UnsubscribeEvents()
         {
-            if (m_cameraFollowService != null)
-            {
-                m_cameraFollowService.OnCameraModeChanged -= UpdateCameraModeHighlights;
-            }
-
             if (m_inputReader != null)
             {
                 m_inputReader.onOptionToggled -= ToggleOption;
@@ -195,13 +164,6 @@ namespace OptionSystem
                 m_contentSound = root.Q<VisualElement>("Content_Sound");
                 m_contentGraphics = root.Q<VisualElement>("Content_Graphics");
 
-                // Camera Buttons
-                m_hybridBtn = root.Q<Button>("Btn_HybridFocus");
-                m_playerBtn = root.Q<Button>("Btn_PlayerOnly");
-                m_mouseBtn = root.Q<Button>("Btn_MouseFocus");
-                m_firstPersonBtn = root.Q<Button>("Btn_FirstPerson");
-                m_shoulderBtn = root.Q<Button>("Btn_ThirdPersonShoulder");
-
                 // Actions
                 m_resumeBtn = root.Q<Button>("Btn_Resume");
                 m_lobbyBtn = root.Q<Button>("Btn_Lobby");
@@ -232,36 +194,6 @@ namespace OptionSystem
                     m_tabGraphicsBtn.clicked += OnGraphicsTabClicked;
                 }
 
-                if (m_hybridBtn != null)
-                {
-                    m_hybridBtn.clicked -= OnHybridClicked;
-                    m_hybridBtn.clicked += OnHybridClicked;
-                }
-
-                if (m_playerBtn != null)
-                {
-                    m_playerBtn.clicked -= OnPlayerClicked;
-                    m_playerBtn.clicked += OnPlayerClicked;
-                }
-
-                if (m_mouseBtn != null)
-                {
-                    m_mouseBtn.clicked -= OnMouseClicked;
-                    m_mouseBtn.clicked += OnMouseClicked;
-                }
-
-                if (m_firstPersonBtn != null)
-                {
-                    m_firstPersonBtn.clicked -= OnFirstPersonClicked;
-                    m_firstPersonBtn.clicked += OnFirstPersonClicked;
-                }
-
-                if (m_shoulderBtn != null)
-                {
-                    m_shoulderBtn.clicked -= OnShoulderClicked;
-                    m_shoulderBtn.clicked += OnShoulderClicked;
-                }
-
                 if (m_resumeBtn != null)
                 {
                     m_resumeBtn.clicked -= CloseOption;
@@ -279,27 +211,7 @@ namespace OptionSystem
                     m_quitBtn.clicked -= OnQuitClicked;
                     m_quitBtn.clicked += OnQuitClicked;
                 }
-
-                FilterAllowedModeButtons();
             }
-        }
-
-        private void FilterAllowedModeButtons()
-        {
-            if (m_cameraFollowService == null || m_cameraFollowService.Setting == null) return;
-
-            var setting = m_cameraFollowService.Setting;
-            SetButtonVisibility(m_hybridBtn, setting.IsModeAllowed(CameraMode.HybridFocus));
-            SetButtonVisibility(m_playerBtn, setting.IsModeAllowed(CameraMode.PlayerOnly));
-            SetButtonVisibility(m_mouseBtn, setting.IsModeAllowed(CameraMode.MouseFocus));
-            SetButtonVisibility(m_firstPersonBtn, setting.IsModeAllowed(CameraMode.FirstPerson));
-            SetButtonVisibility(m_shoulderBtn, setting.IsModeAllowed(CameraMode.ThirdPersonShoulder));
-        }
-
-        private void SetButtonVisibility(Button btn, bool isAllowed)
-        {
-            if (btn == null) return;
-            btn.style.display = isAllowed ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public void ApplySceneContext(OptionSceneContext context)
@@ -320,17 +232,6 @@ namespace OptionSystem
         private void OnSoundTabClicked() => SelectTab(OptionTabType.Sound);
         private void OnGraphicsTabClicked() => SelectTab(OptionTabType.Graphics);
 
-        private void OnHybridClicked() => SetCameraMode(CameraMode.HybridFocus);
-        private void OnPlayerClicked() => SetCameraMode(CameraMode.PlayerOnly);
-        private void OnMouseClicked() => SetCameraMode(CameraMode.MouseFocus);
-        private void OnFirstPersonClicked() => SetCameraMode(CameraMode.FirstPerson);
-        private void OnShoulderClicked() => SetCameraMode(CameraMode.ThirdPersonShoulder);
-
-        private void SetCameraMode(CameraMode mode)
-        {
-            m_cameraFollowService?.SetCameraMode(mode);
-        }
-
         public void SelectTab(OptionTabType tabType)
         {
             m_currentTab = tabType;
@@ -344,37 +245,6 @@ namespace OptionSystem
             SetTabActive(m_tabCameraBtn, tabType == OptionTabType.Camera);
             SetTabActive(m_tabSoundBtn, tabType == OptionTabType.Sound);
             SetTabActive(m_tabGraphicsBtn, tabType == OptionTabType.Graphics);
-
-            if (tabType == OptionTabType.Camera)
-            {
-                FilterAllowedModeButtons();
-                if (m_cameraFollowService != null)
-                {
-                    UpdateCameraModeHighlights(m_cameraFollowService.CurrentMode);
-                }
-            }
-        }
-
-        private void UpdateCameraModeHighlights(CameraMode mode)
-        {
-            SetButtonActive(m_hybridBtn, mode == CameraMode.HybridFocus);
-            SetButtonActive(m_playerBtn, mode == CameraMode.PlayerOnly);
-            SetButtonActive(m_mouseBtn, mode == CameraMode.MouseFocus);
-            SetButtonActive(m_firstPersonBtn, mode == CameraMode.FirstPerson);
-            SetButtonActive(m_shoulderBtn, mode == CameraMode.ThirdPersonShoulder);
-        }
-
-        private void SetButtonActive(Button btn, bool isActive)
-        {
-            if (btn == null) return;
-            if (colorData != null)
-            {
-                btn.style.backgroundColor = new StyleColor(isActive ? colorData.ActiveModeColor : colorData.InactiveModeColor);
-            }
-            else
-            {
-                btn.style.backgroundColor = isActive ? new Color(0.2f, 0.6f, 0.9f, 1f) : new Color(0.2f, 0.2f, 0.25f, 1f);
-            }
         }
 
         private void SetTabActive(Button tabBtn, bool isActive)
@@ -406,7 +276,6 @@ namespace OptionSystem
 
         public void OpenOption()
         {
-            bool wasOpen = m_isOpen;
             m_isOpen = true;
             if (m_optionPanel != null)
             {
@@ -415,18 +284,9 @@ namespace OptionSystem
 
             SelectTab(OptionTabType.General);
 
-            if (!wasOpen)
-            {
-                if (s_pauseRefCount == 0)
-                {
-                    s_cachedTimeScale = Time.timeScale;
-                }
-                s_pauseRefCount++;
-            }
-
             if (sceneContext == OptionSceneContext.InGame)
             {
-                Time.timeScale = 0f;
+                m_timeScaleService?.SetPaused(this, true);
             }
 
             var manager = ContextManager;
@@ -435,22 +295,13 @@ namespace OptionSystem
 
         public void CloseOption()
         {
-            bool wasOpen = m_isOpen;
             m_isOpen = false;
             if (m_optionPanel != null)
             {
                 m_optionPanel.style.display = DisplayStyle.None;
             }
 
-            if (wasOpen)
-            {
-                s_pauseRefCount = Mathf.Max(0, s_pauseRefCount - 1);
-            }
-
-            if (s_pauseRefCount == 0)
-            {
-                Time.timeScale = s_cachedTimeScale;
-            }
+            m_timeScaleService?.SetPaused(this, false);
 
             var manager = ContextManager;
             manager?.PopContext(manager.UIContext);

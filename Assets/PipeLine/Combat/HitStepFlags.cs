@@ -24,7 +24,10 @@ namespace PipeLine.Combat
         /// </summary>
         AttributeGate = 1 << 2,
 
-        // 향후 확장 예시(비트 자리만 예약):
-        // SizeGate     = 1 << 3,
+        /// <summary>
+        /// 캐릭터가 아닌 오브젝트(돌문)와 회복(무적) 페이즈 보스를 위한 크기(질량 비율) 게이트 스텝. SizeGateStep이 이 플래그를 사용합니다.
+        /// 속성 게이트와 별개로 "질량 비율 ≥ 대상의 요구 비율"을 확인해 DamageContext.SizeGatePassed에 기록할 뿐 Aborted는 세우지 않습니다(20번 기획서).
+        /// </summary>
+        SizeGate = 1 << 3,
     }
 }

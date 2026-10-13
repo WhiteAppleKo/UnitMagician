@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace CameraMovement
 {
@@ -10,13 +11,9 @@ namespace CameraMovement
         [Tooltip("게임 시작 시 기본 적용할 카메라 모드")]
         [SerializeField] private CameraMode defaultMode = CameraMode.ThirdPersonShoulder;
 
-        [Tooltip("해당 프로젝트/씬에서 허용할 카메라 모드 목록 (UI 노출 필터링)")]
+        [Tooltip("해당 프로젝트/씬에서 허용할 카메라 모드 목록 (숄더뷰 고정 — 3인칭 숄더만 유지)")]
         [SerializeField] private CameraMode[] allowedModes = new CameraMode[]
         {
-            CameraMode.HybridFocus,
-            CameraMode.PlayerOnly,
-            CameraMode.MouseFocus,
-            CameraMode.FirstPerson,
             CameraMode.ThirdPersonShoulder
         };
 
@@ -65,6 +62,17 @@ namespace CameraMovement
         [Tooltip("Y축 마우스 반전")]
         [SerializeField] private bool invertY = false;
 
+        [Header("Event Camera (First Person)")]
+        [Tooltip("평상시 숄더 가상 카메라 <-> 이벤트 1인칭 가상 카메라 전환(Cinemachine 블렌드) 시간(초). 0 이하면 즉시 컷")]
+        [FormerlySerializedAs("eventTargetBlendTime")]
+        [SerializeField] private float eventCameraBlendTime = 0.5f;
+
+        [Tooltip("이벤트 1인칭 가상 카메라의 세로 시야각(FOV)")]
+        [SerializeField] private float eventCameraFieldOfView = 70f;
+
+        [Tooltip("이벤트 1인칭 카메라(캐릭터 눈) 높이. 플레이어 루트 위치 기준 위쪽 오프셋(m)")]
+        [SerializeField] private float eventCameraEyeHeight = 1.68f;
+
         public CameraMode DefaultMode => defaultMode;
         public IReadOnlyList<CameraMode> AllowedModes => allowedModes;
 
@@ -84,6 +92,9 @@ namespace CameraMovement
         public float OrbitDistance => orbitDistance;
         public Vector2 VerticalAngleLimits => verticalAngleLimits;
         public bool InvertY => invertY;
+        public float EventCameraBlendTime => eventCameraBlendTime;
+        public float EventCameraFieldOfView => eventCameraFieldOfView;
+        public float EventCameraEyeHeight => eventCameraEyeHeight;
 
         public bool IsModeAllowed(CameraMode mode)
         {

@@ -30,6 +30,9 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
 
         public Action onJumpPerformed;
 
+        /// <summary>구르기 입력(19-B). Space를 달리기 키(Shift) 없이 눌렀을 때만 발행된다. Shift+Space는 onJumpPerformed로만 발행된다.</summary>
+        public Action onRollPressed;
+
         public Action onLockOnToggled;
 
         public Action onSprintActivated;
@@ -40,6 +43,7 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
         public Action onTimeSlowToggled;
         public Action onOptionToggled;
         public Action onInventoryToggled;
+        public Action onInteractPressed;
         public Action<float> onMouseWheelScrolled;
 
         /// <inheritdoc cref="OnEnable" />
@@ -78,6 +82,12 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
                 {
                     onInventoryToggled?.Invoke();
                 }
+
+                // 필드 아이템 줍기(임시 키 E). 컨텍스트 판정은 구독자(PickupLogicSystem)가 한다.
+                if (Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    onInteractPressed?.Invoke();
+                }
             }
 
             if (Mouse.current != null)
@@ -110,7 +120,10 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
         }
 
         /// <summary>
-        ///     Defines the action to perform when the OnJump callback is called.
+        ///     Space(Jump 액션) 입력을 누른 그 순간의 달리기 키(Shift) 상태로 분기한다(19-B).
+        ///     Shift 누름 -> 점프(onJumpPerformed), Shift 안 누름 -> 구르기(onRollPressed). 한 번의 입력은 둘 중 하나만 발행하므로
+        ///     구르기와 점프가 동시에 발동하지 않는다. Shift 상태는 콜백 순서와 무관하게 장치의 현재 상태에서 직접 읽는다
+        ///     (Shift와 Space를 같은 프레임에 눌러도 Sprint/Jump 콜백 처리 순서에 영향받지 않는다).
         /// </summary>
         /// <param name="context">The context of the callback.</param>
         public void OnJump(InputAction.CallbackContext context)
@@ -120,7 +133,39 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
                 return;
             }
 
-            onJumpPerformed?.Invoke();
+            if (IsSprintModifierHeld())
+            {
+                onJumpPerformed?.Invoke();
+            }
+            else
+            {
+                onRollPressed?.Invoke();
+            }
+        }
+
+        /// <summary>
+        ///     Sprint 액션에 바인딩된 컨트롤이 지금 눌려 있는지. 특정 키/버튼을 하드코딩하지 않고 Controls의 Sprint 바인딩을 그대로 따른다.
+        ///     Sprint 액션 자신의 상태(IsPressed)는 같은 이벤트 안의 콜백 처리 순서에 영향받을 수 있으므로,
+        ///     액션에 바인딩된 컨트롤의 현재 장치 상태도 함께 직접 읽는다.
+        /// </summary>
+        private bool IsSprintModifierHeld()
+        {
+            InputAction sprint = _controls.Player.Sprint;
+            if (sprint.IsPressed())
+            {
+                return true;
+            }
+
+            var controls = sprint.controls;
+            for (int i = 0; i < controls.Count; i++)
+            {
+                if (controls[i].IsPressed())
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

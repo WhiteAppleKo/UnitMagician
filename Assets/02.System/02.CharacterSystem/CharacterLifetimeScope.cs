@@ -44,7 +44,8 @@ public class CharacterLifetimeScope : LifetimeScope
             builder.RegisterComponentInHierarchy<CharacterStatComponent>();
         }
 
-        builder.Register<CharacterStatSystem>(Lifetime.Singleton).As<ICharacterStatService>().AsSelf();
+        // 19-A: 스태미나 지연 회복 틱을 위해 ITickable로도 구동한다(플레이어 스탯 서비스 한 개만 컨테이너가 틱한다).
+        builder.RegisterEntryPoint<CharacterStatSystem>(Lifetime.Singleton).As<ICharacterStatService>().AsSelf();
         builder.Register<UnitMagicSlotSystem>(Lifetime.Singleton).As<IUnitMagicSlotService>().AsSelf();
 
         // 2. Pure Data 등록
@@ -57,6 +58,8 @@ public class CharacterLifetimeScope : LifetimeScope
         // 3. Runtime Data 등록
         builder.Register<RuntimeDataPlayerState>(Lifetime.Singleton);
         builder.Register<RuntimeDataTimeSlow>(Lifetime.Singleton);
+        // 17번: Time.timeScale 합성 데이터(요청 배율 + 일시정지 요청자 집합)
+        builder.Register<RuntimeDataTimeScale>(Lifetime.Singleton);
 
         // 3-1. Target Stencil Service 등록 (시간 정지 필터 서비스 연동)
         builder.Register<TimeSlowFilterSystem.TargetStencilService>(Lifetime.Singleton)
@@ -89,6 +92,8 @@ public class CharacterLifetimeScope : LifetimeScope
         builder.RegisterEntryPoint<PlayerStateLogicSystem>(Lifetime.Singleton);
         // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로도 Resolve 가능하게 함.
         builder.RegisterEntryPoint<TimeSlowLogicSystem>(Lifetime.Singleton).AsSelf();
+        // 17번: 유효 배율 → TimeSlowVisualizer 적용 + UI 일시정지 요청 서비스(하위 스코프 UI가 부모 체인으로 ITimeScaleService 주입)
+        builder.RegisterEntryPoint<TimeScaleLogicSystem>(Lifetime.Singleton).As<ITimeScaleService>();
 
         // 6. UI View 등록
         if (hudUIView != null) builder.RegisterComponent(hudUIView);
@@ -118,7 +123,6 @@ public class CharacterLifetimeScope : LifetimeScope
 
         var timeSlowLogicSystem = Container.Resolve<TimeSlowLogicSystem>();
         var eventSequencer = eventSequencerScope.Container.Resolve<IEventSequencer>();
-        var pureDataTutorialSequence = eventSequencerScope.Container.Resolve<PureDataTutorialSequence>();
-        timeSlowLogicSystem.BindEventSequencer(eventSequencer, pureDataTutorialSequence);
+        timeSlowLogicSystem.BindEventSequencer(eventSequencer);
     }
 }

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PureDataUnit_Temperature
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.PureDataUnit
   unitType: 8
-  unitName: '"Frost"'
+  unitName: Frost
   baseCost: 12
   icon: {fileID: 0}
   applicator: {fileID: 11400000, guid: e30fd64258d335c489806de8e119f534, type: 2}
