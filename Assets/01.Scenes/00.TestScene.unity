@@ -2678,8 +2678,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitDebugAcquireTestComponent
   testUnits:
   - {fileID: 11400000, guid: 4fb5572c48b603542b78640ff4b151ef, type: 2}
-  - {fileID: 11400000, guid: 04aa5fa1fb26d6a4e8a43637b270d237, type: 2}
-  - {fileID: 11400000, guid: 19b77c7b7362d184f85daf615055480f, type: 2}
   - {fileID: 11400000, guid: fefd79b51fc524e46a3ff1680398a85b, type: 2}
 --- !u!1 &807854856 stripped
 GameObject:
@@ -6950,10 +6948,7 @@ MonoBehaviour:
   autoRun: 1
   autoInjectGameObjects: []
   initialUnits:
-  - {fileID: 11400000, guid: 9c6d15d4b4298274e92653d21c064e9c, type: 2}
   - {fileID: 11400000, guid: 4fb5572c48b603542b78640ff4b151ef, type: 2}
-  - {fileID: 11400000, guid: 04aa5fa1fb26d6a4e8a43637b270d237, type: 2}
-  - {fileID: 11400000, guid: 19b77c7b7362d184f85daf615055480f, type: 2}
   - {fileID: 11400000, guid: fefd79b51fc524e46a3ff1680398a85b, type: 2}
   quickSlotUI: {fileID: 1179478210}
   inventoryUI: {fileID: 1179478209}

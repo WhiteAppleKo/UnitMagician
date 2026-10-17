@@ -5004,7 +5004,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf2db87428735e443b2dcbb18c325567, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.RuntimeDataUnitGroup
-  supportedUnits: -1
+  _highlightMat: {fileID: 0}
+  _targetMat: {fileID: 0}
+  supportedUnits: 9
+  isTargetable: 1
   bakedMassValue: 0.97226274
 --- !u!114 &1210870908932052512
 MonoBehaviour:
