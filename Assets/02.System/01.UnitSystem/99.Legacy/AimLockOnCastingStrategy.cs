@@ -39,7 +39,7 @@ namespace UnitSystem
             this.quickSlotUI = quickSlotUI;
             this.visualizer = visualizer;
             this.playerStatSystem = playerStatSystem;
-            this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(changeService);
+            this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(new UnitCastRuleService(), changeService);
 
             if (this.timeSlowData != null)
             {

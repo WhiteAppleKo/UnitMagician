@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GameEvent;
 
 namespace CameraMovement
 {
@@ -22,17 +23,26 @@ namespace CameraMovement
 
         PureDataCameraSetting Setting { get; }
 
+        /// <summary>
+        /// 이벤트 1인칭 카메라 수치(블렌드 시간/곡선/FOV/눈 높이)의 읽기 전용 뷰. 원본은 이벤트 SO(CameraOverrideAction)이며 카메라 오버라이드 시작 동작
+        /// (CameraOverrideActionHandler)이 BindEventCameraSettings로 넘긴다(Goal 51). 시작 동작이 한 번도 실행되기 전에는 null.
+        /// </summary>
+        IEventCameraSettings EventCameraSettings { get; }
+
         event Action<Vector3> OnTargetPositionChanged;
         event Action<Vector2> OnLookAnglesChanged;
         event Action<bool> OnEventTargetOverrideChanged;
 
         void SetTarget(Transform target);
 
+        /// <summary>이벤트 카메라 수치(IEventCameraSettings)를 넘긴다. 카메라 오버라이드 시작 동작이 오버라이드를 켜기 전에 호출한다(재호출하면 새 수치로 교체).</summary>
+        void BindEventCameraSettings(IEventCameraSettings settings);
+
         /// <summary>이벤트 오버라이드를 켜거나 끈다. 이미 같은 상태면 아무 일도 하지 않는다.</summary>
         void SetEventTargetOverride(bool active);
 
         /// <summary>
-        /// 이벤트 1인칭 카메라의 눈 위치와 시선을 계산한다. 눈 위치 = 플레이어 위치 + 눈 높이(PureDataCameraSetting.EventCameraEyeHeight),
+        /// 이벤트 1인칭 카메라의 눈 위치와 시선을 계산한다. 눈 위치 = 플레이어 위치 + 눈 높이(IEventCameraSettings.EventCameraEyeHeight),
         /// 시선 = 눈→이벤트 투사체 방향(IEventCameraLookTarget). 시선 대상 위치가 없거나 눈과 겹쳐 방향을 정의할 수 없으면 false.
         /// </summary>
         bool TryGetEventCameraPose(Vector3 playerPosition, out Vector3 eyePosition, out Quaternion lookRotation);

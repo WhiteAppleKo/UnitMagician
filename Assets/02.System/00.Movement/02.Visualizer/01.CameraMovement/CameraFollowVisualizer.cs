@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using VContainer;
 using Unity.Cinemachine;
 using Movement.RefactoredLocomotion;
+using GameEvent;
 
 namespace CameraMovement
 {
@@ -11,7 +12,7 @@ namespace CameraMovement
     /// 카메라 비주얼라이저(22번 기획서). 평상시에는 3인칭 숄더뷰 가상 카메라 하나가 피벗(플레이어 머리 높이)을 따라간다.
     ///
     /// 3단계 이벤트 구간(22번 §10)에는 숄더 카메라를 건드리지 않고 이벤트 전용 1인칭 가상 카메라로 Cinemachine 블렌드 전환한다:
-    ///  - 오버라이드 ON: 이벤트 vcam 우선순위를 숄더보다 높여 활성화(블렌드 시간 = PureDataCameraSetting.EventCameraBlendTime),
+    ///  - 오버라이드 ON: 이벤트 vcam 우선순위를 숄더보다 높여 활성화(블렌드 시간·곡선·FOV = 이벤트 SO(CameraOverrideAction)의 IEventCameraSettings),
     ///    LateUpdate마다 서비스가 계산한 눈 위치/시선(눈→이벤트 투사체)을 이벤트 vcam 트랜스폼에 적용한다.
     ///    이 컴포넌트의 LateUpdate는 CinemachineBrain(실행 순서 100)보다 먼저 돌아 같은 프레임의 투사체/플레이어 위치가 바로 반영된다.
     ///  - 몸 숨김: 전환 블렌드가 끝나 이벤트 vcam이 화면을 완전히 쥔 뒤 플레이어 몸의 렌더러를 ShadowsOnly로 바꿔 화면에서는 안 보이고
@@ -214,6 +215,8 @@ namespace CameraMovement
 
             if (active)
             {
+                ApplyEventFieldOfView();
+
                 // 첫 프레임부터 올바른 눈 위치/시선에서 블렌드가 시작되도록 우선순위를 올리기 전에 포즈를 한 번 적용한다.
                 ApplyEventCameraPose();
                 eventVirtualCamera.Priority.Value = PRIORITY_EVENT_ACTIVE;
@@ -240,13 +243,17 @@ namespace CameraMovement
             // 이벤트 vcam에서 숄더로 복귀하는 블렌드 중에는 이벤트 vcam의 마지막 상태를 스냅샷으로 얼려 쓴다.
             // 복귀 블렌드가 끝나기 전에 이벤트가 다시 시작(재도전)돼 이벤트 vcam을 새 투사체 쪽으로 다시 돌려도, 복귀 중인 화면이 튀지 않는다.
             eventVirtualCamera.BlendHint |= CinemachineCore.BlendHints.FreezeWhenBlendingOut;
+        }
 
-            if (m_cameraFollowService != null && m_cameraFollowService.Setting != null)
-            {
-                LensSettings lens = eventVirtualCamera.Lens;
-                lens.FieldOfView = m_cameraFollowService.Setting.EventCameraFieldOfView;
-                eventVirtualCamera.Lens = lens;
-            }
+        /// <summary>이벤트 vcam의 FOV를 이벤트 SO 값으로 맞춘다(이벤트 시작마다 적용되어 인스펙터 조정이 다음 이벤트부터 반영된다).</summary>
+        private void ApplyEventFieldOfView()
+        {
+            IEventCameraSettings settings = m_cameraFollowService?.EventCameraSettings;
+            if (settings == null) return;
+
+            LensSettings lens = eventVirtualCamera.Lens;
+            lens.FieldOfView = settings.EventCameraFieldOfView;
+            eventVirtualCamera.Lens = lens;
         }
 
         private CinemachineBlend.IBlender HandleGetCustomBlender(ICinemachineCamera fromCam, ICinemachineCamera toCam)
@@ -259,12 +266,27 @@ namespace CameraMovement
 
         private void ApplyEventBlendDefinition()
         {
-            if (cinemachineBrain == null || m_cameraFollowService == null || m_cameraFollowService.Setting == null) return;
+            IEventCameraSettings settings = m_cameraFollowService?.EventCameraSettings;
+            if (cinemachineBrain == null || settings == null) return;
 
-            float blendTime = m_cameraFollowService.Setting.EventCameraBlendTime;
+            float blendTime = settings.EventCameraBlendTime;
             cinemachineBrain.DefaultBlend = blendTime > 0f
-                ? new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, blendTime)
+                ? new CinemachineBlendDefinition(ToCinemachineStyle(settings.EventCameraBlendStyle), blendTime)
                 : new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
+        }
+
+        /// <summary>이벤트 SO가 고른 블렌드 곡선 종류(EventCameraBlendStyle)를 Cinemachine 블렌드 스타일로 옮긴다.</summary>
+        private static CinemachineBlendDefinition.Styles ToCinemachineStyle(EventCameraBlendStyle style)
+        {
+            switch (style)
+            {
+                case EventCameraBlendStyle.EaseIn: return CinemachineBlendDefinition.Styles.EaseIn;
+                case EventCameraBlendStyle.EaseOut: return CinemachineBlendDefinition.Styles.EaseOut;
+                case EventCameraBlendStyle.HardIn: return CinemachineBlendDefinition.Styles.HardIn;
+                case EventCameraBlendStyle.HardOut: return CinemachineBlendDefinition.Styles.HardOut;
+                case EventCameraBlendStyle.Linear: return CinemachineBlendDefinition.Styles.Linear;
+                default: return CinemachineBlendDefinition.Styles.EaseInOut;
+            }
         }
 
         /// <summary>서비스가 계산한 눈 위치/시선을 이벤트 vcam 트랜스폼에 적용한다(시선 대상이 없으면 위치만 갱신하고 회전은 유지).</summary>

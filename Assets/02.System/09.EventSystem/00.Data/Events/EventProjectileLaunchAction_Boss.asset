@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c14f0d4bd4eefa5479d79ae9a5c65da6, type: 3}
+  m_Name: EventProjectileLaunchAction_Boss
+  m_EditorClassIdentifier: Assembly-CSharp::GameEvent.EventProjectileLaunchAction
+  launchAngleDegrees: 120
+  launchDistance: 12
+  trackingHeightOffset: {x: 0, y: 1, z: 0}
+  projectileSpeed: 12
+  projectileDamage: 60

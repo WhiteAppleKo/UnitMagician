@@ -13,6 +13,3 @@ MonoBehaviour:
   m_Name: PureDataBossPattern_Boss
   m_EditorClassIdentifier: Assembly-CSharp::BossPhaseSystem.PureDataBossPattern
   attackInterval: 2
-  healPerSecond: 15
-  invulnerablePhaseTimeoutSeconds: 10
-  reviveHpRatioOnFail: 0.6

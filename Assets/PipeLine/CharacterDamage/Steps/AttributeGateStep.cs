@@ -15,7 +15,7 @@ namespace PipeLine.CharacterDamage.Steps
     /// 이후 스텝은 물론 ApplyDamageStep의 실제 데미지 적용도 건너뛰게 합니다(회피와는 무관한 별도 분기 - CombatPipelineManager/ApplyDamageStep 참고).
     /// 만족하면 AttributeGatePassed = true를 기록하고 공격자의 Mass 비율(MassUnitApplicatorSO.CalculateMassRatio 재사용)을
     /// RawDamage에 곱해 FinalDamage를 계산해둡니다. 크기(질량 비율) 조건과 HP/기준 데미지 비교는 이 스텝의 책임이 아니라
-    /// SizeGateStep과 피격 대상의 판정 로직(예: DestructibleDoorLogicSystem, TutorialSequencerLogicSystem)이 개별로 담당합니다.
+    /// SizeGateStep과 피격 대상의 판정 로직(예: DestructibleDoorLogicSystem, CoreHitCompletionEvaluator)이 개별로 담당합니다.
     /// IGateRequirementProvider가 없는 대상은 속성 게이트가 요구되지 않는 대상이므로 통과로 기록합니다.
     /// 상태를 갖지 않는 공유 싱글턴이며, 실제로 기다릴 비동기 작업이 없으므로 즉시 완료된 UniTask를 반환합니다.
     /// </summary>

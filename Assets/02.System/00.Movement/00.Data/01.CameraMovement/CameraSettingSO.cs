@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace CameraMovement
 {
@@ -62,16 +61,8 @@ namespace CameraMovement
         [Tooltip("Y축 마우스 반전")]
         [SerializeField] private bool invertY = false;
 
-        [Header("Event Camera (First Person)")]
-        [Tooltip("평상시 숄더 가상 카메라 <-> 이벤트 1인칭 가상 카메라 전환(Cinemachine 블렌드) 시간(초). 0 이하면 즉시 컷")]
-        [FormerlySerializedAs("eventTargetBlendTime")]
-        [SerializeField] private float eventCameraBlendTime = 0.5f;
-
-        [Tooltip("이벤트 1인칭 가상 카메라의 세로 시야각(FOV)")]
-        [SerializeField] private float eventCameraFieldOfView = 70f;
-
-        [Tooltip("이벤트 1인칭 카메라(캐릭터 눈) 높이. 플레이어 루트 위치 기준 위쪽 오프셋(m)")]
-        [SerializeField] private float eventCameraEyeHeight = 1.68f;
+        // 이벤트 1인칭 카메라 수치(블렌드 시간/곡선, FOV, 눈 높이)는 이벤트 SO(CameraOverrideAction)로 이동했다(Goal 47 -> 51).
+        // 카메라 시스템은 IEventCameraSettings로 읽는다. 이 SO에는 평상시(숄더뷰) 카메라 값만 남는다.
 
         public CameraMode DefaultMode => defaultMode;
         public IReadOnlyList<CameraMode> AllowedModes => allowedModes;
@@ -92,9 +83,6 @@ namespace CameraMovement
         public float OrbitDistance => orbitDistance;
         public Vector2 VerticalAngleLimits => verticalAngleLimits;
         public bool InvertY => invertY;
-        public float EventCameraBlendTime => eventCameraBlendTime;
-        public float EventCameraFieldOfView => eventCameraFieldOfView;
-        public float EventCameraEyeHeight => eventCameraEyeHeight;
 
         public bool IsModeAllowed(CameraMode mode)
         {

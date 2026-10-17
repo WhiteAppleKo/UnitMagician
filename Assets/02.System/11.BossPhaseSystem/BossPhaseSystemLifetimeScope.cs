@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VContainer;
 using VContainer.Unity;
 using NpcSystem;
 using CharacterSystem;
-using EventSequencerSystem;
+using GameEvent;
 
 namespace BossPhaseSystem
 {
@@ -15,11 +17,11 @@ namespace BossPhaseSystem
     ///
     /// [DefaultExecutionOrder] 필요 이유: bossStatComponent.StatService/bossActor.CombatActor는 그 GameObject
     /// 자신의 Awake()(EnsureInitialized())가 먼저 실행되어야 준비됩니다. Unity는 서로 다른 GameObject 간 Awake()
-    /// 순서를 보장하지 않으므로, 09/10(EventSequencerSystemLifetimeScope/AllySupportSystemLifetimeScope)과
+    /// 순서를 보장하지 않으므로, 09/10(EventSystemLifetimeScope/AllySupportSystemLifetimeScope)과
     /// 동일하게 이 스코프의 Awake()(Configure 포함)가 항상 나중에 실행되도록 순서를 뒤로 미룹니다.
     ///
-    /// 06(이벤트 시퀀서)과의 연동은 서로 다른 VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로(09/10/02번
-    /// 작업에서 반복 확인된 현상), 인스펙터 직접 참조(eventSequencerScope) + Start() 사후 배선(BindEventSequencer)을
+    /// 이벤트 시스템(09)과의 연동은 서로 다른 VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로(09/10/02번
+    /// 작업에서 반복 확인된 현상), 인스펙터 직접 참조(eventSystemScope) + Start() 사후 배선(보스 페이즈 동작 핸들러 3종 등록)을
     /// 그대로 재사용합니다. GameObject.Find/FindObjectOfType은 사용하지 않습니다.
     /// </summary>
     [DefaultExecutionOrder(500)]
@@ -38,11 +40,11 @@ namespace BossPhaseSystem
         [Header("Boss Phase Visualizer (Optional)")]
         [SerializeField] private BossPhaseVisualizer bossPhaseVisualizer;
 
-        [Header("Event Sequencer(06) Linkage - Optional")]
-        [Tooltip("06(이벤트 시퀀서)과 이 시스템을 연결하는 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 " +
-                 "VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로, 09/10/02번과 동일한 패턴으로 씬에서 " +
-                 "직접 드래그해 연결하고 Start()에서 수동 배선합니다.")]
-        [SerializeField] private EventSequencerSystemLifetimeScope eventSequencerScope;
+        [Header("Event System(09) Linkage - Optional")]
+        [Tooltip("이벤트 시스템과 이 시스템을 연결하는 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 " +
+                 "VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로, 씬에서 직접 드래그해 연결하고 Start()에서 수동 배선합니다.")]
+        [FormerlySerializedAs("eventSequencerScope")]
+        [SerializeField] private EventSystemLifetimeScope eventSystemScope;
 
         private bool configured;
 
@@ -76,7 +78,7 @@ namespace BossPhaseSystem
                                   "상태에서 Attack이 대상 없이 호출됩니다.");
             }
 
-            // 1. 보스 ICharacterStatService + 식별용 GameObject 등록 (EventSequencerSystemLifetimeScope와 동일 패턴)
+            // 1. 보스 ICharacterStatService + 식별용 GameObject 등록 (EventSystemLifetimeScope와 동일 패턴)
             builder.RegisterInstance<ICharacterStatService>(bossStatComponent.StatService);
             builder.RegisterInstance(bossStatComponent.gameObject);
 
@@ -92,13 +94,17 @@ namespace BossPhaseSystem
             // 4. Logic System 등록. bossActor(INpcCombatActor)/playerTarget(GameObject)은 이미 등록된
             // bossStatComponent.gameObject(GameObject)와 타입이 겹치므로 이름으로 명시 바인딩한다
             // (AllySupportSystemLifetimeScope와 동일한 이유).
-            // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로도 Resolve 가능하게 함.
+            // IBossPhaseController: 이벤트 시스템의 보스 동작 핸들러(무적 진입/실패 회복/처치)가 이 인터페이스로만 보스 페이즈를 지시한다.
             builder.Register<BossPhaseLogicSystem>(Lifetime.Scoped)
                 .WithParameter("bossActor", combatActor)
                 .WithParameter("playerTarget", playerTarget)
                 .As<ITickable>()
-                .As<System.IDisposable>()
-                .AsSelf();
+                .As<IBossPhaseController>();
+
+            // 4-1. 이벤트 동작 핸들러 등록(Start()에서 이벤트 시스템에 사후 등록).
+            builder.Register<BossInvulnerableActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
+            builder.Register<BossRecoverActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
+            builder.Register<BossDefeatActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
 
             // 5. Visualizer 등록
             if (bossPhaseVisualizer != null) builder.RegisterComponent(bossPhaseVisualizer).As<IBossPhaseVisualizer>();
@@ -108,35 +114,35 @@ namespace BossPhaseSystem
         }
 
         /// <summary>
-        /// 06(EventSequencerSystem)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서
-        /// 한 번만 연결합니다.
+        /// 이벤트 시스템(09)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서
+        /// 한 번만 보스 페이즈 동작 핸들러를 이벤트 시스템에 등록합니다(이벤트 시스템의 첫 Tick에서 이벤트가 시작되므로 그 전에 등록이 끝납니다).
         /// </summary>
         private void Start()
         {
             if (!configured)
             {
-                Debug.LogError("[BossPhaseSystemLifetimeScope] Configure()가 실패해 06 연동을 배선할 수 없습니다.");
+                Debug.LogError("[BossPhaseSystemLifetimeScope] Configure()가 실패해 이벤트 시스템 연동을 배선할 수 없습니다.");
                 return;
             }
 
-            if (eventSequencerScope == null)
+            if (eventSystemScope == null)
             {
-                Debug.LogWarning("[BossPhaseSystemLifetimeScope] eventSequencerScope가 연결되지 않아 06(이벤트 " +
-                                  "시퀀서) 연동 없이 동작합니다. OnCoreHitSuccess/OnCoreHitFail 신호를 받지 못해 " +
-                                  "InvulnerableHealing 상태에서 빠져나오지 못합니다.");
+                Debug.LogWarning("[BossPhaseSystemLifetimeScope] eventSystemScope가 연결되지 않아 이벤트 시스템 연동 없이 동작합니다. " +
+                                  "보스 무적·회복 진입/실패 회복/처치 동작을 받지 못해 InvulnerableHealing 상태에 진입하지 않습니다.");
                 return;
             }
 
-            if (Container == null || eventSequencerScope.Container == null)
+            if (Container == null || eventSystemScope.Container == null)
             {
-                Debug.LogError("[BossPhaseSystemLifetimeScope] Container가 아직 준비되지 않아 06 연동을 배선할 " +
-                                "수 없습니다.");
+                Debug.LogError("[BossPhaseSystemLifetimeScope] Container가 아직 준비되지 않아 이벤트 시스템 연동을 배선할 수 없습니다.");
                 return;
             }
 
-            var bossPhaseLogic = Container.Resolve<BossPhaseLogicSystem>();
-            var eventSequencer = eventSequencerScope.Container.Resolve<IEventSequencer>();
-            bossPhaseLogic.BindEventSequencer(eventSequencer);
+            var eventSystem = eventSystemScope.Container.Resolve<IEventSystem>();
+            foreach (var handler in Container.Resolve<IEnumerable<IEventActionHandler>>())
+            {
+                eventSystem.RegisterActionHandler(handler);
+            }
         }
     }
 }

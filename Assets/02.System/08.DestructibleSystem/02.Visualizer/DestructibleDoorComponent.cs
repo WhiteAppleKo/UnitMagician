@@ -1,7 +1,7 @@
 using UnityEngine;
 using PipeLine.Combat;
 using CharacterSystem;
-using AllySupportSystem;
+using GameEvent;
 using PipeLine.Contexts;
 
 namespace DestructibleSystem
@@ -15,14 +15,13 @@ namespace DestructibleSystem
     /// NPC 전투 액터(NpcCombatActorVisualizer)와 동일하게, 돌문은 씬에 여러 개 존재할 수 있으므로 LogicSystem을
     /// VContainer 싱글턴으로 등록하지 않고 Awake()에서 자기 자신의 PureData로 인스턴스마다 직접 new로 생성해 보유합니다.
     ///
-    /// [10.AllySupportSystem 연동, 회귀 없는 최소 확장] IDestructibleTargetStatus를 추가로 구현해 IsDestroyed를
-    /// 외부에 조회 전용으로 노출합니다(02번 기획서 2.8절 - 기존에 파괴 여부를 조회할 공개 프로퍼티가 없어 확정된
-    /// 확장). 이 인터페이스는 "명령"용 IDestructibleDoorVisualizer와 분리된 별도의 읽기 전용 "조회" 계약이며
-    /// (인터페이스 분리 원칙 - ISP), 10.AllySupportSystem(소비자)이 정의를 소유합니다. 기존 PlayDestroy()/
-    /// ApplyDamage()/PlayCrackAndRepair() 로직은 전혀 변경하지 않고, PlayDestroy() 실행 시점에 플래그만 한 번
-    /// true로 세팅하는 최소 확장입니다(04번 시스템 회귀 없음).
+    /// [09.EventSystem 연동, 회귀 없는 최소 확장] IEventTarget을 추가로 구현해 이벤트 시스템이 돌문을 id로 가리키고
+    /// (TargetId), 파괴 여부(IsDestroyed)와 파괴 통지(OnDestroyed)를 받을 수 있게 합니다. 이 인터페이스는 "명령"용
+    /// IDestructibleDoorVisualizer와 분리된 별도의 "조회/통지" 계약이며(인터페이스 분리 원칙 - ISP), 09.EventSystem(소비자)이
+    /// 정의를 소유합니다. 기존 PlayDestroy()/ApplyDamage()/PlayCrackAndRepair() 판정 로직은 변경하지 않고,
+    /// PlayDestroy() 실행 시점에 플래그를 true로 세팅한 뒤 통지만 한 번 발행하는 최소 확장입니다(04번 시스템 회귀 없음).
     /// </summary>
-    public class DestructibleDoorComponent : MonoBehaviour, IGateAwareDamageable, IHitStepFlagsProvider, IGateRequirementProvider, IFactionProvider, IDefeatedStateProvider, IDestructibleDoorVisualizer, IDestructibleTargetStatus
+    public class DestructibleDoorComponent : MonoBehaviour, IGateAwareDamageable, IHitStepFlagsProvider, IGateRequirementProvider, IFactionProvider, IDefeatedStateProvider, IDestructibleDoorVisualizer, IEventTarget
     {
         [SerializeField] private PureDataDestructibleDoor pureData;
 
@@ -33,6 +32,10 @@ namespace DestructibleSystem
         [Header("Crack & Repair VFX/SFX (Placeholder)")]
         [SerializeField] private GameObject crackVfxPrefab;
         [SerializeField] private AudioClip crackSfx;
+
+        [Header("Event Target (09.EventSystem)")]
+        [Tooltip("이벤트 SO(TargetDestroyedCompletion/NpcRepeatAttackAction 등)가 이 돌문을 가리킬 때 쓰는 id.")]
+        [SerializeField] private string eventTargetId;
 
         [Header("Passage")]
         [SerializeField] private Collider[] passageColliders;
@@ -51,8 +54,17 @@ namespace DestructibleSystem
         /// <summary>IFactionProvider 구현: 돌문 진영은 PureData(faction, 기본 Neutral - 누구에게나 피격 대상)에서 읽습니다.</summary>
         public FactionType Faction => pureData != null ? pureData.Faction : FactionType.Neutral;
 
+        /// <summary>IEventTarget 구현: 이벤트 SO가 이 돌문을 가리키는 id(인스펙터 값).</summary>
+        public string TargetId => eventTargetId;
+
+        /// <summary>IEventTarget 구현: 공격 대상 등으로 쓰이는 돌문 GameObject.</summary>
+        public GameObject TargetObject => gameObject;
+
+        /// <summary>IEventTarget 구현: 돌문이 파괴된 시점(통로 콜라이더가 꺼진 직후)에 한 번 발행됩니다.</summary>
+        public event System.Action OnDestroyed;
+
         /// <summary>
-        /// IDestructibleTargetStatus 구현: PlayDestroy() 호출(파괴 판정) 여부를 기록해 노출하는 조회 전용 플래그입니다.
+        /// IEventTarget 구현: PlayDestroy() 호출(파괴 판정) 여부를 기록해 노출하는 조회 전용 플래그입니다.
         /// 돌문 HP는 RuntimeData 없이 매 ApplyDamage 호출마다 독립 판정되지만(회귀 없음 - 기존 로직 변경 없음), 이
         /// 플래그 자체는 한 번 true가 되면 되돌아가지 않는 단방향 상태입니다(파괴 후 재생성되지 않는 씬 오브젝트 전제).
         /// </summary>
@@ -121,6 +133,7 @@ namespace DestructibleSystem
             }
 
             Debug.Log($"[DestructibleDoorComponent] '{name}' DESTROYED - passage opened.");
+            OnDestroyed?.Invoke();
         }
 
         public void PlayCrackAndRepair()

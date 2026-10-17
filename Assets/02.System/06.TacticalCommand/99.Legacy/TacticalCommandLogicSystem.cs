@@ -27,7 +27,7 @@ namespace TacticalCommandSystem
         private readonly Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader;
         private readonly CameraMovement.ICameraFollowService cameraFollowService;
         private readonly UnitSystem.IUnitChangeService changeService;
-        private readonly UnitSystem.IUnitBatchCastingService batchService;
+        private readonly UnitSystem.IUnitCastRuleService castRuleService;
         private readonly Common.InputSystem.IInputContextManager contextManager;
         private readonly UnitSystem.RuntimeDataUnitQuickSlot quickSlotData;
 
@@ -53,7 +53,7 @@ namespace TacticalCommandSystem
             Synty.AnimationBaseLocomotion.Samples.InputSystem.InputReader inputReader = null,
             CameraMovement.ICameraFollowService cameraFollowService = null,
             UnitSystem.IUnitChangeService changeService = null,
-            UnitSystem.IUnitBatchCastingService batchService = null,
+            UnitSystem.IUnitCastRuleService castRuleService = null,
             Common.InputSystem.IInputContextManager contextManager = null,
             UnitSystem.RuntimeDataUnitQuickSlot quickSlotData = null)
         {
@@ -66,7 +66,7 @@ namespace TacticalCommandSystem
             this.inputReader = inputReader;
             this.cameraFollowService = cameraFollowService;
             this.changeService = changeService;
-            this.batchService = batchService;
+            this.castRuleService = castRuleService;
             this.contextManager = contextManager;
             this.quickSlotData = quickSlotData;
         }
@@ -395,8 +395,8 @@ namespace TacticalCommandSystem
                     var matchingUnit = unitGroup.GetMatchingUnitData(entry.MagicData.UnitType);
                     if (matchingUnit != null)
                     {
-                        float newVal = batchService != null
-                            ? batchService.CalculateNewValue(matchingUnit, entry.MagicData)
+                        float newVal = castRuleService != null
+                            ? castRuleService.CalculateNewValue(matchingUnit, entry.MagicData)
                             : (matchingUnit.OriginalValue > 0f ? matchingUnit.OriginalValue : 1.0f) * (entry.MagicData.MassScaleMultiplier > 0f ? entry.MagicData.MassScaleMultiplier : 1.0f);
 
                         // 이미 해제 시점에 총 마나를 일괄 차감했으므로 casterStatData는 null로 전달

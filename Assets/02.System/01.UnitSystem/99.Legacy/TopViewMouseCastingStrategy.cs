@@ -19,6 +19,7 @@ namespace UnitSystem
         private UnitQuickSlotUIComponent quickSlotUI;
         private GameObject ownerObject;
         private IUnitBatchCastingService batchCastingService;
+        private IUnitCastRuleService castRuleService;
         private CharacterSystem.RuntimeDataTimeSlow timeSlowData;
 
         private VisualElement targetInfoContainer;
@@ -39,7 +40,8 @@ namespace UnitSystem
             this.changeService = changeService;
             this.quickSlotUI = quickSlotUI;
             this.ownerObject = ownerObject;
-            this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(changeService);
+            this.castRuleService = new UnitCastRuleService();
+            this.batchCastingService = batchCastingService ?? new UnitBatchCastingService(castRuleService, changeService);
             this.timeSlowData = timeSlowData;
 
             InitializeUI();
@@ -228,9 +230,9 @@ namespace UnitSystem
 
         private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
         {
-            if (batchCastingService != null)
+            if (castRuleService != null)
             {
-                return batchCastingService.CalculateNewValue(targetUnit, spellUnit);
+                return castRuleService.CalculateNewValue(targetUnit, spellUnit);
             }
 
             if (targetUnit == null || spellUnit == null) return 0f;

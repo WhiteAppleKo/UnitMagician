@@ -5,6 +5,7 @@ using VContainer;
 using VContainer.Unity;
 using Synty.AnimationBaseLocomotion.Samples.InputSystem;
 using Common.InputSystem;
+using GameEvent;
 
 namespace CameraMovement
 {
@@ -32,6 +33,9 @@ namespace CameraMovement
 
         private Vector2 m_lookAngles; // x: pitch (상하), y: yaw (좌우) — 플레이어 시선각(이벤트 중 불변)
 
+        // 이벤트 카메라 수치(블렌드 시간/곡선, FOV, 눈 높이)의 원본은 이벤트 SO(CameraOverrideAction)다. 카메라 오버라이드 시작 동작이 BindEventCameraSettings로 넘긴다(Goal 51).
+        private IEventCameraSettings m_eventCameraSettings;
+
         private bool m_eventTargetOverrideActive;
         private bool m_requireRightClickToRotate = false;
 
@@ -39,6 +43,7 @@ namespace CameraMovement
         public Vector2 CurrentLookAngles => m_lookAngles;
         public bool IsEventTargetOverrideActive => m_eventTargetOverrideActive;
         public PureDataCameraSetting Setting => m_cameraSetting;
+        public IEventCameraSettings EventCameraSettings => m_eventCameraSettings;
 
         public event Action<Vector3> OnTargetPositionChanged;
         public event Action<Vector2> OnLookAnglesChanged;
@@ -72,6 +77,11 @@ namespace CameraMovement
             }
         }
 
+        public void BindEventCameraSettings(IEventCameraSettings settings)
+        {
+            m_eventCameraSettings = settings;
+        }
+
         public void SetEventTargetOverride(bool active)
         {
             if (m_eventTargetOverrideActive == active) return;
@@ -82,8 +92,13 @@ namespace CameraMovement
 
         public bool TryGetEventCameraPose(Vector3 playerPosition, out Vector3 eyePosition, out Quaternion lookRotation)
         {
-            eyePosition = playerPosition + Vector3.up * m_cameraSetting.EventCameraEyeHeight;
+            eyePosition = playerPosition;
             lookRotation = Quaternion.identity;
+
+            // 이벤트 카메라 수치가 아직 넘어오지 않았으면(카메라 오버라이드 시작 동작 전) 이벤트 카메라 포즈를 정의할 수 없다.
+            if (m_eventCameraSettings == null) return false;
+
+            eyePosition = playerPosition + Vector3.up * m_eventCameraSettings.EventCameraEyeHeight;
 
             if (m_eventLookTarget == null || !m_eventLookTarget.TryGetPosition(out Vector3 targetPosition)) return false;
 
@@ -109,7 +124,7 @@ namespace CameraMovement
             if (m_targetTransform == null || m_cameraSetting == null) return;
 
             // UI 메뉴 / 이벤트 카메라 활성화 중에는 마우스 시점 회전 조작 완전 차단
-            // (Event 추가: 10번 기획서 10.2/10.8절 - 06의 OnBoss50Percent로 진입한 이벤트 카메라 동안 회귀 없이 차단)
+            // (Event 추가: 10번 기획서 10.2/10.8절 - 이벤트 SO의 입력 락/카메라 오버라이드 동작으로 진입한 이벤트 카메라 동안 회귀 없이 차단)
             var currentContext = m_inputContextManager?.CurrentContext;
             if (currentContext != null &&
                 (currentContext.ContextType == InputContextType.UI || currentContext.ContextType == InputContextType.Event))

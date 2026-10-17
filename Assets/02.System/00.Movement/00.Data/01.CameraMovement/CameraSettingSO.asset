@@ -28,6 +28,3 @@ MonoBehaviour:
   orbitDistance: 5
   verticalAngleLimits: {x: -30, y: 60}
   invertY: 0
-  eventCameraBlendTime: 0.5
-  eventCameraFieldOfView: 70
-  eventCameraEyeHeight: 1.68

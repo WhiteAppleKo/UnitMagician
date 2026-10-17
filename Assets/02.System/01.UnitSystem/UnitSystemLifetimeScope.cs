@@ -27,10 +27,11 @@ namespace UnitSystem
         [Header("Debug/Test Components")]
         [SerializeField] private UnitDebugAcquireTestComponent debugAcquireTest;
 
-        [Header("Event Sequencer(06) Linkage - Optional")]
-        [Tooltip("3단계 전환점에서 마법 큐를 발동하기 위한 06(이벤트 시퀀서) 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 " +
+        [Header("Event System(09) Linkage - Optional")]
+        [Tooltip("이벤트 투사체의 전환점에서 마법 큐를 발동하기 위한 이벤트 시스템 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 " +
                  "VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로, 09/10번과 동일하게 Start()에서 사후 배선합니다.")]
-        [SerializeField] private EventSequencerSystem.EventSequencerSystemLifetimeScope eventSequencerScope;
+        [UnityEngine.Serialization.FormerlySerializedAs("eventSequencerScope")]
+        [SerializeField] private GameEvent.EventSystemLifetimeScope eventSystemScope;
 
         protected override void Awake()
         {
@@ -45,6 +46,7 @@ namespace UnitSystem
             builder.Register<DefaultUnitEquipRequirementChecker>(Lifetime.Singleton).As<IUnitEquipRequirementChecker>();
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
+            builder.Register<UnitCastRuleService>(Lifetime.Singleton).As<IUnitCastRuleService>();
             builder.Register<UnitBatchCastingService>(Lifetime.Singleton).As<IUnitBatchCastingService>();
             builder.Register<LockOnPreviewCalculator>(Lifetime.Singleton).As<ILockOnPreviewCalculator>();
             builder.Register<RuntimeDataMultiLockOn>(Lifetime.Singleton);
@@ -59,7 +61,7 @@ namespace UnitSystem
             builder.RegisterEntryPoint<LockOnManaPreviewLogicSystem>(Lifetime.Singleton);
             // 15-A: 락온 대상 소실(파괴/비활성/풀 반환) 시 지정 대기·큐 엔트리 정리
             builder.RegisterEntryPoint<LockOnTargetLossLogicSystem>(Lifetime.Singleton);
-            // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로 Resolve 가능하게 함.
+            // AsSelf(): Start()에서 이벤트 시스템의 비행 신호를 사후 배선(BindEventFlight)하기 위해 구체 타입으로 Resolve 가능하게 함.
             builder.Register<EventCastTriggerLogicSystem>(Lifetime.Singleton).AsSelf();
 
             // UI Toolkit Component Register
@@ -103,28 +105,27 @@ namespace UnitSystem
         }
 
         /// <summary>
-        /// 06(EventSequencerSystem)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서 한 번만
+        /// 이벤트 시스템(09)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서 한 번만
         /// 연결합니다(CharacterLifetimeScope/AllySupportSystemLifetimeScope와 동일한 패턴).
-        /// GameObject.Find/FindObjectOfType은 사용하지 않고 인스펙터에 직접 연결해 둔 eventSequencerScope 참조만 씁니다.
+        /// GameObject.Find/FindObjectOfType은 사용하지 않고 인스펙터에 직접 연결해 둔 eventSystemScope 참조만 씁니다.
         /// </summary>
         private void Start()
         {
-            if (eventSequencerScope == null)
+            if (eventSystemScope == null)
             {
-                Debug.LogWarning("[UnitSystemLifetimeScope] eventSequencerScope가 연결되지 않아 06(이벤트 시퀀서) 연동 없이 동작합니다. " +
-                                  "3단계 전환점 마법 발동은 트리거되지 않습니다(일반 시간정지 발동은 영향 없음).");
+                Debug.LogWarning("[UnitSystemLifetimeScope] eventSystemScope가 연결되지 않아 이벤트 시스템 연동 없이 동작합니다. " +
+                                  "이벤트 투사체 전환점 마법 발동은 트리거되지 않습니다(일반 시간정지 발동은 영향 없음).");
                 return;
             }
 
-            if (Container == null || eventSequencerScope.Container == null)
+            if (Container == null || eventSystemScope.Container == null)
             {
-                Debug.LogError("[UnitSystemLifetimeScope] Container가 아직 준비되지 않아 06 연동을 배선할 수 없습니다.");
+                Debug.LogError("[UnitSystemLifetimeScope] Container가 아직 준비되지 않아 이벤트 시스템 연동을 배선할 수 없습니다.");
                 return;
             }
 
             var eventCastTrigger = Container.Resolve<EventCastTriggerLogicSystem>();
-            var eventSequencer = eventSequencerScope.Container.Resolve<EventSequencerSystem.IEventSequencer>();
-            eventCastTrigger.BindEventSequencer(eventSequencer);
+            eventCastTrigger.BindEventFlight(eventSystemScope.Container.Resolve<GameEvent.IEventFlightLogic>());
         }
     }
 }

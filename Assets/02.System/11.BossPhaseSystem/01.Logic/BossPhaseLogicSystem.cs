@@ -3,28 +3,23 @@ using UnityEngine;
 using VContainer.Unity;
 using NpcSystem;
 using CharacterSystem;
-using EventSequencerSystem;
 using PipeLine.Combat;
 
 namespace BossPhaseSystem
 {
     /// <summary>
-    /// 보스 페이즈 FSM("두뇌")입니다([L] 유니티 생명주기 연동 로직 - ITickable/IDisposable). "언제 무엇을 하라고
+    /// 보스 페이즈 FSM("두뇌")입니다([L] 유니티 생명주기 연동 로직 - ITickable). "언제 무엇을 하라고
     /// 지시할지"만 담당하며, 실제 이동/공격/모션 실행은 01번 프레임워크(INpcCombatActor 구현체)가, 무적/회복
     /// 실행은 08번(ICharacterStatService)이 전담합니다(03번 기획서 3.1/3.2/3.8절). 보스 액터를 상속하지 않고
     /// 인터페이스로만 참조합니다(컴포지션 원칙). MonoBehaviour/Transform/Collider 등 구체 타입을 직접 참조하지
     /// 않습니다(코드_가이드라인 DLV Rule 2 - Blind Logic).
     ///
-    /// 06(이벤트 시퀀서)과의 연동은 서로 다른 VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로
-    /// (09/10/02번 작업에서 반복 확인된 현상), AllySupportTriggerLogicSystem/TimeSlowLogicSystem과 동일한 패턴 -
-    /// BindEventSequencer() 사후 배선을 그대로 재사용합니다(BossPhaseSystemLifetimeScope.cs 참고).
+    /// 무적·회복 페이즈 진입/실패 회복/처치는 이벤트 시스템(09)의 보스 50% 이벤트 SO가 동작(BossInvulnerableAction / BossRecoverAction / BossDefeatAction)으로
+    /// 지시하며(Goal 51), 이 클래스는 IBossPhaseController로 그 지시를 받아 수행합니다. 예전에는 이 클래스가 보스 HP를 직접 구독하고 임계값(0.5)을 상수로 들고 있었으나,
+    /// 지금은 보스 HP 임계값이 이벤트 SO의 BossHpRatioTrigger 비율 한 곳입니다. 회복 수치(초당 회복량, 회복 상한/실패 시 회복 비율)도 이벤트 SO(BossRecoverAction)에서 받습니다.
     /// </summary>
-    public class BossPhaseLogicSystem : ITickable, IDisposable
+    public class BossPhaseLogicSystem : ITickable, IBossPhaseController
     {
-        // 3.8절: "current/max<=0.5f 최초 도달" - PureDataBossPattern에는 별도 임계값 필드가 없으므로(3.9절 필드
-        // 목록에 없음) 기획서 원문 그대로 상수로 고정한다. ReviveHpRatioOnFail만 데이터로 노출된다.
-        private const float InvulnerableHealingHpThresholdRatio = 0.5f;
-
         private readonly INpcCombatActor bossActor;
         private readonly ICharacterStatService bossStatService;
         private readonly RuntimeDataBossPhase runtimeData;
@@ -37,9 +32,9 @@ namespace BossPhaseSystem
 
         private float elapsedSinceLastAttack;
         private float healAccumulator;
+        private float healPerSecond;
+        private float healCapHpRatio;
         private bool invulnerableHitFlagsApplied;
-
-        private IEventSequencer eventSequencer;
 
         public BossPhaseLogicSystem(
             INpcCombatActor bossActor,
@@ -54,47 +49,9 @@ namespace BossPhaseSystem
             this.pureData = pureData ?? throw new ArgumentNullException(nameof(pureData));
             this.playerTarget = playerTarget;
 
-            this.bossStatService.RuntimeData.HP.OnValueChanged += HandleBossHpChanged;
-
             // Idle -> BasicAttack: 3.2절 FSM 표기의 첫 전이. 별도 트리거 없이 보스 두뇌가 구성되는 즉시
             // 기본 공격 순환을 시작한다(완료 기준 "BasicAttack 상태에서 attackInterval 주기로 Attack 호출").
             this.runtimeData.ChangePhase(BossPhaseType.BasicAttack);
-        }
-
-        /// <summary>
-        /// 06(이벤트 시퀀서) 연동 사후 배선입니다. BossPhaseSystemLifetimeScope가 자신과
-        /// EventSequencerSystemLifetimeScope의 Container가 모두 빌드된 뒤(Start()) 한 번 호출합니다.
-        /// 재호출 시 기존 구독을 먼저 해제해 중복 구독을 막습니다(AllySupportTriggerLogicSystem과 동일 패턴).
-        /// </summary>
-        public void BindEventSequencer(IEventSequencer sequencer)
-        {
-            UnbindEventSequencer();
-
-            eventSequencer = sequencer;
-            if (eventSequencer != null)
-            {
-                eventSequencer.OnCoreHitSuccess += HandleCoreHitSuccess;
-                eventSequencer.OnCoreHitFail += HandleCoreHitFail;
-            }
-        }
-
-        private void UnbindEventSequencer()
-        {
-            if (eventSequencer == null) return;
-
-            eventSequencer.OnCoreHitSuccess -= HandleCoreHitSuccess;
-            eventSequencer.OnCoreHitFail -= HandleCoreHitFail;
-            eventSequencer = null;
-        }
-
-        public void Dispose()
-        {
-            if (bossStatService?.RuntimeData?.HP != null)
-            {
-                bossStatService.RuntimeData.HP.OnValueChanged -= HandleBossHpChanged;
-            }
-
-            UnbindEventSequencer();
         }
 
         public void Tick()
@@ -128,16 +85,15 @@ namespace BossPhaseSystem
         /// 잘려 전혀 회복되지 않는 문제를 accumulator로 방지한다(초당 총 회복량은 healPerSecond와 정확히 일치 -
         /// 정수 경계에서만 나눠 호출될 뿐).
         ///
-        /// HP가 pureData.ReviveHpRatioOnFail * maxHp(기본 60%)를 넘지 않도록 상한을 둔다 - healPerSecond가
-        /// 충분히 빨라 invulnerablePhaseTimeoutSeconds 안에 HP가 100%까지 회복해버리면, 실패 시 60%로
-        /// "재설정"하는 HandleCoreHitFail의 diff = targetHp - currentHp가 음수가 되어 무동작이 되고 결과적으로
-        /// 60%가 아니라 100%로 남아버린다(3.8절 "회복 진행(정정)" 문단). 목표치까지 남은 만큼만 Heal을
+        /// HP가 회복 상한(이벤트 SO의 회복 비율 x maxHp, 기본 60%)을 넘지 않도록 상한을 둔다 - healPerSecond가
+        /// 충분히 빨라 HP가 100%까지 회복해버리면, 실패 시 상한 비율로 "재설정"하는 RecoverFromFail의 diff = targetHp - currentHp가
+        /// 음수가 되어 무동작이 되고 결과적으로 상한 비율이 아니라 100%로 남아버린다(3.8절 "회복 진행(정정)" 문단). 목표치까지 남은 만큼만 Heal을
         /// 호출하고, 이미 도달했으면 그 프레임의 Heal 호출을 스킵한다.
         /// </summary>
         private void TickInvulnerableHealing()
         {
             var hp = bossStatService.RuntimeData.HP;
-            int healCapHp = Mathf.RoundToInt(pureData.ReviveHpRatioOnFail * hp.MaxValue);
+            int healCapHp = Mathf.RoundToInt(healCapHpRatio * hp.MaxValue);
             int remainingToCap = healCapHp - hp.CurrentValue;
             if (remainingToCap <= 0)
             {
@@ -145,7 +101,7 @@ namespace BossPhaseSystem
                 return;
             }
 
-            healAccumulator += pureData.HealPerSecond * Time.deltaTime;
+            healAccumulator += healPerSecond * Time.deltaTime;
             int wholeHeal = Mathf.FloorToInt(healAccumulator);
             if (wholeHeal > 0)
             {
@@ -156,23 +112,22 @@ namespace BossPhaseSystem
         }
 
         /// <summary>
-        /// 50% 감지(3.8절). 이미 InvulnerableHealing/Dead 상태이면 재판정하지 않는다(완료 기준 "이후 재판정 없음").
-        /// OnCoreHitFail로 BasicAttack에 복귀한 뒤에는 다시 판정 가능해져 재도전 루프(시나리오 F)를 허용한다.
+        /// 무적·회복 페이즈 진입(BossInvulnerableAction). 이미 InvulnerableHealing/Dead 상태이면 재진입하지 않는다(완료 기준 "이후 재판정 없음").
+        /// OnCoreHitFail로 BasicAttack에 복귀한 뒤에는 다시 진입 가능해져 재도전 루프(시나리오 F)를 허용한다.
+        /// healPerSecond / healCapHpRatio는 이벤트 SO(BossRecoverAction)의 값이다.
         /// </summary>
-        private void HandleBossHpChanged(int current, int max)
+        public void EnterInvulnerableHealing(float healPerSecond, float healCapHpRatio)
         {
             if (runtimeData.CurrentPhase == BossPhaseType.InvulnerableHealing) return;
             if (runtimeData.CurrentPhase == BossPhaseType.Dead) return;
-            if (max <= 0) return;
 
-            float ratio = current / (float)max;
-            if (ratio <= InvulnerableHealingHpThresholdRatio)
-            {
-                bossStatService.SetInvincible(true);
-                ApplyInvulnerableHitFlags();
-                runtimeData.ChangePhase(BossPhaseType.InvulnerableHealing);
-                healAccumulator = 0f;
-            }
+            this.healPerSecond = healPerSecond;
+            this.healCapHpRatio = healCapHpRatio;
+
+            bossStatService.SetInvincible(true);
+            ApplyInvulnerableHitFlags();
+            runtimeData.ChangePhase(BossPhaseType.InvulnerableHealing);
+            healAccumulator = 0f;
         }
 
         /// <summary>
@@ -185,7 +140,7 @@ namespace BossPhaseSystem
         /// TakeDamage를 우회해 RuntimeData.ReduceHP(int)를 직접 호출한다(RuntimeStatData 자신의 캡슐화 전용
         /// 메서드이므로 DLV Rule 3 - Encapsulated Data는 그대로 지켜진다).
         /// </summary>
-        private void HandleCoreHitSuccess()
+        public void Defeat()
         {
             if (runtimeData.CurrentPhase == BossPhaseType.Dead) return;
 
@@ -200,15 +155,15 @@ namespace BossPhaseSystem
         }
 
         /// <summary>
-        /// 실패/타임아웃(3.8절): 목표 HP(reviveHpRatioOnFail*maxHp)와 현재 HP의 차이만큼 Heal -> 무적 해제 ->
+        /// 실패/타임아웃(3.8절, BossRecoverAction): 목표 HP(recoverHpRatio*maxHp, 이벤트 SO 값)와 현재 HP의 차이만큼 Heal -> 무적 해제 ->
         /// BasicAttack 복귀 순서로 호출한다.
         /// </summary>
-        private void HandleCoreHitFail()
+        public void RecoverFromFail(float recoverHpRatio)
         {
             if (runtimeData.CurrentPhase == BossPhaseType.Dead) return;
 
             var hp = bossStatService.RuntimeData.HP;
-            int targetHp = Mathf.RoundToInt(pureData.ReviveHpRatioOnFail * hp.MaxValue);
+            int targetHp = Mathf.RoundToInt(recoverHpRatio * hp.MaxValue);
             int diff = targetHp - hp.CurrentValue;
             if (diff > 0)
             {

@@ -3,6 +3,7 @@ using UnityEngine;
 using VContainer;
 using VContainer.Unity;
 using Pooling;
+using GameEvent;
 
 namespace NpcSystem
 {
@@ -48,6 +49,14 @@ namespace NpcSystem
         [Header("NpcCombatActorVisualizer 인스턴스 (씬에 배치된 모든 인스턴스를 직접 등록 - 인스펙터 전용)")]
         [SerializeField] private List<NpcCombatActorVisualizer> npcCombatActorVisualizers = new List<NpcCombatActorVisualizer>();
 
+        [Header("BlockerNPC (이벤트가 길을 막고 서 있게 하는 일반 NPC - 씬 배치 인스턴스를 직접 등록, 인스펙터 전용)")]
+        [SerializeField] private List<BlockerNPC> blockerNpcs = new List<BlockerNPC>();
+
+        [Header("Event System(09) Linkage - Optional")]
+        [Tooltip("이벤트 시스템과 이 시스템을 연결하는 인스펙터 직접 참조입니다. 두 시스템은 서로 다른 VContainer 스코프 트리에 있어 생성자 주입이 불가능하므로, " +
+                 "다른 시스템과 같은 패턴으로 Start()에서 NPC 동작 핸들러를 사후 등록합니다.")]
+        [SerializeField] private EventSystemLifetimeScope eventSystemScope;
+
         [Header("15-B 아군 투사체 풀링")]
         [SerializeField] private PureDataNpcProjectile projectileSettings;
         [SerializeField] private NpcProjectilePool projectilePool;
@@ -76,6 +85,72 @@ namespace NpcSystem
                 {
                     builder.RegisterComponent(visualizer).Keyed(visualizer);
                 }
+            }
+
+            ConfigureEventActions(builder);
+        }
+
+        /// <summary>
+        /// 이벤트가 NPC에게 시키는 동작(반복 사격 / 사격 중단 / 비켜서기 / 순간이동)의 로직과 핸들러 등록입니다. BlockerNPC 목록은 인터페이스(IBlockerNpc) 배열로,
+        /// id가 있는 NPC(NpcCombatActorVisualizer.NpcId)는 인터페이스(INpcIdentity) 배열로 레지스트리에 넘기고, 핸들러는 IEventActionHandler로 등록해
+        /// Start()에서 이벤트 시스템에 일괄 등록합니다.
+        /// </summary>
+        private void ConfigureEventActions(IContainerBuilder builder)
+        {
+            var blockers = new List<IBlockerNpc>();
+            foreach (var blocker in blockerNpcs)
+            {
+                if (blocker != null) blockers.Add(blocker);
+            }
+
+            var identities = new List<INpcIdentity>();
+            foreach (var visualizer in npcCombatActorVisualizers)
+            {
+                if (visualizer != null) identities.Add(visualizer);
+            }
+
+            builder.Register<NpcActorRegistry>(Lifetime.Scoped)
+                .WithParameter<INpcIdentity[]>(identities.ToArray())
+                .As<INpcActorRegistry>();
+
+            builder.Register<BlockerNpcRegistry>(Lifetime.Scoped)
+                .WithParameter<IBlockerNpc[]>(blockers.ToArray())
+                .As<IBlockerNpcRegistry>();
+            builder.Register<RuntimeDataNpcRepeatAttack>(Lifetime.Scoped);
+            builder.Register<NpcRepeatAttackLogicSystem>(Lifetime.Scoped)
+                .As<INpcRepeatAttackController>()
+                .As<ITickable>();
+
+            builder.Register<NpcRepeatAttackActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
+            builder.Register<NpcStopAttackActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
+            builder.Register<NpcStepAsideActionHandler>(Lifetime.Scoped).As<IEventActionHandler>();
+            // AsSelf(): Start()에서 이벤트 시스템 스코프의 비행 로직(발사 지점 L 공급원)을 사후 배선(BindFlightLogic)하기 위해 구체 타입으로도 Resolve 가능하게 함.
+            builder.Register<NpcTeleportActionHandler>(Lifetime.Scoped).As<IEventActionHandler>().AsSelf();
+        }
+
+        /// <summary>
+        /// 이벤트 시스템(09)과의 연동 배선입니다. 두 스코프의 Container가 모두 준비된 뒤인 Start()에서 NPC 동작 핸들러를 이벤트 시스템에 등록합니다
+        /// (이벤트 시스템의 첫 Tick에서 이벤트가 시작되므로 그 전에 등록이 끝납니다). Find*는 쓰지 않고 인스펙터 직접 참조만 씁니다.
+        /// </summary>
+        private void Start()
+        {
+            if (eventSystemScope == null)
+            {
+                Debug.LogWarning("[NpcSystemLifetimeScope] eventSystemScope가 연결되지 않아 이벤트 시스템 연동 없이 동작합니다. NPC 이벤트 동작(반복 사격/비켜서기)이 실행되지 않습니다.");
+                return;
+            }
+
+            if (Container == null || eventSystemScope.Container == null)
+            {
+                Debug.LogError("[NpcSystemLifetimeScope] Container가 아직 준비되지 않아 이벤트 시스템 연동을 배선할 수 없습니다.");
+                return;
+            }
+
+            var eventSystem = eventSystemScope.Container.Resolve<IEventSystem>();
+            Container.Resolve<NpcTeleportActionHandler>().BindFlightLogic(eventSystemScope.Container.Resolve<IEventFlightLogic>());
+            foreach (var handler in Container.Resolve<IEnumerable<IEventActionHandler>>())
+            {
+                eventSystem.RegisterActionHandler(handler);
             }
         }
     }

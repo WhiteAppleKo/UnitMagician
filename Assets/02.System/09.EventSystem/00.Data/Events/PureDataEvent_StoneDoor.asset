@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658a4d2e3a66a414ea0f585dfd1e1c6a, type: 3}
+  m_Name: PureDataEvent_StoneDoor
+  m_EditorClassIdentifier: Assembly-CSharp::GameEvent.PureDataEvent
+  eventId: StoneDoor
+  intensity: 0
+  trigger: {fileID: 11400000, guid: 508e4bdf7a0bca346a80ba1895e7e484, type: 2}
+  requiresCompleted: []
+  onStart:
+  - {fileID: 11400000, guid: 2ab995e8597df5e4189d1460f6a71b77, type: 2}
+  completion: {fileID: 11400000, guid: 8a89c0bc24540824b996a4114fecab34, type: 2}
+  onSuccess:
+  - {fileID: 11400000, guid: e7c453e26b7644a4691e73ac57911827, type: 2}
+  - {fileID: 11400000, guid: 297d4d7718e495849bf345cf5ff1bf78, type: 2}
+  onFail: []
+  rearmOnFail: 0

@@ -1,11 +1,12 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VContainer;
 using VContainer.Unity;
 using CameraMovement;
 using CameraMovement.UI;
 using Movement.Visualizer;
-using EventSequencerSystem;
+using GameEvent;
 
 namespace Movement.RefactoredLocomotion
 {
@@ -14,12 +15,12 @@ namespace Movement.RefactoredLocomotion
     {
         [SerializeField] private LocomotionConfig config;
 
-        [Header("Event Sequencer(06) Linkage - Optional")]
-        [Tooltip("06(이벤트 시퀀서)과 신규 이벤트 카메라(EventCameraTriggerLogicSystem)를 연결하는 인스펙터 직접 참조입니다. " +
-                 "두 시스템은 서로 다른 VContainer 스코프 트리(EventSequencerSystemLifetimeScope의 부모는 " +
-                 "InteractionSystemLifetimeScope)에 있어 생성자 주입이 불가능하므로, 09번(CharacterLifetimeScope의 " +
-                 "eventSequencerScope)과 동일한 패턴으로 씬에서 직접 드래그해 연결하고 Start()에서 수동 배선합니다.")]
-        [SerializeField] private EventSequencerSystemLifetimeScope eventSequencerScope;
+        [Header("Event System(09) Linkage - Optional")]
+        [Tooltip("이벤트 시스템과 이벤트 카메라/입력 락 동작 핸들러(CameraOverrideActionHandler, InputLockActionHandler)를 연결하는 인스펙터 직접 참조입니다. " +
+                 "두 시스템은 서로 다른 VContainer 스코프 트리(EventSystemLifetimeScope의 부모는 " +
+                 "InteractionSystemLifetimeScope)에 있어 생성자 주입이 불가능하므로, 씬에서 직접 드래그해 연결하고 Start()에서 수동 배선합니다.")]
+        [FormerlySerializedAs("eventSequencerScope")]
+        [SerializeField] private EventSystemLifetimeScope eventSystemScope;
 
         protected override void Awake()
         {
@@ -63,9 +64,10 @@ namespace Movement.RefactoredLocomotion
                 .As<ICameraFollowService>()
                 .As<ILateTickable>();
 
-            // 4-1. 이벤트 카메라 트리거 로직 등록 (설계 정정 이후 IInitializable 불필요 - 3단계 이벤트 카메라 판정 전용)
-            // AsSelf(): Start()에서 06 연동을 사후 배선(BindEventSequencer)하기 위해 구체 타입으로도 Resolve 가능하게 함.
-            builder.Register<EventCameraTriggerLogicSystem>(Lifetime.Singleton).AsSelf().As<IDisposable>();
+            // 4-1. 이벤트 동작 핸들러 등록 (카메라 오버라이드 / 입력 락). Start()에서 이벤트 시스템에 사후 등록한다(Goal 51).
+            // AsSelf(): 부모 스코프(CharacterLifetimeScope)의 핸들러까지 IEnumerable로 섞여 중복 등록되지 않도록 Start()에서 구체 타입으로 직접 Resolve해 등록한다.
+            builder.Register<CameraOverrideActionHandler>(Lifetime.Singleton).AsSelf().As<IEventActionHandler>();
+            builder.Register<InputLockActionHandler>(Lifetime.Singleton).AsSelf().As<IEventActionHandler>();
 
             // 5. Visualizer 등록
             if (config.Visualizer != null) builder.RegisterComponent(config.Visualizer).As<ILocomotionVisualizer>();
@@ -88,33 +90,35 @@ namespace Movement.RefactoredLocomotion
         }
 
         /// <summary>
-        /// 06(EventSequencerSystem)과의 연동 배선. VContainer의 Awake()/Build() 타이밍(스크립트 실행 순서와
+        /// 이벤트 시스템(09)과의 연동 배선. VContainer의 Awake()/Build() 타이밍(스크립트 실행 순서와
         /// 무관하게 "모든 Awake는 어떤 Start보다 먼저 실행된다"는 유니티 보장)을 이용해, 두 스코프의 Container가
         /// 모두 준비된 뒤인 Start()에서 한 번만 연결한다. GameObject.Find/FindObjectOfType은 사용하지 않고
-        /// 인스펙터에 직접 연결해둔 eventSequencerScope 참조만 사용한다(CharacterLifetimeScope와 동일한 패턴).
+        /// 인스펙터에 직접 연결해둔 eventSystemScope 참조만 사용한다(CharacterLifetimeScope와 동일한 패턴).
         /// </summary>
         private void Start()
         {
-            if (eventSequencerScope == null)
+            if (eventSystemScope == null)
             {
-                Debug.LogWarning("[LocomotionLifetimeScope] eventSequencerScope가 연결되지 않아 06(이벤트 시퀀서) 연동 없이 동작합니다. " +
-                                  "이벤트 카메라(대상 오버라이드)는 06의 자동 발동 없이는 트리거되지 않습니다(기본 3인칭 숄더뷰 조작은 정상 동작).");
+                Debug.LogWarning("[LocomotionLifetimeScope] eventSystemScope가 연결되지 않아 이벤트 시스템 연동 없이 동작합니다. " +
+                                  "이벤트 카메라(대상 오버라이드)는 이벤트 SO의 카메라 오버라이드 동작 없이는 트리거되지 않습니다(기본 3인칭 숄더뷰 조작은 정상 동작).");
                 return;
             }
 
-            if (Container == null || eventSequencerScope.Container == null)
+            if (Container == null || eventSystemScope.Container == null)
             {
-                Debug.LogError("[LocomotionLifetimeScope] Container가 아직 준비되지 않아 06 연동을 배선할 수 없습니다.");
+                Debug.LogError("[LocomotionLifetimeScope] Container가 아직 준비되지 않아 이벤트 시스템 연동을 배선할 수 없습니다.");
                 return;
             }
 
-            var eventCameraTrigger = Container.Resolve<EventCameraTriggerLogicSystem>();
-            var eventSequencer = eventSequencerScope.Container.Resolve<IEventSequencer>();
-            eventCameraTrigger.BindEventSequencer(eventSequencer);
+            // 이벤트 카메라 동작 핸들러(카메라 오버라이드 / 입력 락)를 이벤트 시스템에 등록한다. 이벤트 카메라 수치(블렌드/곡선/FOV/눈 높이)는
+            // 카메라 오버라이드 동작이 실행될 때 이벤트 SO에서 카메라 서비스로 넘어온다.
+            var eventSystem = eventSystemScope.Container.Resolve<IEventSystem>();
+            eventSystem.RegisterActionHandler(Container.Resolve<CameraOverrideActionHandler>());
+            eventSystem.RegisterActionHandler(Container.Resolve<InputLockActionHandler>());
 
             // 이벤트 카메라가 바라볼 투사체 위치 공급원(09의 IEventFlightTracker)도 같은 방식으로 사후 배선한다.
             var eventLookTarget = Container.Resolve<EventProjectileLookTarget>();
-            eventLookTarget.Bind(eventSequencerScope.Container.Resolve<IEventFlightTracker>());
+            eventLookTarget.Bind(eventSystemScope.Container.Resolve<IEventFlightTracker>());
         }
     }
 }
