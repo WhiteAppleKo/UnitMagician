@@ -91,7 +91,8 @@ namespace NpcSystem
                 // 16-A/16-B: 투사체의 독자 공격 상태(발사자/진영/공격 플래그)를 발사 설정 값으로 확정하고, 발사 진영 레이어를
                 // 루트와 모든 자식 콜라이더에 적용한다. 발사자는 attacker로만 존재한다(owner/충돌 쌍 없음).
                 damageTrigger.ApplyLaunchAttackState(launchData.Attacker, launchData.Faction, launchData.AttackFlags);
-                damageTrigger.SetBaseDamage(launchData.BaseDamage);
+                // 28번: 발사 값으로 BaseDamage = CurrentDamage를 초기화한다(이후 마법이 CurrentDamage를 바꿀 수 있다).
+                damageTrigger.AttackDamage.Initialize(launchData.BaseDamage);
             }
 
             body.linearVelocity = launchData.Velocity;

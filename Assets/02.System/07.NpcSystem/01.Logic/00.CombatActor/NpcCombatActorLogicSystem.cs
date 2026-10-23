@@ -74,7 +74,8 @@ namespace NpcSystem
                 return;
             }
 
-            pureData.AttackBehavior.Execute(visualizer, pureData, target);
+            // 데미지는 NPC의 런타임 데미지(RuntimeDataAttackDamage.CurrentDamage)로 발사한다(28번 - PureData를 직접 읽지 않음).
+            pureData.AttackBehavior.Execute(visualizer, pureData, runtimeData.AttackDamage, target);
             PlayMotion("Attack");
             runtimeData.NotifyAttackExecuted();
         }

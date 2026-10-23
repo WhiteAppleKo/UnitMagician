@@ -4859,7 +4859,6 @@ GameObject:
   - component: {fileID: 5256849380228741112}
   - component: {fileID: 716538873375855945}
   - component: {fileID: 9181311729558786493}
-  - component: {fileID: 1210870908932052512}
   - component: {fileID: 3489242299431112619}
   m_Layer: 0
   m_Name: Sphere
@@ -5006,21 +5005,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.RuntimeDataUnitGroup
   _highlightMat: {fileID: 0}
   _targetMat: {fileID: 0}
-  supportedUnits: 9
+  targetData: {fileID: 11400000, guid: 3ee99e4015005824f8b7c5d3f8971531, type: 2}
   isTargetable: 1
-  bakedMassValue: 0.97226274
---- !u!114 &1210870908932052512
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4217027522021539959}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79d5cb935c9f7494a82c3cc2d9cca2de, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitTargetLogicSystem
 --- !u!114 &3489242299431112619
 MonoBehaviour:
   m_ObjectHideFlags: 0

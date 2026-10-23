@@ -6,7 +6,7 @@ namespace DestructibleSystem
 {
     /// <summary>
     /// DestructibleDoorLogicSystem이 참조하는 불변 설정값([D] Pure Data)입니다.
-    /// 공격자 쪽 기본 데미지(baseDamage)는 이 SO의 책임이 아니므로(공격자 PureData/CollisionDamageTrigger 쪽에 있음),
+    /// 공격자 쪽 기본 데미지(baseDamage)는 이 SO의 책임이 아니므로(공격자 PureData/RuntimeDataAttackDamage 쪽에 있음),
     /// 여기서는 파괴 판정에 필요한 임계값(Hp)과 게이트 요구값(속성 최대 온도/크기 질량 비율), 전투 파이프라인에서의 진영/피격 플래그만 보관합니다.
     /// 판정 코드(AttributeGateStep/SizeGateStep/DestructibleDoorLogicSystem)에는 기준 숫자가 없으며 모두 여기서 읽습니다(20번 기획서).
     /// </summary>

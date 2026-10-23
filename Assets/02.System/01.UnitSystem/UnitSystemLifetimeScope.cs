@@ -14,12 +14,10 @@ namespace UnitSystem
         [SerializeField] private UnitQuickSlotUIComponent quickSlotUI;
         [SerializeField] private UnitInventoryUIComponent inventoryUI;
         [SerializeField] private UnitUnlockPopupUIComponent unlockPopupUI;
-        [SerializeField] private UnitVectorGizmoUIComponent vectorGizmoUI;
         [SerializeField] private MagicSelectionPopupUIComponent magicSelectionPopupUI;
 
         [Header("Gameplay Systems")]
         [SerializeField] private UnitCasterSystem unitCaster;
-        [SerializeField] private UnitGhostPreviewComponent ghostPreview;
         [SerializeField] private MultiLockOnVisualizer multiLockOnVisualizer;
         [Tooltip("13-C 적용 전 변화 미리보기 비주얼. 비어 있으면 같은 이름의 오브젝트를 새로 만들어 등록합니다(고스트 머티리얼 미지정 시 미리보기가 보이지 않음).")]
         [SerializeField] private LockOnPreviewVisualizer lockOnPreviewVisualizer;
@@ -53,6 +51,17 @@ namespace UnitSystem
             builder.Register<RuntimeDataUnitQuickSlot>(Lifetime.Singleton);
             builder.Register<RuntimeDataMagicFavoriteSlots>(Lifetime.Singleton);
 
+            // 28번: 마법 타입별 Applicator(순수 C#, 상태 없음) + 단일 적용 주체.
+            // 30번: UnitApplicatorRegistry가 IReadOnlyList<IUnitApplicator>로 주입받아 PureData 서브클래스 타입(DataType, 인스턴스 생성)과
+            // 대상 속성(UnitType, 목록 재계산) 두 키로 조회한다. 시전(UnitChangeService)·적용(UnitApplyLogicSystem)·미리보기(LockOnPreviewCalculator)가 같은 조회를 쓴다.
+            builder.Register<MassUnitApplicator>(Lifetime.Singleton).As<IUnitApplicator>();
+            builder.Register<TemperatureUnitApplicator>(Lifetime.Singleton).As<IUnitApplicator>();
+            builder.Register<VectorUnitApplicator>(Lifetime.Singleton).As<IUnitApplicator>();
+            builder.Register<UnitApplicatorRegistry>(Lifetime.Singleton).As<IUnitApplicatorRegistry>();
+            // 31번: 마법 대상 상태 재계산(PureData 리셋 → 적용 목록 순회 → 확정). 실제 적용(UnitApplyLogicSystem)·미리보기(LockOnPreviewCalculator)·비용(UnitChangeService)이 같은 함수를 쓴다.
+            builder.Register<UnitTargetStateCalculator>(Lifetime.Singleton).As<IUnitTargetStateCalculator>();
+            builder.RegisterEntryPoint<UnitApplyLogicSystem>(Lifetime.Singleton);
+
             // Logic Systems Register
             builder.RegisterEntryPoint<UnitQuickSlotLogicSystem>(Lifetime.Singleton).AsSelf();
             builder.RegisterEntryPoint<MagicSelectionPopupLogicSystem>(Lifetime.Singleton).As<IMagicSelectionPopupLogic>();
@@ -74,18 +83,12 @@ namespace UnitSystem
             if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
             else builder.RegisterComponentInHierarchy<UnitUnlockPopupUIComponent>();
 
-            if (vectorGizmoUI != null) builder.RegisterComponent(vectorGizmoUI);
-            else builder.RegisterComponentInHierarchy<UnitVectorGizmoUIComponent>();
-
             if (magicSelectionPopupUI != null) builder.RegisterComponent(magicSelectionPopupUI);
             else builder.RegisterComponentInHierarchy<MagicSelectionPopupUIComponent>();
 
             // Gameplay Component Register
             if (unitCaster != null) builder.RegisterComponent(unitCaster);
             else builder.RegisterComponentInHierarchy<UnitCasterSystem>();
-
-            if (ghostPreview != null) builder.RegisterComponent(ghostPreview);
-            else builder.RegisterComponentInHierarchy<UnitGhostPreviewComponent>();
 
             if (multiLockOnVisualizer != null) builder.RegisterComponent(multiLockOnVisualizer).As<IMultiLockOnVisualizer>();
             else builder.RegisterComponentInHierarchy<MultiLockOnVisualizer>().As<IMultiLockOnVisualizer>();

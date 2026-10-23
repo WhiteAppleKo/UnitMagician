@@ -16,7 +16,6 @@ namespace UnitSystem
     {
         private IUnitChangeService changeService;
         private IUnitBatchCastingService batchCastingService;
-        private IUnitCastRuleService castRuleService;
         private RuntimeDataMultiLockOn multiLockOnData;
         private IMultiLockOnVisualizer multiLockOnVisualizer;
         private CharacterStatSystem playerStatSystem;
@@ -33,13 +32,11 @@ namespace UnitSystem
             IUnitChangeService changeService,
             RuntimeDataMultiLockOn multiLockOnData,
             IUnitBatchCastingService batchCastingService,
-            IUnitCastRuleService castRuleService,
             IMultiLockOnVisualizer multiLockOnVisualizer = null)
         {
             this.changeService = changeService;
             this.multiLockOnData = multiLockOnData;
             this.batchCastingService = batchCastingService;
-            this.castRuleService = castRuleService;
             this.multiLockOnVisualizer = multiLockOnVisualizer;
 
             BindMultiLockOnEvents();
@@ -102,7 +99,7 @@ namespace UnitSystem
             if (pendingTarget != null) pendingTarget.Highlight(false, false);
             multiLockOnVisualizer?.UpdateLockOnCount(0);
 
-            // 장착 해제/대상 소실 쌍 제외, 총비용 계산, UseMP 한 번 차감, 쌍별 ChangeUnit은 모두 IUnitBatchCastingService의
+            // 장착 해제/대상 소실 쌍 제외, 총비용 계산, UseMP 한 번 차감, 쌍별 ChangeUnit(마법 인스턴스를 대상 적용 목록에 누적, 30번)은 모두 IUnitBatchCastingService의
             // 단일 규칙이 처리한다(HUD 예상 비용과 같은 계산). 여기서는 따로 필터링/계산하지 않는다(15-A).
             var statComp = GetComponentInParent<CharacterSystem.CharacterStatComponent>()
                         ?? GetComponent<CharacterSystem.CharacterStatComponent>()
@@ -116,11 +113,6 @@ namespace UnitSystem
             {
                 multiLockOnVisualizer?.PlayBatchCastEffect();
             }
-        }
-
-        private float CalculateNewValueForUnit(RuntimeDataUnit targetUnit, PureDataUnit spellUnit)
-        {
-            return castRuleService.CalculateNewValue(targetUnit, spellUnit);
         }
 
         private void ClearAllLockOns()

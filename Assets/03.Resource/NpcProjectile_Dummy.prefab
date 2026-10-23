@@ -16,7 +16,6 @@ GameObject:
   - component: {fileID: 6662034309644273386}
   - component: {fileID: 7011223344556677881}
   - component: {fileID: 7011223344556677882}
-  - component: {fileID: 7011223344556677883}
   - component: {fileID: 8445680921818461697}
   m_Layer: 0
   m_Name: NpcProjectile_Dummy
@@ -157,7 +156,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc100eb728d4684409217a07bd89670a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InteractionSystem.Logic.CollisionDamageTrigger
-  baseDamage: 10
+  attackDamageData: {fileID: 11400000, guid: f19ddd3c790771b448e0d382133785c9, type: 2}
   accuracyRate: 1
   critRate: 0.2
   critMultiplier: 1.5
@@ -181,9 +180,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.RuntimeDataUnitGroup
   _highlightMat: {fileID: 0}
   _targetMat: {fileID: 0}
-  supportedUnits: 9
+  targetData: {fileID: 11400000, guid: 50e86c8077d39b4429468dfbf560dd31, type: 2}
   isTargetable: 1
-  bakedMassValue: 1
 --- !u!114 &7011223344556677882
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -196,18 +194,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c5e2f438b39c54408d3f760382524ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitTargetObjectVisualizer
---- !u!114 &7011223344556677883
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5122777725880258257}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79d5cb935c9f7494a82c3cc2d9cca2de, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitTargetLogicSystem
 --- !u!114 &8445680921818461697
 MonoBehaviour:
   m_ObjectHideFlags: 0

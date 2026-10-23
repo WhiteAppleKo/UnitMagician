@@ -1,51 +1,22 @@
-using System;
-using UnityEngine;
-
 namespace UnitSystem
 {
-    public class RuntimeDataUnit
+    /// <summary>
+    /// 마법 한 번의 런타임 인스턴스(abstract, 30번)입니다. 원본 마법(PureData)을 바탕으로 시전자의 스탯·장착 아이템 등의 영향을 받아
+    /// 최종 수치를 캐싱해 둔 값이며, 피격 대상의 적용 마법 목록(RuntimeDataUnitTarget.AppliedUnits)에 한 항목으로 쌓입니다.
+    /// 캐싱 값은 마법 타입별 서브클래스(00.Data/03.Magic의 RuntimeDataMassUnit/RuntimeDataTemperatureUnit/RuntimeDataVectorUnit)가 가지며,
+    /// 인스턴스는 타입별 Applicator의 CreateInstance로만 만들고 생성 후 값이 바뀌지 않습니다(불변 캐시).
+    /// </summary>
+    public abstract class RuntimeDataUnit
     {
-        public event Action<RuntimeDataUnit> OnUnitChanged;
+        /// <summary>원본 마법(kg, Frost …). 연출 에셋도 여기서 읽습니다.</summary>
+        public PureDataUnit Source { get; }
 
-        public UnitType CurrentUnit { get; private set; }
-        public float CurrentValue { get; private set; }
-        public float OriginalValue { get; private set; }
-        public PureDataUnit CurrentUnitData { get; private set; }
+        /// <summary>이 마법이 바꾸는 대상 속성(Source.UnitType).</summary>
+        public UnitType UnitType => Source != null ? Source.UnitType : UnitType.None;
 
-        public Vector3 VectorDirection { get; private set; } = Vector3.forward;
-        public float VectorSpeed { get; private set; } = 0f;
-
-        public RuntimeDataUnit(UnitType initialUnit, float initialValue, PureDataUnit initialUnitData)
+        protected RuntimeDataUnit(PureDataUnit source)
         {
-            CurrentUnit = initialUnit;
-            CurrentValue = initialValue;
-            OriginalValue = initialValue;
-            CurrentUnitData = initialUnitData;
-            VectorDirection = Vector3.forward;
-            VectorSpeed = initialValue;
-        }
-
-        public void UpdateUnitData(UnitType newUnit, float newValue, PureDataUnit newUnitData)
-        {
-            CurrentUnit = newUnit;
-            CurrentValue = newValue;
-            CurrentUnitData = newUnitData;
-
-            OnUnitChanged?.Invoke(this);
-        }
-
-        public void SetPureDataUnit(PureDataUnit newUnitData)
-        {
-            CurrentUnitData = newUnitData;
-        }
-
-        public void SetVectorData(Vector3 direction, float speed)
-        {
-            VectorDirection = direction.normalized;
-            VectorSpeed = speed;
-            CurrentValue = speed;
-
-            OnUnitChanged?.Invoke(this);
+            Source = source;
         }
     }
 }

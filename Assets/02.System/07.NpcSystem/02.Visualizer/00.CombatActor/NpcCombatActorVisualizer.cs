@@ -87,7 +87,7 @@ namespace NpcSystem
         {
             if (LogicSystem == null && pureData != null)
             {
-                LogicSystem = new NpcCombatActorLogicSystem(pureData, new RuntimeDataNpcActor(), this);
+                LogicSystem = new NpcCombatActorLogicSystem(pureData, new RuntimeDataNpcActor(pureData.BaseDamage), this);
             }
         }
 

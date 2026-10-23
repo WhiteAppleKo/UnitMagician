@@ -7,6 +7,7 @@ using PipeLine.Contexts;
 using PipeLine.Combat;
 using CharacterSystem;
 using Pooling;
+using InteractionSystem.Data;
 
 namespace InteractionSystem.Logic
 {
@@ -15,10 +16,11 @@ namespace InteractionSystem.Logic
     /// 같은 편 투사체/몸체는 진영 레이어(FactionLayers, 충돌 매트릭스)에서 충돌 자체가 일어나지 않으므로 이 컴포넌트에는
     /// 같은 편 판정이 없습니다(16-B). 중복 피격 방지 예외 처리가 포함되어 있습니다.
     /// </summary>
-    public class CollisionDamageTrigger : MonoBehaviour, IPoolReusable, IAttackStepFlagsProvider, IFactionProvider, IFactionSettable
+    public class CollisionDamageTrigger : MonoBehaviour, IPoolReusable, IAttackStepFlagsProvider, IFactionProvider, IFactionSettable, IAttackDamageProvider
     {
         [Header("Damage Settings")]
-        [SerializeField] private int baseDamage = 10;
+        [Tooltip("기본 데미지 원본(PureData, 28번 §6-10). Awake·풀 재사용 시 이 값으로, 발사 시 발사 값으로 RuntimeDataAttackDamage를 초기화한다.")]
+        [SerializeField] private PureDataAttackDamage attackDamageData;
         [SerializeField] private float accuracyRate = 1f;
         [SerializeField] private float critRate = 0.2f;
         [SerializeField] private float critMultiplier = 1.5f;
@@ -43,6 +45,13 @@ namespace InteractionSystem.Logic
         private GameObject attacker;
         private FactionType faction = FactionType.Neutral;
         private readonly CombatFlagState attackFlags = new CombatFlagState(AttackStepFlags.None, HitStepFlags.None);
+
+        // 28번 §6-9/§6-10: 이 오브젝트의 공격 데미지 런타임 데이터(BaseDamage·CurrentDamage). 같은 오브젝트의 RuntimeDataUnitGroup이
+        // Awake에서 IAttackDamageProvider로 참조하므로 필드 초기화로 인스턴스를 먼저 만들어 두고, 값은 Awake/재사용/발사 시 Initialize한다.
+        private readonly RuntimeDataAttackDamage attackDamage = new RuntimeDataAttackDamage();
+
+        /// <summary>IAttackDamageProvider 구현: 마법(Mass 등)이 CurrentDamage를 저장하고, 충돌 시 RawDamage로 쓰이는 공격 데미지 데이터.</summary>
+        public RuntimeDataAttackDamage AttackDamage => attackDamage;
 
         /// <summary>
         /// 피격 판정(ProcessDamageAsync)이 끝난 직후, destroyOnImpact 처리 전에 발행됩니다. 풀링되는 투사체는 이 이벤트로 "판정을 마친 뒤" 풀에 반환됩니다.
@@ -98,9 +107,22 @@ namespace InteractionSystem.Logic
             this.interactionService = interactionService;
         }
 
-        public void SetBaseDamage(int damage)
+        private void Awake()
         {
-            baseDamage = damage;
+            InitializeAttackDamageFromData();
+        }
+
+        /// <summary>PureData 기본 데미지로 BaseDamage = CurrentDamage를 초기화한다(Awake·풀 재사용). 발사 값은 발사 시 AttackDamage.Initialize로 덮어쓴다.</summary>
+        private void InitializeAttackDamageFromData()
+        {
+            if (attackDamageData == null)
+            {
+                Debug.LogWarning($"[CollisionDamageTrigger] PureDataAttackDamage is not assigned on {gameObject.name}. BaseDamage = 0.");
+                attackDamage.Initialize(0);
+                return;
+            }
+
+            attackDamage.Initialize(attackDamageData.BaseDamage);
         }
 
         private void OnTriggerEnter(Collider other)
@@ -166,7 +188,8 @@ namespace InteractionSystem.Logic
                 // 속성 게이트(AttributeGateStep)가 발사자가 아니라 이 투사체 자신의 유닛 데이터(온도/질량)를 읽을 수 있게 한다.
                 Source = gameObject,
                 Victim = victim,
-                RawDamage = baseDamage,
+                // 마법 적용 시 저장된 현재 데미지(28번 §6-9) - 충돌 시점에 질량 비율을 곱하지 않는다.
+                RawDamage = attackDamage.CurrentDamage,
                 AttackerAccRate = accuracyRate,
                 CritRate = critRate,
                 CritMultiplier = critMultiplier
@@ -233,6 +256,8 @@ namespace InteractionSystem.Logic
             hitHistory.Clear();
             expiredHitCache.Clear();
             hasImpacted = false;
+            // 이전 사용의 마법 데미지 결과(CurrentDamage)를 지운다. 풀링 투사체는 곧이어 SetActive에서 발사 값으로 다시 Initialize된다.
+            InitializeAttackDamageFromData();
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using PipeLine.Combat;
 
 namespace NpcSystem
 {
@@ -16,6 +17,17 @@ namespace NpcSystem
         /// <summary>이번 이동에만 적용되는 이동 속도(m/s). 0 이하이면 지정하지 않은 것(NPC 데이터의 moveSpeed를 씀).</summary>
         public float MoveSpeedOverride { get; private set; }
         public float LastAttackTime { get; private set; } = float.NegativeInfinity;
+
+        /// <summary>
+        /// NPC의 공격 데미지 런타임 데이터(28번 §6-9 - BaseDamage가 있는 모든 RuntimeData는 CurrentDamage를 가진다).
+        /// PureDataNpcActor.BaseDamage로 초기화되며, 투사체 발사 시 CurrentDamage가 투사체의 BaseDamage로 넘어간다.
+        /// </summary>
+        public RuntimeDataAttackDamage AttackDamage { get; } = new RuntimeDataAttackDamage();
+
+        public RuntimeDataNpcActor(int baseDamage)
+        {
+            AttackDamage.Initialize(baseDamage);
+        }
 
         /// <summary>공격 실행(투사체 발사 등)이 실제로 일어난 시점에 발행됩니다.</summary>
         public event Action OnAttackExecuted;

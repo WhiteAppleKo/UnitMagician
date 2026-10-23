@@ -8,10 +8,10 @@ namespace UnitSystem
     /// 락온 큐의 "적용 전 변화 미리보기"를 월드에 그리는 Visualizer입니다(13-C). ILockOnPreviewVisualizer 구현체.
     /// 대상별로 홀로그램(Ghost Shader) 고스트 1개를 만들어 이 오브젝트 아래에 두고(씬 계층에서 확인 가능),
     /// 예측 결과(LockOnTargetPreview)를 그대로 표현한다.
-    ///  - Mass:        고스트의 크기를 예상 스케일(초기 스케일 x cbrt(질량비))로 표시 — 실제 MassUnitApplicatorSO와 같은 규칙.
+    ///  - Mass:        고스트의 크기를 예상 스케일(초기 스케일 x 예상 질량 배율)로 표시 — 실제 MassUnitApplicator와 같은 규칙(32번).
     ///  - Temperature: 예상 온도 상태를 색조로 표시 — 얼음(음수)은 얼음 청백색, 가열(양수)은 주황.
-    ///  - Volume/Vector: 폴백 — 크기 변화는 없고 "변화 예정" 색조(보라/노랑) 마커 수준으로 표시.
-    /// 색조 우선순위: Temperature > Volume > Vector > Mass(단독).
+    ///  - Vector:      폴백 — 크기 변화는 없고 "변화 예정" 색조(노랑) 마커 수준으로 표시.
+    /// 색조 우선순위: Temperature > Vector > Mass(단독).
     /// 판단/계산은 하지 않는다(값은 Logic이 이미 결정). 대상 추적/자가 정리는 LockOnPreviewGhost가 수행한다.
     /// </summary>
     public class LockOnPreviewVisualizer : MonoBehaviour, ILockOnPreviewVisualizer
@@ -23,7 +23,6 @@ namespace UnitSystem
         [SerializeField] private Color massColor = new Color(0.3f, 1f, 0.4f, 1f);
         [SerializeField] private Color iceColor = new Color(0.55f, 0.85f, 1f, 1f);
         [SerializeField] private Color heatColor = new Color(1f, 0.45f, 0.15f, 1f);
-        [SerializeField] private Color volumeColor = new Color(0.75f, 0.4f, 1f, 1f);
         [SerializeField] private Color vectorColor = new Color(1f, 0.9f, 0.2f, 1f);
 
         [Header("Ghost Settings")]
@@ -161,7 +160,7 @@ namespace UnitSystem
             var go = ghost.gameObject;
             go.name = $"{preview.Target.gameObject.name}_LockOnPreview [{preview.Description}]";
 
-            // 1) 크기: Mass 변화가 있으면 실제 적용기(MassUnitApplicatorSO)와 같은 절대 규칙 —
+            // 1) 크기: Mass 변화가 있으면 실제 적용기(MassUnitApplicator)와 같은 절대 규칙 —
             //    localScale = (IUnitTargetVisualizer.InitialScale 또는 Vector3.one) x 스케일 배율. 없으면 현재 크기 그대로.
             Vector3 worldScale = targetTransform.lossyScale;
             if (preview.HasScaleChange)
@@ -174,7 +173,7 @@ namespace UnitSystem
             go.transform.localScale = worldScale * surfaceOffsetScale;
             go.transform.SetPositionAndRotation(targetTransform.position, targetTransform.rotation);
 
-            // 2) 색조: 예상 온도 상태 > 폴백(Volume/Vector) > Mass 단독
+            // 2) 색조: 예상 온도 상태 > 폴백(Vector) > Mass 단독
             Color tint = ResolveTint(preview);
             var meshRenderer = go.GetComponent<MeshRenderer>();
             if (meshRenderer != null)
@@ -190,7 +189,6 @@ namespace UnitSystem
         private Color ResolveTint(LockOnTargetPreview preview)
         {
             if (preview.HasTemperature) return preview.IsIce ? iceColor : heatColor;
-            if (preview.HasVolume) return volumeColor;
             if (preview.HasVector) return vectorColor;
             return massColor;
         }

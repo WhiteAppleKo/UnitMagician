@@ -14,7 +14,7 @@ namespace GameEvent
     {
         [Tooltip("피격을 판정할 이벤트 대상의 id(IEventTarget.TargetId, IEventHealthTarget을 구현한 대상 - 무적 여부를 함께 확인).")]
         [SerializeField] private string targetId;
-        [Tooltip("성공에 필요한 최소 FinalDamage(FinalDamage = CollisionDamageTrigger.baseDamage x 질량 비율, AttributeGateStep).")]
+        [Tooltip("성공에 필요한 최소 FinalDamage(FinalDamage = 투사체 CurrentDamage = 기본 데미지 x 질량 비율 - 마법 적용 시 저장, AttributeGateStep).")]
         [SerializeField] private int requiredDamage = 100;
         [Tooltip("성공에 속성 게이트 통과를 요구할지.")]
         [SerializeField] private bool requireAttributeGate = true;

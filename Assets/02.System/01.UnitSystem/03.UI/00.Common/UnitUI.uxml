@@ -18,7 +18,7 @@
         <!-- Target Object Info & Hover Visual Feedback Container -->
         <ui:VisualElement name="TargetInfoContainer" picking-mode="Ignore" style="position: absolute; bottom: 20px; right: 20px; background-color: rgba(0, 0, 0, 0.85); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 8px; padding: 12px; display: none;">
             <ui:Label name="TargetNameText" picking-mode="Ignore" text="Target: None" style="color: rgb(255, 215, 0); font-size: 16px; -unity-font-style: bold; margin-bottom: 4px;" />
-            <ui:Label name="TargetUnitsText" picking-mode="Ignore" text="Units: Mass_Kg (10.0), Volume_L (1.0)" style="color: rgb(255, 255, 255); font-size: 14px;" />
+            <ui:Label name="TargetUnitsText" picking-mode="Ignore" text="Units: Mass_Kg (10.0)" style="color: rgb(255, 255, 255); font-size: 14px;" />
         </ui:VisualElement>
 
         <!-- Unlock Popup Panel -->

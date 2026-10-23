@@ -16,7 +16,7 @@ namespace NpcSystem
         [Tooltip("대상에 Collider가 없을 때만 쓰는 폴백 조준 높이(대상 transform.position 기준 위쪽 오프셋, 미터). 대상에 Collider가 있으면 무시된다.")]
         [SerializeField] private float fallbackAimHeight = 1.0f;
 
-        public override void Execute(INpcCombatActorVisualizer visualizer, PureDataNpcActor pureData, GameObject target)
+        public override void Execute(INpcCombatActorVisualizer visualizer, PureDataNpcActor pureData, RuntimeDataAttackDamage attackDamage, GameObject target)
         {
             Vector3 spawnPosition = visualizer.AttackOrigin;
             Vector3 direction = (ResolveAimPoint(target) - spawnPosition).normalized;
@@ -39,9 +39,10 @@ namespace NpcSystem
                 }
             }
 
-            // 외부가 이번 발사에 이벤트 투사체 전용 속도/데미지를 예약했으면(0 초과인 항목만) 그 값을 쓴다. 예약이 없으면 이 SO와 NPC 데이터의 값 그대로다.
+            // 외부가 이번 발사에 이벤트 투사체 전용 속도/데미지를 예약했으면(0 초과인 항목만) 그 값을 쓴다. 예약이 없으면 이 SO의 속도와
+            // NPC 런타임 데미지(RuntimeDataAttackDamage.CurrentDamage, 28번)를 쓴다 - 이 값이 투사체의 BaseDamage가 된다.
             float speed = projectileSpeed;
-            int damage = pureData.BaseDamage;
+            int damage = attackDamage != null ? attackDamage.CurrentDamage : 0;
             if (visualizer.TryGetArmedLaunchOverride(out float overrideSpeed, out int overrideDamage))
             {
                 if (overrideSpeed > 0f) speed = overrideSpeed;

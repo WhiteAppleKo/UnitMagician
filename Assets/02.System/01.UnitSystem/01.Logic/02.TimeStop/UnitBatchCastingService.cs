@@ -7,7 +7,8 @@ namespace UnitSystem
 {
     /// <summary>
     /// 시간 정지 락온 큐 일괄 시전(유효 쌍 판정, 총 마나 한 번 차감, 쌍별 ChangeUnit)을 제공하는 서비스 인터페이스입니다.
-    /// 값 변환·마나 비용 규칙은 시전 방식과 무관한 공용 규칙이므로 IUnitCastRuleService가 맡고, 이 서비스는 그 규칙에 위임합니다.
+    /// 마나 비용 규칙은 시전 방식과 무관한 공용 규칙이므로 IUnitCastRuleService가 맡고, 이 서비스는 그 규칙에 위임합니다.
+    /// 마법 인스턴스 생성·적용 목록 추가는 IUnitChangeService.ChangeUnit, 속성 값 계산은 타입별 Applicator가 맡습니다(30번).
     /// </summary>
     public interface IUnitBatchCastingService
     {
@@ -37,7 +38,7 @@ namespace UnitSystem
     }
 
     /// <summary>
-    /// 시간 정지 락온 큐 일괄 시전 서비스 클래스입니다. 값 변환·마나 비용 규칙은 IUnitCastRuleService에 위임합니다.
+    /// 시간 정지 락온 큐 일괄 시전 서비스 클래스입니다. 마나 비용 규칙은 IUnitCastRuleService에 위임합니다.
     /// </summary>
     public class UnitBatchCastingService : IUnitBatchCastingService
     {
@@ -100,23 +101,27 @@ namespace UnitSystem
 
             Debug.Log($"<color=green>[UnitBatchCastingService] Executing Batch Cast on {targets.Count} targets! Total Mana Cost: {totalCost}</color>");
 
-            // 타겟 순차 변환 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit에는 null 전달하여 중복 차감 방지)
+            // 타겟 순차 시전 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit의 manaPayer에는 null 전달하여 중복 차감 방지)
+            var castSource = new UnitCastSource(casterObject, statService?.RuntimeData);
+            CastOnTargets(targets, selectedUnit, castSource);
+
+            return true;
+        }
+
+        /// <summary>
+        /// 단일 마법 대상 목록을 순서대로 시전한다. 대상이 그 속성을 갖지 않으면 ChangeUnit이 조용히 건너뛴다(변경 전과 같음).
+        /// 마법 인스턴스 생성·목록 추가는 ChangeUnit 한 곳이 맡는다(30번).
+        /// </summary>
+        private void CastOnTargets(IReadOnlyList<RuntimeDataUnitGroup> targets, PureDataUnit selectedUnit, UnitCastSource castSource)
+        {
             for (int i = 0; i < targets.Count; i++)
             {
                 var targetGroup = targets[i];
                 if (targetGroup == null) continue;
 
                 targetGroup.Highlight(false, false);
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnit.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = ruleService.CalculateNewValue(matchingUnitData, selectedUnit);
-                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnit, newValue, null, null, casterObject);
-                }
+                changeService?.ChangeUnit(targetGroup, selectedUnit, castSource);
             }
-
-            return true;
         }
 
         public IReadOnlyList<LockOnCastEntry> GetEffectiveEntries(IReadOnlyList<LockOnCastEntry> entries)
@@ -193,18 +198,15 @@ namespace UnitSystem
 
             Debug.Log($"<color=green>[UnitBatchCastingService] Executing Queued Cast: {entries.Count} entries! Total Mana Cost: {totalCost}</color>");
 
-            // 쌍을 큐 순서대로 자기 마법으로 변환 (총 마나는 이미 차감했으므로 ChangeUnit에는 null 전달해 중복 차감 방지)
+            // 쌍을 큐 순서대로 자기 마법으로 시전 - 대상 적용 목록 끝에 하나씩 누적된다(30번). 총 마나는 이미 차감했으므로
+            // ChangeUnit의 manaPayer에는 null 전달해 중복 차감 방지. 대상이 그 속성을 갖지 않는 쌍은 ChangeUnit이 건너뛴다.
+            var castSource = new UnitCastSource(casterObject, statService?.RuntimeData);
             for (int i = 0; i < entries.Count; i++)
             {
                 var entry = entries[i];
                 if (entry == null || entry.Target == null) continue;
 
-                var matchingUnitData = entry.Target.GetMatchingUnitData(entry.Spell.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = ruleService.CalculateNewValue(matchingUnitData, entry.Spell);
-                    changeService?.ChangeUnit(entry.Target.gameObject, matchingUnitData, entry.Spell, newValue, null, null, casterObject);
-                }
+                changeService?.ChangeUnit(entry.Target, entry.Spell, castSource);
             }
 
             return true;
@@ -252,21 +254,8 @@ namespace UnitSystem
 
             Debug.Log($"<color=green>[UnitBatchCastingService] Executing Batch Cast on {targets.Count} targets! Total Mana Cost: {totalCost}</color>");
 
-            // 타겟 순차 변환 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit에는 null 전달하여 중복 차감 방지)
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var targetGroup = targets[i];
-                if (targetGroup == null) continue;
-
-                targetGroup.Highlight(false, false);
-
-                var matchingUnitData = targetGroup.GetMatchingUnitData(selectedUnit.UnitType);
-                if (matchingUnitData != null)
-                {
-                    float newValue = ruleService.CalculateNewValue(matchingUnitData, selectedUnit);
-                    changeService?.ChangeUnit(targetGroup.gameObject, matchingUnitData, selectedUnit, newValue, null, null, casterObject);
-                }
-            }
+            // 타겟 순차 시전 및 마커 소등 (이미 총 마나를 차감했으므로 개별 ChangeUnit의 manaPayer에는 null 전달하여 중복 차감 방지)
+            CastOnTargets(targets, selectedUnit, new UnitCastSource(casterObject, casterStatData));
 
             return true;
         }

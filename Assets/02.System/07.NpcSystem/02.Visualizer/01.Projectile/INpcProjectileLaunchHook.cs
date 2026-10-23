@@ -13,7 +13,7 @@ namespace NpcSystem
     {
         /// <summary>
         /// 다음에 스폰되는 투사체 1개를 이 위치에서 발사하도록 예약합니다(일회성, 스폰 시 소모). projectileSpeed/projectileDamage가 0보다 크면
-        /// 그 1발에 한해 NPC 데이터(공격 전략의 속도, PureDataNpcActor.BaseDamage) 대신 이 값으로 발사합니다(이벤트 투사체 전용 값 - NPC 데이터는 바뀌지 않음).
+        /// 그 1발에 한해 NPC 데이터(공격 전략의 속도, NPC RuntimeDataAttackDamage.CurrentDamage) 대신 이 값으로 발사합니다(이벤트 투사체 전용 값 - NPC 데이터는 바뀌지 않음).
         /// </summary>
         void ArmLaunchOrigin(Vector3 origin, float projectileSpeed, int projectileDamage);
 

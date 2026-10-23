@@ -13,8 +13,8 @@ namespace PipeLine.CharacterDamage.Steps
     /// (IGateRequirementProvider.RequiredMaxTemperature 미만, 요구값은 대상의 PureData에서 옴)을 만족하는지 확인합니다.
     /// 만족하지 못하면(온도 단위가 없는 경우 포함) context.AttributeGatePassed = false + context.Aborted = true로 설정해
     /// 이후 스텝은 물론 ApplyDamageStep의 실제 데미지 적용도 건너뛰게 합니다(회피와는 무관한 별도 분기 - CombatPipelineManager/ApplyDamageStep 참고).
-    /// 만족하면 AttributeGatePassed = true를 기록하고 공격자의 Mass 비율(MassUnitApplicatorSO.CalculateMassRatio 재사용)을
-    /// RawDamage에 곱해 FinalDamage를 계산해둡니다. 크기(질량 비율) 조건과 HP/기준 데미지 비교는 이 스텝의 책임이 아니라
+    /// 만족하면 AttributeGatePassed = true를 기록하고 FinalDamage = RawDamage로 둡니다(RawDamage는 마법 적용 시 저장된 투사체의
+    /// CurrentDamage - 질량 비율 곱셈은 마법 적용 시점(Mass 마법의 데미지 계산 자리)으로 옮겨짐, 28번). 크기(질량 비율) 조건과 HP/기준 데미지 비교는 이 스텝의 책임이 아니라
     /// SizeGateStep과 피격 대상의 판정 로직(예: DestructibleDoorLogicSystem, CoreHitCompletionEvaluator)이 개별로 담당합니다.
     /// IGateRequirementProvider가 없는 대상은 속성 게이트가 요구되지 않는 대상이므로 통과로 기록합니다.
     /// 상태를 갖지 않는 공유 싱글턴이며, 실제로 기다릴 비동기 작업이 없으므로 즉시 완료된 UniTask를 반환합니다.
@@ -45,14 +45,17 @@ namespace PipeLine.CharacterDamage.Steps
         public UniTask<DamageContext> Execute(DamageContext context)
         {
             var unitGroup = ResolveSourceUnitGroup(context);
-            var temperatureUnit = unitGroup != null ? unitGroup.GetMatchingUnitData(UnitType.Temperature) : null;
-            string temperatureText = temperatureUnit != null ? temperatureUnit.CurrentValue.ToString("F2") : "N/A";
+            // 투사체 마법 대상 RuntimeData(대상 PureData + 적용 마법 목록 순회 결과, 31번). 온도 속성을 받을 수 없는 대상이면 온도 없음으로 본다.
+            var state = unitGroup != null ? unitGroup.UnitTarget : null;
+            bool hasTemperature = state != null && state.HasUnit(UnitType.Temperature);
+            float temperature = hasTemperature ? state.CurrentTemperature : 0f;
+            string temperatureText = hasTemperature ? temperature.ToString("F2") : "N/A";
 
             // 요구 온도는 피격 대상의 PureData 값(IGateRequirementProvider). 대상이 요구값을 제공하지 않으면 속성 게이트가 요구되지 않는다.
             if (context.Victim != null && context.Victim.TryGetComponent<IGateRequirementProvider>(out var requirement))
             {
                 // 온도 단위가 없거나 온도가 요구 최대 온도 미만이 아니면 게이트 실패 - 조용히 중단(회피 연출 없음)
-                if (temperatureUnit == null || temperatureUnit.CurrentValue >= requirement.RequiredMaxTemperature)
+                if (!hasTemperature || temperature >= requirement.RequiredMaxTemperature)
                 {
                     context.AttributeGatePassed = false;
                     context.Aborted = true;
@@ -63,11 +66,10 @@ namespace PipeLine.CharacterDamage.Steps
 
             context.AttributeGatePassed = true;
 
-            var massUnit = unitGroup != null ? unitGroup.GetMatchingUnitData(UnitType.Mass) : null;
-            float massRatio = MassUnitApplicatorSO.CalculateMassRatio(massUnit);
-            context.FinalDamage = Mathf.RoundToInt(context.RawDamage * massRatio);
+            // 마법(질량 등)의 데미지 변화는 적용 시점에 투사체 RuntimeDataAttackDamage.CurrentDamage(= RawDamage)에 이미 반영되어 있다(28번 §6-9).
+            context.FinalDamage = context.RawDamage;
 
-            Debug.Log($"[AttributeGateStep] Gate PASSED - Temperature: {temperatureText}, MassRatio: {massRatio:F2}, RawDamage: {context.RawDamage} => FinalDamage: {context.FinalDamage}");
+            Debug.Log($"[AttributeGateStep] Gate PASSED - Temperature: {temperatureText}, RawDamage: {context.RawDamage} => FinalDamage: {context.FinalDamage}");
 
             return UniTask.FromResult(context);
         }

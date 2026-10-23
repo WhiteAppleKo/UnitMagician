@@ -1,34 +1,33 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using Synty.AnimationBaseLocomotion.Samples;
 using TimeSlowFilterSystem;
 using Pooling;
+using PipeLine.Combat;
 
 namespace UnitSystem
 {
     /// <summary>
     /// 오브젝트에 부착되는 단위 데이터 그룹 및 락온 타겟 컴포넌트입니다.
-    /// Mass, Volume, Vector 등 다중 단위 런타임 데이터를 관리하고 상태 변경 이벤트를 발행합니다.
+    /// 마법 대상 PureData(PureDataUnitTarget - 지원 속성, 원본 온도, 31번)를 참조하고, 그 PureData로 초기화한
+    /// 마법 대상 RuntimeData(RuntimeDataUnitTarget: 현재 상태 + 적용 마법 목록)를 하나 보유하며, 목록이 바뀌면 마법 적용 요청(OnAnyUnitApplyRequested)을,
+    /// 즉시 마법(Vector)이 적용되면 즉시 마법 적용 요청(OnAnyInstantUnitApplyRequested, 32번)을 발행합니다.
+    /// 원본 값은 이 컴포넌트에 두지 않습니다(PureData에만 있음).
     /// 풀링되는 오브젝트(15-B 아군 투사체)에 붙어 있으면 반환 시 "대상 소실"을 알리고(OnAnyTargetRetired),
-    /// 재사용 직전에 단위 값/락온 마커를 초기값으로 되돌립니다(IPoolReusable).
+    /// 재사용 직전에 적용 목록/상태(PureData 값)/락온 마커를 초기값으로 되돌립니다(IPoolReusable).
     /// </summary>
     public class RuntimeDataUnitGroup : SampleObjectLockOn, IPoolReusable
     {
         [Header("Unit Group Setup")]
-        [SerializeField] public UnitType supportedUnits = UnitType.None;
+        [Tooltip("이 마법 대상의 원본 PureData(지원 속성, 원본 온도). 비어 있으면 지원 속성 없음으로 동작합니다.")]
+        [SerializeField] private PureDataUnitTarget targetData;
         [SerializeField] private bool isTargetable = true;
-        [SerializeField, HideInInspector] public float bakedMassValue = 1.0f;
 
-        public UnitType SupportedUnits => supportedUnits;
+        /// <summary>마법 대상 원본 PureData(읽기 전용).</summary>
+        public PureDataUnitTarget TargetData => targetData;
+        public UnitType SupportedUnits => targetData != null ? targetData.SupportedUnits : UnitType.None;
         public bool IsTargetable => isTargetable;
-        public float BakedMassValue
-        {
-            get => bakedMassValue;
-            set => bakedMassValue = value;
-        }
 
-        public event Action<RuntimeDataUnitGroup, RuntimeDataUnit> OnUnitGroupChanged;
         public event Action<bool> OnTargetableChanged;
 
         /// <summary>
@@ -38,10 +37,27 @@ namespace UnitSystem
         /// </summary>
         public static event Action<RuntimeDataUnitGroup> OnAnyTargetRetired;
 
-        private bool initialIsTargetable;
+        /// <summary>
+        /// 어떤 대상이든 적용 마법 목록이 바뀌면(RuntimeDataUnitTarget.OnAppliedUnitsChanged - 추가/해제) 발행되는 마법 적용 요청(28번 §6-6 (b), 31번 §3-2 4).
+        /// 마법 적용의 단일 호출 주체인 UnitApplyLogicSystem(순수 C#, VContainer 등록)이 구독해, 대상 상태를 "PureData 값으로 리셋 → 목록 순회 적용 → 확정"으로
+        /// 다시 만든 뒤(IUnitTargetStateCalculator.Recalculate) 바뀐 속성의 시각과 데미지를 적용한다.
+        /// 인자: (대상 묶음, 대상 RuntimeData, 목록이 바뀐 속성, 추가된 인스턴스 - 해제면 null).
+        /// 대상 묶음(UnitApplyTarget)은 Awake에서 같은 오브젝트의 IUnitTargetVisualizer/IAttackDamageProvider로 한 번 구성한다(Logic이 GetComponent하지 않음).
+        /// </summary>
+        public static event Action<UnitApplyTarget, RuntimeDataUnitTarget, UnitType, RuntimeDataUnit> OnAnyUnitApplyRequested;
 
-        public List<RuntimeDataUnit> UnitRuntimeDataList { get; private set; } = new();
-        public IReadOnlyList<RuntimeDataUnit> Units => UnitRuntimeDataList;
+        /// <summary>
+        /// 어떤 대상이든 즉시 마법(Vector)이 적용되면(RuntimeDataUnitTarget.OnInstantUnitApplied) 발행되는 즉시 마법 적용 요청(32번 §3-2 3).
+        /// UnitApplyLogicSystem이 구독해 재계산 없이 그 인스턴스의 Applicator로 시각만 한 번 적용한다(목록에 남지 않으므로 해제·재계산·풀 재사용 때 되돌리지 않음).
+        /// 인자: (대상 묶음, 대상 RuntimeData, 적용된 즉시 마법 인스턴스).
+        /// </summary>
+        public static event Action<UnitApplyTarget, RuntimeDataUnitTarget, RuntimeDataUnit> OnAnyInstantUnitApplyRequested;
+
+        private bool initialIsTargetable;
+        private UnitApplyTarget applyTarget;
+
+        /// <summary>마법 대상 RuntimeData(PureData 기반 현재 상태 + 적용 마법 목록). Awake(InitUnits) 전에는 null.</summary>
+        public RuntimeDataUnitTarget UnitTarget { get; private set; }
 
         /// <summary>
         /// 마법 대상으로 유효한지의 단일 판정 기준(15-A): 파괴되지 않았고(Unity null 아님) 계층에서 활성 상태일 것.
@@ -56,7 +72,12 @@ namespace UnitSystem
         {
             initialIsTargetable = isTargetable;
 
-            if (UnitRuntimeDataList.Count == 0)
+            // 같은 프리팹 내부 구성요소 참조(VContainer_가이드라인 §4)로 마법 적용 대상 묶음을 한 번 구성한다.
+            // 공격 데미지 데이터는 투사체 등 IAttackDamageProvider를 가진 대상에만 있다(없으면 null).
+            var attackDamageProvider = GetComponent<IAttackDamageProvider>();
+            applyTarget = new UnitApplyTarget(GetComponent<IUnitTargetVisualizer>(), attackDamageProvider?.AttackDamage);
+
+            if (UnitTarget == null)
             {
                 InitUnits();
             }
@@ -69,10 +90,11 @@ namespace UnitSystem
             OnAnyTargetRetired?.Invoke(this);
         }
 
-        /// <summary>재사용 직전: 온도/질량/부피/방향 런타임 값을 초기값으로 되돌리고 타게팅 가능 여부/락온 마커도 초기화한다.</summary>
+        /// <summary>재사용 직전: 적용 마법 목록을 비우고 상태(질량 배율 1, 온도 = PureData 값)를 되돌리며(이벤트 없음), 타게팅 가능 여부/락온 마커도 초기화한다.</summary>
         public void ResetForReuse()
         {
-            InitUnits();
+            if (UnitTarget != null) UnitTarget.Reset();
+            else InitUnits();
             isTargetable = initialIsTargetable;
             Highlight(false, false);
         }
@@ -87,35 +109,19 @@ namespace UnitSystem
             TargetStencilService.UnregisterTargetStatic(this);
         }
 
+        /// <summary>대상 PureData로 초기화한(질량 배율 1, 온도 = PureData 값) 빈 적용 목록의 마법 대상 RuntimeData를 새로 구성한다.</summary>
         public void InitUnits()
         {
             UnbindUnitEvents();
-            UnitRuntimeDataList.Clear();
 
-            // 플래그 체크 후 개별 인스턴스 생성
-            if (HasUnit(UnitType.Mass))
+            if (targetData == null)
             {
-                CreateAndAddRuntimeUnit(UnitType.Mass, bakedMassValue);
+                Debug.LogWarning($"[RuntimeDataUnitGroup] '{name}' has no PureDataUnitTarget (targetData). It will not accept any magic.", this);
             }
-            if (HasUnit(UnitType.Volume))
-            {
-                CreateAndAddRuntimeUnit(UnitType.Volume, 1.0f);
-            }
-            if (HasUnit(UnitType.Vector))
-            {
-                CreateAndAddRuntimeUnit(UnitType.Vector, 1.0f);
-            }
-            if (HasUnit(UnitType.Temperature))
-            {
-                CreateAndAddRuntimeUnit(UnitType.Temperature, 0f); // 0 = 중립 온도
-            }
-        }
 
-        private void CreateAndAddRuntimeUnit(UnitType type, float value)
-        {
-            var runtimeData = new RuntimeDataUnit(type, value, null);
-            runtimeData.OnUnitChanged += HandleUnitChanged;
-            UnitRuntimeDataList.Add(runtimeData);
+            UnitTarget = new RuntimeDataUnitTarget(targetData);
+            UnitTarget.OnAppliedUnitsChanged += HandleAppliedUnitsChanged;
+            UnitTarget.OnInstantUnitApplied += HandleInstantUnitApplied;
         }
 
         private void OnDestroy()
@@ -125,36 +131,30 @@ namespace UnitSystem
 
         private void UnbindUnitEvents()
         {
-            if (UnitRuntimeDataList == null) return;
+            if (UnitTarget == null) return;
 
-            foreach (var data in UnitRuntimeDataList)
-            {
-                if (data != null) data.OnUnitChanged -= HandleUnitChanged;
-            }
+            UnitTarget.OnAppliedUnitsChanged -= HandleAppliedUnitsChanged;
+            UnitTarget.OnInstantUnitApplied -= HandleInstantUnitApplied;
         }
 
-        private void HandleUnitChanged(RuntimeDataUnit data)
+        private void HandleAppliedUnitsChanged(UnitType unitType, RuntimeDataUnit added)
         {
-            OnUnitGroupChanged?.Invoke(this, data);
+            if (UnitTarget == null || applyTarget == null) return;
+
+            OnAnyUnitApplyRequested?.Invoke(applyTarget, UnitTarget, unitType, added);
         }
 
+        private void HandleInstantUnitApplied(RuntimeDataUnit instance)
+        {
+            if (UnitTarget == null || applyTarget == null) return;
+
+            OnAnyInstantUnitApplyRequested?.Invoke(applyTarget, UnitTarget, instance);
+        }
+
+        /// <summary>이 대상이 그 마법 속성을 받을 수 있는지(targetData 위임, 비어 있으면 false). 초기화 전(에디터 툴 등)에도 쓸 수 있다.</summary>
         public bool HasUnit(UnitType targetType)
         {
-            return (supportedUnits & targetType) == targetType && targetType != UnitType.None;
-        }
-
-        public RuntimeDataUnit GetMatchingUnitData(UnitType targetType)
-        {
-            if (!HasUnit(targetType)) return null;
-
-            foreach (var unitData in UnitRuntimeDataList)
-            {
-                if (unitData != null && (unitData.CurrentUnit & targetType) == targetType)
-                {
-                    return unitData;
-                }
-            }
-            return null;
+            return targetData != null && targetData.HasUnit(targetType);
         }
 
         public void SetTargetable(bool targetable)
