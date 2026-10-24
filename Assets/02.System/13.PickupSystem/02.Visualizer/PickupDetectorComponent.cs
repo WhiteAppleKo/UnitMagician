@@ -1,6 +1,6 @@
 using UnityEngine;
 using VContainer;
-using UnitSystem;
+using CharacterSystem;
 
 namespace PickupSystem
 {
@@ -25,13 +25,13 @@ namespace PickupSystem
         private readonly Collider[] overlapBuffer = new Collider[MaxOverlapCount];
 
         private RuntimeDataPickupFocus focus;
-        private IUnitCatalogService catalogService;
+        private IInventoryService inventoryService;
 
         [Inject]
-        public void Construct(RuntimeDataPickupFocus focus, IUnitCatalogService catalogService)
+        public void Construct(RuntimeDataPickupFocus focus, IInventoryService inventoryService)
         {
             this.focus = focus;
-            this.catalogService = catalogService;
+            this.inventoryService = inventoryService;
         }
 
         private void Update()
@@ -52,7 +52,8 @@ namespace PickupSystem
             for (int i = 0; i < hitCount; i++)
             {
                 if (!overlapBuffer[i].TryGetComponent<IPickupTarget>(out var candidate)) continue;
-                if (catalogService != null && catalogService.IsPossessed(candidate.GrantedUnit)) continue;
+                // 33번: 보유 확인은 플레이어 인벤토리에 묻는다(같은 PureData 에셋 보유 시 후보 제외).
+                if (inventoryService != null && inventoryService.IsPossessed(candidate.GrantedUnit)) continue;
 
                 // OverlapSphere는 콜라이더 표면 기준이므로, 반경 판정은 아이템 중심 거리로 다시 확정한다.
                 float sqrDistance = (candidate.Position - origin).sqrMagnitude;

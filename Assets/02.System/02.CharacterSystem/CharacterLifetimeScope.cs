@@ -12,6 +12,9 @@ public class CharacterLifetimeScope : LifetimeScope
     [SerializeField] private CharacterStatComponent characterStatComponent;
     [SerializeField] private CharacterHUDUIView hudUIView;
 
+    [Header("Inventory UI (33)")]
+    [SerializeField] private InventoryUIComponent inventoryUI;
+
     [Header("Player State & Time Slow Pure Data (Optional)")]
     [SerializeField] private PureDataPlayerState pureDataPlayerState;
     [SerializeField] private PureDataTimeSlow pureDataTimeSlow;
@@ -63,6 +66,8 @@ public class CharacterLifetimeScope : LifetimeScope
         builder.Register<RuntimeDataTimeSlow>(Lifetime.Singleton);
         // 17번: Time.timeScale 합성 데이터(요청 배율 + 일시정지 요청자 집합)
         builder.Register<RuntimeDataTimeScale>(Lifetime.Singleton);
+        // 33번: 캐릭터 인벤토리(PureData 보관, ItemType별). 하위 스코프(Locomotion → UnitSystem → Pickup)가 부모 체인으로 주입받는다.
+        builder.Register<RuntimeDataInventory>(Lifetime.Singleton);
 
         // 3-1. Target Stencil Service 등록 (시간 정지 필터 서비스 연동)
         builder.Register<TimeSlowFilterSystem.TargetStencilService>(Lifetime.Singleton)
@@ -99,10 +104,16 @@ public class CharacterLifetimeScope : LifetimeScope
         builder.Register<TimeSlowOverrideActionHandler>(Lifetime.Singleton).As<IEventActionHandler>();
         // 17번: 유효 배율 → TimeSlowVisualizer 적용 + UI 일시정지 요청 서비스(하위 스코프 UI가 부모 체인으로 ITimeScaleService 주입)
         builder.RegisterEntryPoint<TimeScaleLogicSystem>(Lifetime.Singleton).As<ITimeScaleService>();
+        // 33번: 인벤토리 로직(PureData 습득·보유 조회, 초기화 시 PureStatData.defaultUnitMagics 지급)
+        builder.RegisterEntryPoint<InventoryLogicSystem>(Lifetime.Singleton).As<IInventoryService>();
 
         // 6. UI View 등록
         if (hudUIView != null) builder.RegisterComponent(hudUIView);
         else builder.RegisterComponentInHierarchy<CharacterHUDUIView>();
+
+        // 33번: 인벤토리 창 틀 + 탭 레지스트리(탭 뷰는 하위 스코프에서 IInventoryTabRegistry로 자신을 등록)
+        if (inventoryUI != null) builder.RegisterComponent(inventoryUI).As<IInventoryTabRegistry>();
+        else builder.RegisterComponentInHierarchy<InventoryUIComponent>().As<IInventoryTabRegistry>();
     }
 
     /// <summary>

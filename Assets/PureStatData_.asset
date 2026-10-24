@@ -16,9 +16,12 @@ MonoBehaviour:
   maxHP: 100
   maxMP: 100
   baseMoveSpeed: 5
-  defaultUnitMagics: []
+  defaultUnitMagics:
+  - {fileID: 11400000, guid: 4fb5572c48b603542b78640ff4b151ef, type: 2}
   maxStamina: 100
   staminaRegenPerSecond: 30
   staminaRegenDelaySeconds: 1
   defaultAttackFlags: 0
   defaultHitFlags: 3
+  hostileHitThreshold: 3
+  hostileHitWindowSeconds: 10

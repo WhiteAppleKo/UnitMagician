@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
+using CharacterSystem;
 
 namespace UnitSystem
 {
@@ -17,29 +18,30 @@ namespace UnitSystem
         private Label popupTitleLabel;
         private VisualElement popupIconElement;
 
-        private IUnitCatalogService catalogService;
+        // 33번: 습득 팝업은 카탈로그가 아니라 플레이어 인벤토리의 항목 추가 이벤트(마법 항목)를 구독한다.
+        private RuntimeDataInventory inventory;
 
         [Inject]
-        public void Construct(IUnitCatalogService catalogService)
+        public void Construct(RuntimeDataInventory inventory)
         {
-            if (this.catalogService != null)
+            if (this.inventory != null)
             {
-                this.catalogService.OnUnitAcquired -= ShowUnlockPopup;
+                this.inventory.OnItemAdded -= HandleItemAdded;
             }
 
-            this.catalogService = catalogService;
-            if (this.catalogService != null)
+            this.inventory = inventory;
+            if (this.inventory != null)
             {
-                this.catalogService.OnUnitAcquired += ShowUnlockPopup;
+                this.inventory.OnItemAdded += HandleItemAdded;
             }
         }
 
         private void OnEnable()
         {
-            if (catalogService != null)
+            if (inventory != null)
             {
-                catalogService.OnUnitAcquired -= ShowUnlockPopup;
-                catalogService.OnUnitAcquired += ShowUnlockPopup;
+                inventory.OnItemAdded -= HandleItemAdded;
+                inventory.OnItemAdded += HandleItemAdded;
             }
 
             InitUI();
@@ -82,24 +84,31 @@ namespace UnitSystem
         private void OnDisable()
         {
             CancelInvoke(nameof(ClosePopup));
-            if (catalogService != null)
+            if (inventory != null)
             {
-                catalogService.OnUnitAcquired -= ShowUnlockPopup;
+                inventory.OnItemAdded -= HandleItemAdded;
             }
         }
 
         private void OnDestroy()
         {
             CancelInvoke(nameof(ClosePopup));
-            if (catalogService != null)
+            if (inventory != null)
             {
-                catalogService.OnUnitAcquired -= ShowUnlockPopup;
+                inventory.OnItemAdded -= HandleItemAdded;
             }
+        }
+
+        // 마법 항목(ItemType.Magic인 PureDataUnit)만 습득 팝업을 띄운다.
+        private void HandleItemAdded(IInventoryItem item)
+        {
+            if (item == null || item.ItemType != ItemType.Magic) return;
+            if (item is PureDataUnit unitData) ShowUnlockPopup(unitData);
         }
 
         public void ShowUnlockPopup(PureDataUnit unitData)
         {
-            if (catalogService == null || unitData == null) return;
+            if (unitData == null) return;
 
             if (popupTitleLabel != null) popupTitleLabel.text = $"Unit Acquired: {unitData.UnitName}";
             if (popupIconElement != null && unitData.Icon != null) popupIconElement.style.backgroundImage = new StyleBackground(unitData.Icon);

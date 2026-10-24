@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
+using CharacterSystem;
 
 namespace UnitSystem
 {
@@ -9,18 +10,18 @@ namespace UnitSystem
     /// 필드 아이템 픽업 등 정식 습득 트리거가 아직 구현되지 않아 인벤토리/장착 시스템을
     /// 눈으로 확인할 수 없는 문제를 임시로 해결하기 위한 디버그 컴포넌트입니다.
     /// 숫자키 1~4를 누르면 인스펙터에 지정된 <see cref="PureDataUnit"/>을
-    /// <see cref="IUnitCatalogService.AcquireUnit"/>으로 즉시 습득시킵니다.
+    /// 플레이어 인벤토리(<see cref="IInventoryService.TryAcquire"/>, 33번)에 즉시 넣습니다.
     /// </summary>
     public class UnitDebugAcquireTestComponent : MonoBehaviour
     {
         [SerializeField] private PureDataUnit[] testUnits = new PureDataUnit[4];
 
-        private IUnitCatalogService catalogService;
+        private IInventoryService inventoryService;
 
         [Inject]
-        public void Construct(IUnitCatalogService catalogService)
+        public void Construct(IInventoryService inventoryService)
         {
-            this.catalogService = catalogService;
+            this.inventoryService = inventoryService;
         }
 
         private void Update()
@@ -46,9 +47,9 @@ namespace UnitSystem
         /// </summary>
         public void AcquireByIndex(int index)
         {
-            if (catalogService == null)
+            if (inventoryService == null)
             {
-                Debug.LogWarning("[UnitDebugAcquireTestComponent] IUnitCatalogService가 아직 주입되지 않았습니다.");
+                Debug.LogWarning("[UnitDebugAcquireTestComponent] IInventoryService가 아직 주입되지 않았습니다.");
                 return;
             }
 
@@ -59,8 +60,10 @@ namespace UnitSystem
             }
 
             var unit = testUnits[index];
-            catalogService.AcquireUnit(unit);
-            Debug.Log($"[UnitDebugAcquireTestComponent] Acquired unit: {unit.name} (index {index})");
+            bool acquired = inventoryService.TryAcquire(unit);
+            Debug.Log(acquired
+                ? $"[UnitDebugAcquireTestComponent] Acquired unit: {unit.name} (index {index})"
+                : $"[UnitDebugAcquireTestComponent] Already possessed: {unit.name} (index {index})");
         }
     }
 }

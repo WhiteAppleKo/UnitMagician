@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -7,12 +6,8 @@ namespace UnitSystem
 {
     public class UnitSystemLifetimeScope : LifetimeScope
     {
-        [Header("Unit Catalog Settings")]
-        [SerializeField] private List<PureDataUnit> initialUnits = new();
-
         [Header("UI Toolkit Components")]
         [SerializeField] private UnitQuickSlotUIComponent quickSlotUI;
-        [SerializeField] private UnitInventoryUIComponent inventoryUI;
         [SerializeField] private UnitUnlockPopupUIComponent unlockPopupUI;
         [SerializeField] private MagicSelectionPopupUIComponent magicSelectionPopupUI;
 
@@ -40,7 +35,7 @@ namespace UnitSystem
         protected override void Configure(IContainerBuilder builder)
         {
             // Data & Service Register
-            builder.RegisterInstance<IReadOnlyList<PureDataUnit>>(initialUnits);
+            // 33번: 시작 보유 마법은 플레이어 PureData(PureStatData.defaultUnitMagics)에서 오며, 보유는 캐릭터 인벤토리(Character 스코프)가 소유한다.
             builder.Register<DefaultUnitEquipRequirementChecker>(Lifetime.Singleton).As<IUnitEquipRequirementChecker>();
             builder.Register<UnitCatalogService>(Lifetime.Singleton).As<IUnitCatalogService>();
             builder.Register<UnitChangeService>(Lifetime.Singleton).As<IUnitChangeService>().AsSelf();
@@ -77,8 +72,8 @@ namespace UnitSystem
             if (quickSlotUI != null) builder.RegisterComponent(quickSlotUI);
             else builder.RegisterComponentInHierarchy<UnitQuickSlotUIComponent>();
 
-            if (inventoryUI != null) builder.RegisterComponent(inventoryUI);
-            else builder.RegisterComponentInHierarchy<UnitInventoryUIComponent>();
+            // 33번: 인벤토리 창 틀은 Character UI(InventoryUIComponent)이고, 마법 탭은 초기화 시 탭 레지스트리에 자신을 등록한다.
+            builder.RegisterEntryPoint<MagicInventoryTabView>(Lifetime.Singleton);
 
             if (unlockPopupUI != null) builder.RegisterComponent(unlockPopupUI);
             else builder.RegisterComponentInHierarchy<UnitUnlockPopupUIComponent>();

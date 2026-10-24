@@ -23,9 +23,6 @@ namespace UnitSystem
         [SerializeField] private PureDataUnitTarget targetData;
         [SerializeField] private bool isTargetable = true;
 
-        /// <summary>마법 대상 원본 PureData(읽기 전용).</summary>
-        public PureDataUnitTarget TargetData => targetData;
-        public UnitType SupportedUnits => targetData != null ? targetData.SupportedUnits : UnitType.None;
         public bool IsTargetable => isTargetable;
 
         public event Action<bool> OnTargetableChanged;
@@ -149,12 +146,6 @@ namespace UnitSystem
             if (UnitTarget == null || applyTarget == null) return;
 
             OnAnyInstantUnitApplyRequested?.Invoke(applyTarget, UnitTarget, instance);
-        }
-
-        /// <summary>이 대상이 그 마법 속성을 받을 수 있는지(targetData 위임, 비어 있으면 false). 초기화 전(에디터 툴 등)에도 쓸 수 있다.</summary>
-        public bool HasUnit(UnitType targetType)
-        {
-            return targetData != null && targetData.HasUnit(targetType);
         }
 
         public void SetTargetable(bool targetable)

@@ -3493,6 +3493,7 @@ MonoBehaviour:
   autoInjectGameObjects: []
   characterStatComponent: {fileID: 1565979558}
   hudUIView: {fileID: 1200176979}
+  inventoryUI: {fileID: 1179478213}
   pureDataPlayerState: {fileID: 11400000, guid: 0f7c99e2f09c4c645aedaa97d3c05a9a, type: 2}
   pureDataTimeSlow: {fileID: 11400000, guid: 049127691fc9f344f87918149156ffd8, type: 2}
   playerStateVisualizer: {fileID: 1565979565}
@@ -4257,10 +4258,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1179478206}
-  - component: {fileID: 1179478209}
   - component: {fileID: 1179478210}
   - component: {fileID: 1179478208}
   - component: {fileID: 1179478212}
+  - component: {fileID: 1179478213}
   m_Layer: 0
   m_Name: UI Test
   m_TagString: Untagged
@@ -4300,20 +4301,6 @@ MonoBehaviour:
   popupTitleLabelName: PopupTitleText
   popupIconElementName: PopupIconImage
   autoCloseDuration: 2
---- !u!114 &1179478209
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1179478205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6781fb91187006f43a96c7aab5073fa3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitSystem.UnitInventoryUIComponent
-  uiDocument: {fileID: 1081942172}
-  containerElementName: InventoryContainer
 --- !u!114 &1179478210
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4346,6 +4333,23 @@ MonoBehaviour:
   popupContainerName: MagicSelectionPopupContainer
   fullListContainerName: MagicFullListContainer
   fullListGridName: MagicFullListGrid
+--- !u!114 &1179478213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1179478205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7cf3cc4285e8e04bbd75e980f915bdc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterSystem.InventoryUIComponent
+  uiDocument: {fileID: 1081942172}
+  windowElementName: InventoryContainer
+  titleBarElementName: InventoryTitleBar
+  tabBarElementName: InventoryTabBar
+  contentElementName: InventoryContent
 --- !u!1 &1181702561
 GameObject:
   m_ObjectHideFlags: 0
@@ -6769,11 +6773,7 @@ MonoBehaviour:
     TypeName: CharacterLifetimeScope
   autoRun: 1
   autoInjectGameObjects: []
-  initialUnits:
-  - {fileID: 11400000, guid: 4fb5572c48b603542b78640ff4b151ef, type: 2}
-  - {fileID: 11400000, guid: fefd79b51fc524e46a3ff1680398a85b, type: 2}
   quickSlotUI: {fileID: 1179478210}
-  inventoryUI: {fileID: 1179478209}
   unlockPopupUI: {fileID: 1179478208}
   magicSelectionPopupUI: {fileID: 1179478212}
   unitCaster: {fileID: 0}

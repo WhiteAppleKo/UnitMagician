@@ -5,7 +5,7 @@ namespace UnitSystem
     /// 무엇이 대상이 되는가(시간 정지 락온 큐 / 퀵슬롯 무기 즉시 적용 등)와 무관하게 모든 시전 방식이 공용으로 쓰는 규칙이며,
     /// 대상 선별·마나 차감·ChangeUnit 호출 같은 시전 흐름은 여기에 없습니다.
     /// 대상 상태 계산 공식은 여기에 없고 IUnitTargetStateCalculator.Recalculate 한 곳에만 있습니다(31번 - 적용·미리보기·비용이 같은 함수를 씀).
-    /// 속성 지원 여부는 대상 PureData(PureDataUnitTarget.SupportedUnits) 기준입니다.
+    /// 속성 지원 여부는 대상 마법 상태(RuntimeDataUnitTarget.HasUnit - 대상 PureData의 SupportedUnits 기준)로 판정합니다.
     /// </summary>
     public interface IUnitCastRuleService
     {
@@ -25,7 +25,8 @@ namespace UnitSystem
         {
             if (target == null || spell == null) return 0;
 
-            return target.HasUnit(spell.UnitType) ? spell.BaseCost : 0;
+            var state = target.UnitTarget;
+            return state != null && state.HasUnit(spell.UnitType) ? spell.BaseCost : 0;
         }
     }
 }

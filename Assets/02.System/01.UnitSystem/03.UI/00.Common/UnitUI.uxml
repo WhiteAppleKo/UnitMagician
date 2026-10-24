@@ -12,8 +12,14 @@
         <ui:VisualElement name="UnlockButtonContainer" picking-mode="Ignore" style="position: absolute; top: 20px; right: 20px; flex-direction: column; align-items: flex-end; background-color: rgba(0, 0, 0, 0.7); padding: 8px; border-radius: 6px;">
         </ui:VisualElement>
 
-        <!-- Inventory Container (Dark Souls 3 style centered modal menu) -->
-        <ui:VisualElement name="InventoryContainer" picking-mode="Ignore" style="position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 640px; height: 420px; flex-direction: row; flex-wrap: wrap; align-content: flex-start; background-color: rgba(10, 10, 15, 0.95); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; padding: 16px;" />
+        <!-- Inventory Window (33번: 창 틀 = 제목/드래그 영역 + ItemType 탭 바 + 내용 영역, 가변형 UI — translate로 드래그 이동) -->
+        <ui:VisualElement name="InventoryContainer" style="position: absolute; left: 50%; top: 50%; margin-left: -320px; margin-top: -240px; width: 640px; height: 480px; flex-direction: column; background-color: rgba(10, 10, 15, 0.95); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 12px; display: none;">
+            <ui:VisualElement name="InventoryTitleBar" style="flex-direction: row; align-items: center; flex-shrink: 0; height: 32px; padding-left: 16px; padding-right: 16px; background-color: rgba(255, 215, 0, 0.12); border-top-left-radius: 10px; border-top-right-radius: 10px;">
+                <ui:Label name="InventoryTitleText" picking-mode="Ignore" text="인벤토리" style="color: rgb(255, 215, 0); font-size: 15px; -unity-font-style: bold;" />
+            </ui:VisualElement>
+            <ui:VisualElement name="InventoryTabBar" picking-mode="Ignore" style="flex-direction: row; flex-shrink: 0; padding-left: 16px; padding-right: 16px; padding-top: 8px;" />
+            <ui:VisualElement name="InventoryContent" picking-mode="Ignore" style="flex-grow: 1; flex-direction: row; padding-left: 16px; padding-right: 16px; padding-top: 12px; padding-bottom: 16px;" />
+        </ui:VisualElement>
 
         <!-- Target Object Info & Hover Visual Feedback Container -->
         <ui:VisualElement name="TargetInfoContainer" picking-mode="Ignore" style="position: absolute; bottom: 20px; right: 20px; background-color: rgba(0, 0, 0, 0.85); border-color: rgb(255, 215, 0); border-width: 2px; border-radius: 8px; padding: 12px; display: none;">

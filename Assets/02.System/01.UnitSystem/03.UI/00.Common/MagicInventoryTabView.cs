@@ -1,24 +1,26 @@
+using System;
+using CharacterSystem;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
-using Synty.AnimationBaseLocomotion.Samples.InputSystem;
+using VContainer.Unity;
 
 namespace UnitSystem
 {
     /// <summary>
-    /// 소유 중인 유닛(마법) 인벤토리를 행 목록(아이콘 + 이름 + 설명 + 장착 상태)으로 표시하고, 아이콘 클릭으로 장착/해제를 토글하는 UI 컴포넌트입니다.
-    /// 행에 마우스를 올리면 우측 상세 패널에 이름/아이콘/전체 설명을 보여 줍니다(18번 기획서).
-    /// 장착된 유닛은 강조 테두리, 미장착이지만 장착 가능한 유닛은 기본 테두리,
-    /// 조건 미달로 장착 불가능한 유닛(현재는 스텁 체커라 발생하지 않음)은 회색+비활성으로 표시합니다.
+    /// 인벤토리 창의 마법 탭(33번 기획서 §3-2, UnitSystem UI). 초기화 시 <see cref="IInventoryTabRegistry"/>에
+    /// <see cref="ItemType.Magic"/> 탭으로 자신을 등록하고, 해제 시 등록을 푼다.
+    /// 내용은 기존 인벤토리 UI 컴포넌트(33번에서 삭제)의 목록·상세 패널·클릭 장착·우클릭 즐겨찾기를 그대로 옮긴 것이며,
+    /// 목록은 플레이어 인벤토리의 마법 항목(<see cref="IInventoryService.GetItems"/>, PureDataUnit의 이름·아이콘·설명)으로 그린다.
     ///
-    /// 다크소울3 레퍼런스에 맞춰 상시 표시 HUD가 아니라, 키 입력(기본 I)으로 열고 닫는 메뉴로 동작합니다.
-    /// (Assets/02.System/04.OptionSystem/02.Visualizer/UI/OptionUIComponent.cs의 여닫는 메뉴 패턴을 그대로 따름)
+    /// 보유 마법을 행 목록(아이콘 + 이름 + 설명 + 장착 상태)으로 표시하고, 아이콘 클릭으로 장착/해제를 토글한다.
+    /// 행에 마우스를 올리면 우측 상세 패널에 이름/아이콘/전체 설명을 보여 준다(18번 기획서).
+    /// 장착된 마법은 강조 테두리, 미장착이지만 장착 가능한 마법은 기본 테두리,
+    /// 조건 미달로 장착 불가능한 마법(현재는 스텁 체커라 발생하지 않음)은 회색+비활성으로 표시한다.
     /// </summary>
-    public class UnitInventoryUIComponent : MonoBehaviour
+    public class MagicInventoryTabView : IInventoryTabView, IInitializable, IDisposable
     {
-        [SerializeField] private UIDocument uiDocument;
-        [SerializeField] private string containerElementName = "InventoryContainer";
+        private const string MagicTabName = "마법";
 
         private static readonly Color EquippedBorderColor = new Color(1f, 0.85f, 0.2f, 1f);
         private static readonly Color DefaultBorderColor = new Color(0.6f, 0.6f, 0.6f, 1f);
@@ -28,169 +30,125 @@ namespace UnitSystem
         private static readonly Color FavoriteBadgeColor = new Color(1f, 0.85f, 0.2f, 1f);
         private static readonly string[] FavoriteSlotKeyLabels = { "W", "E", "F" };
 
-        private VisualElement inventoryContainer;
-        private IUnitCatalogService catalogService;
-        private IUnitEquipRequirementChecker requirementChecker;
-        private RuntimeDataMagicFavoriteSlots favoriteSlots;
-        // 이벤트(3단계 감속) 중 인벤토리 열기 차단용(선택적 주입 - 미주입이면 차단 없이 기존 동작).
-        private CharacterSystem.RuntimeDataTimeSlow timeSlowData;
-        private InputReader m_inputReader;
-        private Common.InputSystem.IInputContextManager m_inputContextManager;
-
         // 18번 기획서 §6 A안: 행 형태 목록 + 호버 시 우측 상세 패널(이름/아이콘/전체 설명).
         private static readonly Color DescriptionColor = new Color(0.78f, 0.78f, 0.78f, 1f);
         private const float DescriptionListFontSize = 11f;
         private const float DescriptionListMaxHeight = 28f; // 11pt(줄 높이 약 13.5) 기준 2줄, 패딩 0 — 초과분은 말줄임
         private const float DetailPanelWidth = 190f;
 
+        private readonly IInventoryTabRegistry tabRegistry;
+        private readonly IInventoryService inventoryService;
+        private readonly RuntimeDataInventory inventory;
+        private readonly IUnitCatalogService catalogService;
+        private readonly IUnitEquipRequirementChecker requirementChecker;
+        private readonly RuntimeDataMagicFavoriteSlots favoriteSlots;
+
+        private VisualElement contentRoot;
         private VisualElement detailPanel;
         private PureDataUnit hoveredUnit;
+        private bool isShown;
 
-        private bool m_isOpen = false;
-
-        // 17번 기획서: Time.timeScale은 직접 쓰지 않고 일시정지 요청만 올리고 내린다(요청자 집합으로 멱등 관리).
-        private CharacterSystem.ITimeScaleService timeScaleService;
-
-        public bool IsOpen => m_isOpen;
+        public ItemType ItemType => ItemType.Magic;
+        public string TabName => MagicTabName;
 
         [Inject]
-        public void Construct(
+        public MagicInventoryTabView(
+            IInventoryTabRegistry tabRegistry,
+            IInventoryService inventoryService,
+            RuntimeDataInventory inventory,
             IUnitCatalogService catalogService,
             IUnitEquipRequirementChecker requirementChecker = null,
-            InputReader inputReader = null,
-            Common.InputSystem.IInputContextManager contextManager = null,
-            RuntimeDataMagicFavoriteSlots favoriteSlots = null,
-            CharacterSystem.RuntimeDataTimeSlow timeSlowData = null,
-            CharacterSystem.ITimeScaleService timeScaleService = null)
+            RuntimeDataMagicFavoriteSlots favoriteSlots = null)
         {
-            UnbindEvents();
-
-            this.timeScaleService = timeScaleService;
+            this.tabRegistry = tabRegistry;
+            this.inventoryService = inventoryService;
+            this.inventory = inventory;
             this.catalogService = catalogService;
             this.requirementChecker = requirementChecker;
-            m_inputReader = inputReader;
-            m_inputContextManager = contextManager;
             this.favoriteSlots = favoriteSlots;
-            this.timeSlowData = timeSlowData;
-
-            BindEvents();
-            RefreshInventory();
         }
 
-        private void OnEnable()
+        public void Initialize()
         {
-            BindEvents();
-            InitContainer();
-            RefreshInventory();
-        }
+            inventory.OnItemAdded -= HandleInventoryChanged;
+            inventory.OnItemAdded += HandleInventoryChanged;
+            inventory.OnItemRemoved -= HandleInventoryChanged;
+            inventory.OnItemRemoved += HandleInventoryChanged;
 
-        private void Start()
-        {
-            InitContainer();
-            RefreshInventory();
-            CloseInventory();
-        }
-
-        private void Update()
-        {
-            // InputReader 미주입 시 폴백 처리
-            if (m_inputReader == null && Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame)
-            {
-                ToggleInventory();
-            }
-        }
-
-        private void InitContainer()
-        {
-            if (uiDocument == null)
-            {
-                uiDocument = GetComponent<UIDocument>();
-            }
-
-            if (uiDocument != null && uiDocument.rootVisualElement != null)
-            {
-                uiDocument.rootVisualElement.pickingMode = PickingMode.Ignore;
-                inventoryContainer = uiDocument.rootVisualElement.Q<VisualElement>(containerElementName);
-            }
-        }
-
-        private void OnDisable()
-        {
-            UnbindEvents();
-        }
-
-        private void OnDestroy()
-        {
-            UnbindEvents();
-        }
-
-        private void BindEvents()
-        {
-            if (catalogService != null)
-            {
-                catalogService.OnUnitAcquired -= HandleCatalogChanged;
-                catalogService.OnUnitAcquired += HandleCatalogChanged;
-                catalogService.OnUnitEquipped -= HandleCatalogChanged;
-                catalogService.OnUnitEquipped += HandleCatalogChanged;
-                catalogService.OnUnitUnequipped -= HandleCatalogChanged;
-                catalogService.OnUnitUnequipped += HandleCatalogChanged;
-            }
-
-            if (m_inputReader != null)
-            {
-                m_inputReader.onInventoryToggled -= ToggleInventory;
-                m_inputReader.onInventoryToggled += ToggleInventory;
-            }
+            catalogService.OnUnitEquipped -= HandleCatalogChanged;
+            catalogService.OnUnitEquipped += HandleCatalogChanged;
+            catalogService.OnUnitUnequipped -= HandleCatalogChanged;
+            catalogService.OnUnitUnequipped += HandleCatalogChanged;
 
             if (favoriteSlots != null)
             {
                 favoriteSlots.OnFavoriteSlotChanged -= HandleFavoriteSlotChanged;
                 favoriteSlots.OnFavoriteSlotChanged += HandleFavoriteSlotChanged;
             }
+
+            tabRegistry.RegisterTab(this);
         }
 
-        private void UnbindEvents()
+        public void Dispose()
         {
-            if (catalogService != null)
-            {
-                catalogService.OnUnitAcquired -= HandleCatalogChanged;
-                catalogService.OnUnitEquipped -= HandleCatalogChanged;
-                catalogService.OnUnitUnequipped -= HandleCatalogChanged;
-            }
+            inventory.OnItemAdded -= HandleInventoryChanged;
+            inventory.OnItemRemoved -= HandleInventoryChanged;
+            catalogService.OnUnitEquipped -= HandleCatalogChanged;
+            catalogService.OnUnitUnequipped -= HandleCatalogChanged;
+            if (favoriteSlots != null) favoriteSlots.OnFavoriteSlotChanged -= HandleFavoriteSlotChanged;
 
-            if (m_inputReader != null)
-            {
-                m_inputReader.onInventoryToggled -= ToggleInventory;
-            }
-
-            if (favoriteSlots != null)
-            {
-                favoriteSlots.OnFavoriteSlotChanged -= HandleFavoriteSlotChanged;
-            }
+            // 레지스트리(Character UI 컴포넌트)가 먼저 파괴됐을 수 있다.
+            if (tabRegistry is UnityEngine.Object registryObject && registryObject == null) return;
+            tabRegistry.UnregisterTab(this);
         }
 
-        private void HandleFavoriteSlotChanged(int index, PureDataUnit unit)
+        public void Show(VisualElement contentRoot)
         {
-            RefreshInventory();
+            this.contentRoot = contentRoot;
+            isShown = contentRoot != null;
+            Refresh();
+        }
+
+        public void Hide()
+        {
+            isShown = false;
+            hoveredUnit = null;
+            detailPanel = null;
+            contentRoot = null;
+        }
+
+        private void HandleInventoryChanged(IInventoryItem item)
+        {
+            if (item == null || item.ItemType != ItemType.Magic) return;
+            Refresh();
         }
 
         private void HandleCatalogChanged(PureDataUnit unitData)
         {
-            RefreshInventory();
+            Refresh();
         }
 
-        public void RefreshInventory()
+        private void HandleFavoriteSlotChanged(int index, PureDataUnit unit)
         {
-            if (catalogService == null) return;
-            if (inventoryContainer == null) return;
+            Refresh();
+        }
 
-            var possessedUnits = catalogService.GetPossessedUnits();
-            Debug.Log($"[UnitInventoryUIComponent] Inventory Refreshed. Possessed Count: {possessedUnits.Count}");
+        /// <summary>마법 탭 내용을 다시 그린다(탭이 보이는 동안만).</summary>
+        public void Refresh()
+        {
+            if (!isShown || contentRoot == null) return;
 
-            // 좌: 행 목록(스크롤), 우: 호버 상세 패널. 컨테이너는 UXML의 줄바꿈 그리드 대신 2열 레이아웃으로 쓴다.
-            inventoryContainer.Clear();
-            inventoryContainer.style.flexDirection = FlexDirection.Row;
-            inventoryContainer.style.flexWrap = Wrap.NoWrap;
+            var magicItems = inventoryService.GetItems(ItemType.Magic);
+            Debug.Log($"[MagicInventoryTabView] Magic tab refreshed. Possessed Count: {magicItems.Count}");
+
+            // 좌: 행 목록(스크롤), 우: 호버 상세 패널(2열 레이아웃).
+            contentRoot.Clear();
+
+            var layout = new VisualElement();
+            layout.pickingMode = PickingMode.Ignore;
+            layout.style.flexGrow = 1;
+            layout.style.flexDirection = FlexDirection.Row;
+            layout.style.flexWrap = Wrap.NoWrap;
 
             var listView = new ScrollView(ScrollViewMode.Vertical);
             listView.style.flexGrow = 1;
@@ -198,17 +156,18 @@ namespace UnitSystem
             listView.RegisterCallback<PointerLeaveEvent>(_ => SetHoveredUnit(null));
 
             bool hoveredStillPossessed = false;
-            foreach (var unitData in possessedUnits)
+            for (int i = 0; i < magicItems.Count; i++)
             {
-                if (unitData == null) continue;
+                if (!(magicItems[i] is PureDataUnit unitData) || unitData == null) continue;
 
                 if (unitData == hoveredUnit) hoveredStillPossessed = true;
                 listView.Add(BuildUnitElement(unitData));
             }
-            inventoryContainer.Add(listView);
+            layout.Add(listView);
 
             detailPanel = BuildDetailPanel();
-            inventoryContainer.Add(detailPanel);
+            layout.Add(detailPanel);
+            contentRoot.Add(layout);
 
             // 클릭 등으로 목록이 다시 그려져도 포인터가 올라가 있던 마법의 상세는 유지한다.
             if (!hoveredStillPossessed) hoveredUnit = null;
@@ -218,6 +177,7 @@ namespace UnitSystem
         private VisualElement BuildDetailPanel()
         {
             var panel = new VisualElement();
+            panel.name = "MagicDetailPanel";
             panel.pickingMode = PickingMode.Ignore;
             panel.style.width = DetailPanelWidth;
             panel.style.flexShrink = 0;
@@ -296,6 +256,7 @@ namespace UnitSystem
 
             // 한 행 = 아이콘(클릭 대상) + 이름/설명 열 + 장착 상태. 행에 마우스를 올리면 우측 상세 패널을 갱신한다.
             var slotElement = new VisualElement();
+            slotElement.name = $"MagicRow_{unitData.name}";
             slotElement.style.flexDirection = FlexDirection.Row;
             slotElement.style.alignItems = Align.Center;
             slotElement.style.paddingTop = 6;
@@ -312,6 +273,7 @@ namespace UnitSystem
             slotElement.RegisterCallback<PointerEnterEvent>(_ => SetHoveredUnit(hoverUnit));
 
             var unitElement = new VisualElement();
+            unitElement.name = $"MagicIcon_{unitData.name}";
             unitElement.style.flexShrink = 0;
             unitElement.style.width = 48;
             unitElement.style.height = 48;
@@ -341,7 +303,14 @@ namespace UnitSystem
 
             PureDataUnit captureUnit = unitData;
             unitElement.RegisterCallback<ClickEvent>(_ => OnUnitClicked(captureUnit));
-            unitElement.RegisterCallback<ContextClickEvent>(_ => OnUnitContextClicked(captureUnit));
+            // 우클릭 = 즐겨찾기 등록. 런타임 패널은 ContextClickEvent를 발행하지 않으므로(실제 입력 주입으로 확인, 33번 검증)
+            // 포인터 다운의 버튼(1 = 오른쪽)으로 판별한다(12번 기획서 "PointerDownEvent+버튼 판별" 방식).
+            unitElement.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 1) return;
+                OnUnitContextClicked(captureUnit);
+                evt.StopPropagation();
+            });
 
             string statusText = isEquipped ? "장착됨" : (canEquip ? "미장착" : "장착 불가");
             Color statusColor = isEquipped ? EquippedBorderColor : (canEquip ? DefaultBorderColor : DisabledTint);
@@ -390,12 +359,13 @@ namespace UnitSystem
             slotElement.Add(textColumn);
             slotElement.Add(statusLabel);
 
-            // 즐겨찾기(W/E/F) 등록 배지 — 인벤토리에서 장착 유닛을 우클릭해 RuntimeDataMagicFavoriteSlots에
+            // 즐겨찾기(W/E/F) 등록 배지 — 장착 마법을 우클릭해 RuntimeDataMagicFavoriteSlots에
             // 등록되면 아이콘 모서리에 "[W]"/"[E]"/"[F]" 라벨로 표시한다(12번 기획서 §3 시청각 전달).
             int favoriteIndex = favoriteSlots != null ? favoriteSlots.FindSlotOf(unitData) : -1;
             if (favoriteIndex >= 0)
             {
                 var favoriteBadge = new Label($"[{FavoriteSlotKeyLabels[favoriteIndex]}]");
+                favoriteBadge.name = "MagicFavoriteBadge";
                 favoriteBadge.pickingMode = PickingMode.Ignore;
                 favoriteBadge.style.position = Position.Absolute;
                 favoriteBadge.style.top = -6;
@@ -428,18 +398,18 @@ namespace UnitSystem
 
             if (!catalogService.TryEquipUnit(unitData, out var failReason))
             {
-                Debug.LogWarning($"[UnitInventoryUIComponent] Cannot equip {unitData.name}: {failReason}");
+                Debug.LogWarning($"[MagicInventoryTabView] Cannot equip {unitData.name}: {failReason}");
             }
         }
 
         /// <summary>
-        /// 장착된 유닛 우클릭 시 즐겨찾기(W/E/F) 슬롯에 등록한다(12번 기획서 §3/§4).
-        /// 이미 등록돼 있으면 다음 슬롯으로 순환하되, 다음 슬롯에 다른 유닛이 있으면 지우지 않고
+        /// 장착된 마법 우클릭 시 즐겨찾기(W/E/F) 슬롯에 등록한다(12번 기획서 §3/§4).
+        /// 이미 등록돼 있으면 다음 슬롯으로 순환하되, 다음 슬롯에 다른 마법이 있으면 지우지 않고
         /// 서로 자리를 맞바꾼다(스왑, 기획서 §6-1 — 다음 슬롯이 비어있었으면 원래 슬롯만 비워진다).
-        /// 미등록 유닛은 비어있는 슬롯이 있으면 그 중 빈 슬롯(W 우선)에 등록,
+        /// 미등록 마법은 비어있는 슬롯이 있으면 그 중 빈 슬롯(W 우선)에 등록,
         /// 3개 모두 차있으면 W(0번)부터 덮어쓰는 것을 합리적 기본값으로 채택한다
         /// (기획서 §6 — 정확한 교체 정책은 범위 밖, 구현 시 기본값으로 정함).
-        /// 미장착 유닛의 우클릭은 무시한다.
+        /// 미장착 마법의 우클릭은 무시한다.
         /// </summary>
         private void OnUnitContextClicked(PureDataUnit unitData)
         {
@@ -466,55 +436,6 @@ namespace UnitSystem
             }
 
             favoriteSlots.AssignSlot(0, unitData);
-        }
-
-        public void ToggleInventory()
-        {
-            if (m_isOpen)
-            {
-                CloseInventory();
-            }
-            else
-            {
-                OpenInventory();
-            }
-        }
-
-        public void OpenInventory()
-        {
-            // 13번 기획서 §3 "이벤트 중 차단": 이벤트(3단계 감속) 진행 중에는 인벤토리를 열지 않는다.
-            // (이미 열려 있는 경우의 닫기는 CloseInventory가 그대로 허용한다.)
-            if (timeSlowData != null && timeSlowData.IsEventTriggered) return;
-
-            m_isOpen = true;
-
-            RefreshInventory();
-
-            if (inventoryContainer != null)
-            {
-                inventoryContainer.style.display = DisplayStyle.Flex;
-            }
-
-            timeScaleService?.SetPaused(this, true);
-
-            var manager = m_inputContextManager;
-            manager?.PushContext(manager.UIContext);
-        }
-
-        public void CloseInventory()
-        {
-            m_isOpen = false;
-            SetHoveredUnit(null);
-
-            if (inventoryContainer != null)
-            {
-                inventoryContainer.style.display = DisplayStyle.None;
-            }
-
-            timeScaleService?.SetPaused(this, false);
-
-            var manager = m_inputContextManager;
-            manager?.PopContext(manager.UIContext);
         }
     }
 }
